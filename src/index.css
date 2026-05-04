@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-accent: #facc15;
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.5rem;
+  z-index: 1;
+}
+
+.status-pending { background-color: #fef3c7; color: #b45309; }
+.status-responding { background-color: #dbeafe; color: #1d4ed8; }
+.status-resolved { background-color: #d1fae5; color: #047857; }
+
+.type-crime { background-color: #dc2626; }
+.type-accident { background-color: #f59e0b; }
+.type-fire { background-color: #ea580c; }
+.type-flood { background-color: #2563eb; }
+.type-disturbance { background-color: #7c3aed; }
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
