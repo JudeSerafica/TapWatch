@@ -83,7 +83,7 @@ export default function AdminDashboard() {
         <TopBar title="Officials Dashboard">
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-green-500" />Live
+            <span className="w-2 h-2 rounded-full bg-blue-500" />Live
           </span>
         </TopBar>
         <AdminNavTabs />

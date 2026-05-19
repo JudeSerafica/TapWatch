@@ -2,10 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, MapPin, BarChart3 } from 'lucide-react'
 
 const tabs = [
-  { path: '/admin', label: 'Officials Dashboard', icon: LayoutDashboard },
-  { path: '/admin-map', label: 'Incident Map', icon: MapPin },
-  { path: '/admin-reports', label: 'All Reports', icon: FileText },
-  { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
+
 ]
 
 export default function AdminNavTabs() {

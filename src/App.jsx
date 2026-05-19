@@ -10,6 +10,7 @@ import IncidentMap from './pages/IncidentMap'
 import AdminDashboard from './pages/AdminDashboard'
 import AllReports from './pages/AllReports'
 import Analytics from './pages/AnalyticsPage'
+import Profile from './pages/Profile'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/profile-setup" element={<ProfileSetup />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/report" element={<ReportIncident />} />
           <Route path="/map" element={<IncidentMap />} />

@@ -18,12 +18,13 @@ export default function ProfileSetup() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!form.contactNumber) {
-      setError('Contact number is required')
-      return
-    }
     setLoading(true)
-    const { error } = await saveProfile(form)
+    const { error } = await saveProfile({
+      fullName: form.fullName,
+      phone: form.contactNumber,
+      address: form.address,
+      purok: form.address,
+    })
     setLoading(false)
     if (error) {
       setError(error)
@@ -67,11 +68,10 @@ export default function ProfileSetup() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Number <span className="text-red-500">*</span>
+                Contact Number (Optional)
               </label>
               <input
                 type="tel"
-                required
                 value={form.contactNumber}
                 onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
