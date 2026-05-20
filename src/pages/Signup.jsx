@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { FaShieldAlt } from "react-icons/fa";
+import { FaUsers } from "react-icons/fa";
+import { FaBell } from "react-icons/fa";
 
 export default function Signup() {
   const navigate = useNavigate()
@@ -57,14 +60,117 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-          {/* Logo */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 flex justify-center">
-            <img src="/Tapinac.logo.jpg" alt="Tap-Watch Logo" className="h-16 w-16 object-contain" />
-          </div>
+    <div
+  className="h-screen w-screen overflow-hidden bg-contain bg-center bg-no-repeat flex items-center justify-center px-4 relative"
+  style={{
+    backgroundImage: "url('/background.jpg')",
+    backgroundSize: "100% 100%",
+  }}
+>
+    <div className="absolute left-40 top-1/2 -translate-y-1/2 hidden lg:block z-10 scale-90 origin-left">
 
+  {/* DOTS */}
+  <div className="absolute -top-12 -left-8 grid grid-cols-5 gap-2 opacity-40">
+    {[...Array(20)].map((_, i) => (
+      <div key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
+    ))}
+  </div>
+
+  {/* LOGO */}
+  <img
+    src="/Tapinac.logo.jpg"
+    alt="TapWatch Logo"
+    className="w-24 h-24 object-contain mb-3"
+  />
+
+  {/* TITLE */}
+  <h1 className="text-[75px] font-bold leading-none">
+    <span className="text-black">Tap</span>
+    <span className="text-blue-600">-</span>
+    <span className="text-blue-600">Watch</span>
+  </h1>
+
+  {/* SUBTITLE */}
+  <p className="text-[30px] text-center text-black font-semibold mt-1">
+    Barangay East Tapinac
+  </p>
+
+  {/* LINE */}
+  <div className="w-[375px] h-[1px] bg-blue-200 mt-3 mb-3 relative">
+    <div className="absolute left-1/2 -translate-x-1/2 -top-[1px] w-8 h-[2px] bg-blue-600 rounded-full"></div>
+  </div>
+
+  {/* DESCRIPTION */}
+  <p className="text-[19px] text-center text-blue-600 font-medium mb-6">
+    Community Emergency Monitoring System
+  </p>
+
+  {/* FEATURES */}
+  <div className="space-y-5">
+
+    {/* FEATURE 1 */}
+    <div className="flex items-start gap-3">
+      <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+        <span className="text-white text-lg"><FaShieldAlt /></span>
+      </div>
+
+      <div>
+        <h3 className="text-[19px] font-semibold text-black">
+          Report Incidents
+        </h3>
+        <p className="text-[15px] text-gray-700 leading-6">
+          Quickly report emergencies<br />
+          in your area
+        </p>
+      </div>
+    </div>
+
+    {/* FEATURE 2 */}
+    <div className="flex items-start gap-3">
+      <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+        <span className="text-white text-lg"><FaUsers className="text-white text-xl" /></span>
+      </div>
+
+      <div>
+        <h3 className="text-[19px] font-semibold text-black">
+          Community Safety
+        </h3>
+        <p className="text-[15px] text-gray-700 leading-6">
+          Working together for a<br />
+          safer community
+        </p>
+      </div>
+    </div>
+
+    {/* FEATURE 3 */}
+    <div className="flex items-start gap-3">
+      <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+        <span className="text-white text-lg"><FaBell className="text-white text-xl" /></span>
+      </div>
+
+      <div>
+        <h3 className="text-[19px] font-semibold text-black">
+          Real-time Updates
+        </h3>
+        <p className="text-[15px] text-gray-700 leading-6">
+          Stay informed with live<br />
+          incident updates
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {/* QUOTE */}
+  <div className="flex items-centergap-4 mt-35">
+    <p className="text-white text-[16px] leading-6">
+      “Together, we build a safer<br />
+      and stronger community.”
+    </p>
+  </div>
+</div>
+
+      <div className="w-full max-w-md lg:ml-auto lg:mr-60">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
           <div className="p-8">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h1>
