@@ -13,7 +13,7 @@ export default function LandingPage() {
         backgroundPosition: "center",
       }}
     >
-      <div className="flex flex-col items-center justify-center text-center max-w-md w-full">
+      <div className="flex flex-col items-center justify-center text-center max-w-md w-full -mt-10">
         {/* DOTS DECORATION - Top Left */}
         <div className="absolute top-8 left-8 grid grid-cols-5 gap-2 opacity-20 pointer-events-none">
           {[...Array(20)].map((_, i) => (
@@ -29,18 +29,18 @@ export default function LandingPage() {
         </div>
 
         {/* LOGO AND TITLE */}
-        <div className="mb-8 mt-25">
+        <div className="mb-15 mt-20">
           <img
             src="/Tapinac.logo.jpg"
             alt="TapWatch Logo"
-            className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-lg"
+            className="w-45 h-45 object-contain mx-auto mb-4 drop-shadow-lg"
           />
-          <h1 className="text-5xl md:text-6xl font-bold leading-tight">
+          <h1 className="text-5xl md:text-5xl font-bold leading-tight">
             <span className="text-black">Tap</span>
             <span className="text-blue-600">-</span>
             <span className="text-blue-600">Watch</span>
           </h1>
-          <p className="text-[25px] text-center text-black font-semibold mt-1">
+          <p className="text-[20px] text-center text-black font-semibold mt-1">
             Barangay East Tapinac
           </p>
           {/* LINE */}
@@ -55,7 +55,7 @@ export default function LandingPage() {
         </div>
 
         {/* FEATURES CARDS */}
-        <div className="space-y-2 mb-6 w-full">
+        <div className="space-y-2 mb-10 w-full -mt-15">
           {/* Report Incidents */}
           <div className="bg-white/90 border border-gray-200 shadow-md rounded-xl p-4 backdrop-blur-md hover:bg-white/95 hover:shadow-lg transition-all transform hover:scale-105">
             <div className="flex items-center gap-3">
@@ -99,7 +99,7 @@ export default function LandingPage() {
         {/* LOGIN BUTTON */}
         <button
           onClick={() => navigate('/login')}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg mb-4 transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg mb-3 transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
         >
           Login
         </button>
@@ -107,7 +107,7 @@ export default function LandingPage() {
         {/* CREATE ACCOUNT LINK */}
         <button
           onClick={() => navigate('/signup')}
-          className="w-full bg-white/20 hover:bg-white/30 text-blue-600 font-semibold py-3 px-6 rounded-lg border-2 border-blue-600 hover:border-blue-700 hover:text-blue-600 hover:bg-white/60 transition-all transform hover:scale-105 active:scale-95 backdrop-blur-sm"
+          className="w-full bg-white/20 hover:bg-white/30 text-blue-600 font-semibold py-3 px-6 mb-1 rounded-lg border-2 border-blue-600 hover:border-blue-700 hover:text-blue-600 hover:bg-white/60 transition-all transform hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           Create an Account
         </button>

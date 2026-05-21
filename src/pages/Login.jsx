@@ -92,7 +92,7 @@ export default function Login() {
   <img
     src="/Tapinac.logo.jpg"
     alt="TapWatch Logo"
-    className="w-24 h-24 object-contain mb-3"
+    className="w-45 h-45 object-contain mx-auto mb-3 drop-shadow-lg"
   />
 
   {/* TITLE */}
@@ -118,7 +118,7 @@ export default function Login() {
   </p>
 
   {/* FEATURES */}
-  <div className="space-y-5">
+  <div className="space-y-5 mb-21">
 
     {/* FEATURE 1 */}
     <div className="flex items-start gap-3">
@@ -173,12 +173,13 @@ export default function Login() {
   </div>
 
   {/* QUOTE */}
-  <div className="flex items-centergap-4 mt-35">
+  <div className="flex items-centergap-4 mb-6">
     <p className="text-white text-[16px] leading-6">
       “Together, we build a safer<br />
       and stronger community.”
     </p>
   </div>
+
 </div>
       <div className="w-full max-w-md lg:ml-auto lg:mr-60">
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">

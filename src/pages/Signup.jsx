@@ -80,7 +80,7 @@ export default function Signup() {
   <img
     src="/Tapinac.logo.jpg"
     alt="TapWatch Logo"
-    className="w-24 h-24 object-contain mb-3"
+    className="w-45 h-45 object-contain mx-auto mb-3 drop-shadow-lg"
   />
 
   {/* TITLE */}
@@ -106,7 +106,7 @@ export default function Signup() {
   </p>
 
   {/* FEATURES */}
-  <div className="space-y-5">
+  <div className="space-y-5 mb-21">
 
     {/* FEATURE 1 */}
     <div className="flex items-start gap-3">
@@ -161,7 +161,7 @@ export default function Signup() {
   </div>
 
   {/* QUOTE */}
-  <div className="flex items-centergap-4 mt-35">
+  <div className="flex items-centergap-4 mb-6">
     <p className="text-white text-[16px] leading-6">
       “Together, we build a safer<br />
       and stronger community.”
