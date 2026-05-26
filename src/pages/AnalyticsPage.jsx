@@ -1,4 +1,4 @@
-import { TrendingUp, Calendar, Percent, MapPin, Flame } from 'lucide-react'
+import { TrendingUp, Calendar, Percent, Flame, MapPin } from 'lucide-react'
 import { Line, Doughnut, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 import { useState, useEffect } from 'react'
@@ -21,38 +21,38 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    setLoading(true)
-    const { data: statsData } = await getIncidentStats('7d')
-    const { data: hotspotsData } = await getHotspots()
-    
-    if (statsData) {
-      const total = statsData.total
-      const resolved = statsData.byStatus.resolved || 0
-      const rate = total > 0 ? Math.round((resolved/total)*100) : 0
+    const loadStats = async () => {
+      setLoading(true)
+      const { data: statsData } = await getIncidentStats('7d')
+      const { data: hotspotsData } = await getHotspots()
       
-      const tc = ['crime','accident','fire','flood','disturbance'].map(t=>statsData.byType[t] || 0)
-      const sc = ['pending','responding','resolved'].map(s=>statsData.byStatus[s] || 0)
-      
-      const hs = Object.entries(hotspotsData || {}).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([loc,d])=>{
-        const tt=Object.entries(d.types).sort((a,b)=>b[1]-a[1])[0]
-        return{location:loc,count:d.count,type:tt[0]}
-      })
+      if (statsData) {
+        const total = statsData.total
+        const resolved = statsData.byStatus.resolved || 0
+        const rate = total > 0 ? Math.round((resolved/total)*100) : 0
+        
+        const tc = ['crime','accident','fire','flood','disturbance'].map(t=>statsData.byType[t] || 0)
+        const sc = ['pending','responding','resolved'].map(s=>statsData.byStatus[s] || 0)
+        
+        const hs = Object.entries(hotspotsData || {}).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([loc,d])=>{
+          const tt=Object.entries(d.types).sort((a,b)=>b[1]-a[1])[0]
+          return{location:loc,count:d.count,type:tt[0]}
+        })
 
-      setStats({
-        total,
-        thisWeek: 0,
-        rate,
-        tc,
-        sc,
-        hs
-      })
+        setStats({
+          total,
+          thisWeek: 0,
+          rate,
+          tc,
+          sc,
+          hs
+        })
+      }
+      setLoading(false)
     }
-    setLoading(false)
-  }
+    
+    loadStats()
+  }, [])
 
   const lineData = { labels:['Apr 21','Apr 22','Apr 23','Apr 24','Apr 25','Apr 26','Apr 27'], datasets:[{data:[0,0,0,0,0,0,stats?.total||0],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',pointBackgroundColor:'#3b82f6',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,tension:0.3,fill:true}] }
   const lineOpts = { ...base, scales:{...xy,y:{...xy.y,max:Math.max(4, (stats?.total||0)+1),ticks:{...xy.y.ticks,stepSize:1}}} }
@@ -74,9 +74,9 @@ export default function Analytics() {
     return (
       <div className="flex min-h-screen bg-gray-50">
         <AdminSidebar />
-        <div className="flex-1 ml-60">
+        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
           <TopBar title="Analytics" />
-          <div className="p-6 flex items-center justify-center">
+          <div className="p-4 md:p-6 flex items-center justify-center">
             <div className="text-gray-500">Loading analytics...</div>
           </div>
         </div>
@@ -104,7 +104,6 @@ export default function Analytics() {
 
           <div className="grid grid-cols-4 gap-4">
             {summaryStats.map((s,i)=>{
-              const Icon=s.icon
               return (
                 <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 text-center">
                   <div className={`text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, MapPin, FileText, LogOut, User } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -18,7 +18,7 @@ export default function ResidentSidebar() {
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <aside className="w-60 min-h-screen bg-gray-900 text-gray-50 flex flex-col fixed left-0 top-0 z-50">
+    <aside className="hidden md:flex w-60 min-h-screen bg-gray-900 text-gray-50 flex-col fixed left-0 top-0 z-50">
       <div className="p-6 border-b border-gray-800">
         <div className="font-bold text-lg">Tap-Watch</div>
         <div className="text-xs text-gray-400">Incident System</div>

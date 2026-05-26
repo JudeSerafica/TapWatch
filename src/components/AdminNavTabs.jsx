@@ -1,9 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, MapPin, BarChart3 } from 'lucide-react'
 
-const tabs = [
-
-]
+const tabs = []
 
 export default function AdminNavTabs() {
   const location = useLocation()

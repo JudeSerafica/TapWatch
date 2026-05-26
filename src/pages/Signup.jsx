@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
+import { sendOTP, verifyOTP } from '../lib/otp'
 import { FaShieldAlt } from "react-icons/fa";
 import { FaUsers } from "react-icons/fa";
 import { FaBell } from "react-icons/fa";
 
 export default function Signup() {
   const navigate = useNavigate()
-  const { signUp, verifyOtp } = useAuth()
+  const { signUp } = useAuth()
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '', confirmPassword: '', mode: 'phone', otp: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,25 +28,27 @@ export default function Signup() {
     setLoading(true)
     
     if (form.mode === 'phone' && !showOtpInput) {
-      const { user, error } = await signUp({ name: form.name, phone: form.phone, password: form.password })
+      const { error } = await sendOTP(form.phone)
       setLoading(false)
       if (error) {
-        setError(error)
+        setError('Failed to send OTP: ' + error.message)
       } else {
         setShowOtpInput(true)
         setPendingPhone(form.phone)
-        setError('OTP sent to your phone. Please enter the code to verify.')
+        setError(`✅ OTP sent to ${form.phone}. Check browser console for code! 👀`)
       }
     } else if (form.mode === 'phone' && showOtpInput) {
-      const { user, error } = await verifyOtp(pendingPhone, form.otp)
+      const { isValid, error } = await verifyOTP(pendingPhone, form.otp)
       setLoading(false)
       if (error) {
-        setError(error)
-      } else {
+        setError('OTP verification failed: ' + error.message)
+      } else if (isValid) {
         navigate('/profile-setup')
+      } else {
+        setError('Invalid or expired OTP. Please try again.')
       }
     } else {
-      const { user, error } = await signUp({ name: form.name, email: form.email, password: form.password })
+      const { error } = await signUp({ name: form.name, email: form.email, password: form.password })
       setLoading(false)
       if (error) {
         if (error.toLowerCase().includes('rate limit') || error.includes('429')) {
@@ -68,13 +71,6 @@ export default function Signup() {
   }}
 >
     <div className="absolute left-40 top-1/2 -translate-y-1/2 hidden lg:block z-10 scale-90 origin-left">
-
-  {/* DOTS */}
-  <div className="absolute -top-12 -left-8 grid grid-cols-5 gap-2 opacity-40">
-    {[...Array(20)].map((_, i) => (
-      <div key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
-    ))}
-  </div>
 
   {/* LOGO */}
   <img
@@ -106,7 +102,7 @@ export default function Signup() {
   </p>
 
   {/* FEATURES */}
-  <div className="space-y-5 mb-21">
+  <div className="space-y-5 mb-40">
 
     {/* FEATURE 1 */}
     <div className="flex items-start gap-3">
@@ -159,17 +155,9 @@ export default function Signup() {
       </div>
     </div>
   </div>
-
-  {/* QUOTE */}
-  <div className="flex items-centergap-4 mb-6">
-    <p className="text-white text-[16px] leading-6">
-      “Together, we build a safer<br />
-      and stronger community.”
-    </p>
-  </div>
 </div>
 
-      <div className="w-full max-w-md lg:ml-auto lg:mr-60">
+      <div className="w-full max-w-md lg:ml-auto lg:mr-90">
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
           <div className="p-8">
             <div className="mb-8">

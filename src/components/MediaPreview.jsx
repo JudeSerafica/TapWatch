@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { X, Play, Image as ImageIcon } from 'lucide-react'
 
 export default function MediaPreview({ mediaUrl, mediaName, isOpen, onClose }) {
   if (!isOpen || !mediaUrl) return null
 
   const isVideo = mediaUrl.startsWith('data:video') || mediaName?.endsWith('.mp4') || mediaName?.endsWith('.webm') || mediaName?.endsWith('.mov')
-  const isImage = mediaUrl.startsWith('data:image') || mediaName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">

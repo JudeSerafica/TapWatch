@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   MapContainer,
   TileLayer,
@@ -14,8 +13,9 @@ import L from 'leaflet'
 import ResidentSidebar from '../components/ResidentSidebar'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
+import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
@@ -94,7 +94,7 @@ function MapBoundsHandler() {
       ref={geoJsonRef}
       data={eastTapinacGeoJSON}
       style={{
-        color: '#FF0000',
+        color: '#1d4ed8',
         weight: 5,
         opacity: 0.7,
         fillColor: '#3b82f6',
@@ -105,7 +105,6 @@ function MapBoundsHandler() {
 }
 
 export default function IncidentMap() {
-  const navigate = useNavigate()
   const { isAdmin } = useAuth()
 
   const [incidents, setIncidents] = useState([])
@@ -114,7 +113,18 @@ export default function IncidentMap() {
   const [statusFilter, setStatusFilter] = useState('All Status')
 
   useEffect(() => {
-    fetchIncidents()
+    const loadIncidents = async () => {
+      setLoading(true)
+      const { data, error } = await getIncidents()
+      if (error) {
+        console.error('Error fetching incidents:', error)
+      } else {
+        setIncidents(data || [])
+      }
+      setLoading(false)
+    }
+    
+    loadIncidents()
 
     const subscription = subscribeToIncidents((payload) => {
       if (payload.eventType === 'INSERT') {
@@ -132,20 +142,6 @@ export default function IncidentMap() {
 
     return () => subscription.unsubscribe()
   }, [])
-
-  const fetchIncidents = async () => {
-    setLoading(true)
-
-    const { data, error } = await getIncidents()
-
-    if (error) {
-      console.error('Error fetching incidents:', error)
-    } else {
-      setIncidents(data || [])
-    }
-
-    setLoading(false)
-  }
 
   const filtered = incidents.filter((i) => {
     if (
@@ -170,13 +166,14 @@ export default function IncidentMap() {
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
 
-        <div className="flex-1 ml-60">
+        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
           <TopBar title="Incident Map" />
 
-          <div className="p-6 flex items-center justify-center">
+          <div className="p-4 md:p-6 flex items-center justify-center">
             <div className="text-gray-500">Loading map...</div>
           </div>
         </div>
+        <MobileBottomNav />
       </div>
     )
   }
@@ -185,7 +182,7 @@ export default function IncidentMap() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
 
-      <div className="flex-1 ml-60">
+      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
         <TopBar title="Incident Map">
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
             <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -195,14 +192,14 @@ export default function IncidentMap() {
 
         {isAdmin && <AdminNavTabs />}
 
-        <main className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
+        <main className="p-4 md:p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">
                 Incident Map
               </h2>
 
-              <div className="flex items-center gap-4 mt-2">
+              <div className="hidden md:flex items-center gap-3 mt-2">
                 {Object.entries(typeColors).map(([type, color]) => (
                   <div
                     key={type}
@@ -221,13 +218,13 @@ export default function IncidentMap() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {/* TYPE FILTER */}
-              <div className="relative">
+              <div className="relative flex-1 md:flex-none">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none"
+                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
                 >
                   <option>All Types</option>
                   <option>Crime</option>
@@ -244,11 +241,11 @@ export default function IncidentMap() {
               </div>
 
               {/* STATUS FILTER */}
-              <div className="relative">
+              <div className="relative flex-1 md:flex-none">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none"
+                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
                 >
                   <option>All Status</option>
                   <option>Pending</option>
@@ -265,7 +262,7 @@ export default function IncidentMap() {
           </div>
 
           {/* MAP */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden h-[580px]">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden h-96 md:h-[580px]">
             <MapContainer
               center={[14.835, 120.283]}
               zoom={15}
@@ -334,6 +331,7 @@ export default function IncidentMap() {
           </p>
         </main>
       </div>
+      <MobileBottomNav />
     </div>
   )
 }

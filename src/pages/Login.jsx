@@ -1,74 +1,76 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/useAuth'
+import { sendOTP, verifyOTP } from '../lib/otp'
 import { FaShieldAlt } from "react-icons/fa";
 import { FaUsers } from "react-icons/fa";
 import { FaBell } from "react-icons/fa";
 
 export default function Login() {
   const navigate = useNavigate()
-  const { signIn, signUp, verifyOtp, profile } = useAuth()
+  const { signIn, profile } = useAuth()
   const [form, setForm] = useState({ email: '', phone: '', password: '', mode: 'email', otp: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showOtpInput, setShowOtpInput] = useState(false)
   const [pendingPhone, setPendingPhone] = useState('')
+  const [loginSuccess, setLoginSuccess] = useState(false)
+
+  // Redirect after login
+  useEffect(() => {
+  if (loginSuccess && profile !== null && profile !== undefined) {
+    if (profile.role === 'admin') {
+      navigate('/admin')
+    } else {
+      navigate('/dashboard')
+    }
+  }
+}, [loginSuccess, profile, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    
-    const timeoutId = setTimeout(() => {
-      setLoading(false)
-      setError('Login timed out. Please check your connection and try again.')
-    }, 10000)
-    
     try {
       if (form.mode === 'phone' && !showOtpInput) {
-        const { user, error } = await signIn({ phone: form.phone })
-        clearTimeout(timeoutId)
+        const { error } = await sendOTP(form.phone)
         setLoading(false)
         if (error) {
-          setError(error)
+          setError('Failed to send OTP: ' + error.message)
         } else {
           setShowOtpInput(true)
           setPendingPhone(form.phone)
-          setError('OTP sent to your phone. Please enter the code.')
+          setError(`✅ OTP sent to ${form.phone}. Check browser console for code! 👀`)
         }
       } else if (form.mode === 'phone' && showOtpInput) {
-        const { user, error } = await verifyOtp(pendingPhone, form.otp)
-        clearTimeout(timeoutId)
-        setLoading(false)
+        const { isValid, error } = await verifyOTP(pendingPhone, form.otp)
         if (error) {
-          setError(error)
+          setLoading(false)
+          setError('OTP verification failed: ' + error.message)
+        } else if (isValid) {
+          setLoginSuccess(true)
         } else {
-          if (profile?.role === 'admin') {
-            navigate('/admin')
-          } else {
-            navigate('/dashboard')
-          }
+          setLoading(false)
+          setError('Invalid or expired OTP. Please try again.')
         }
       } else {
-        const { user, error } = await signIn({ email: form.email, password: form.password })
-        clearTimeout(timeoutId)
-        setLoading(false)
+        const { error } = await signIn({ email: form.email, password: form.password })
         if (error) {
+          setLoading(false)
           setError(error)
         } else {
-          if (profile?.role === 'admin') {
-            navigate('/admin')
-          } else {
-            navigate('/dashboard')
-          }
+          setLoginSuccess(true)
         }
       }
-    } catch (err) {
-      clearTimeout(timeoutId)
+    } catch {
       setLoading(false)
+      setLoginSuccess(false)
       setError('An unexpected error occurred. Please try again.')
     }
+  }
+
+  if (loginSuccess) {
+    return null
   }
 
   return (
@@ -80,13 +82,6 @@ export default function Login() {
   }}
 >
   <div className="absolute left-40 top-1/2 -translate-y-1/2 hidden lg:block z-10 scale-90 origin-left">
-
-  {/* DOTS */}
-  <div className="absolute -top-12 -left-8 grid grid-cols-5 gap-2 opacity-40">
-    {[...Array(20)].map((_, i) => (
-      <div key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
-    ))}
-  </div>
 
   {/* LOGO */}
   <img
@@ -118,7 +113,7 @@ export default function Login() {
   </p>
 
   {/* FEATURES */}
-  <div className="space-y-5 mb-21">
+  <div className="space-y-5 mb-40">
 
     {/* FEATURE 1 */}
     <div className="flex items-start gap-3">
@@ -172,16 +167,8 @@ export default function Login() {
     </div>
   </div>
 
-  {/* QUOTE */}
-  <div className="flex items-centergap-4 mb-6">
-    <p className="text-white text-[16px] leading-6">
-      “Together, we build a safer<br />
-      and stronger community.”
-    </p>
-  </div>
-
 </div>
-      <div className="w-full max-w-md lg:ml-auto lg:mr-60">
+      <div className="w-full max-w-md lg:ml-auto lg:mr-90">
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
           <div className="p-8">
             <div className="mb-8">
@@ -193,7 +180,7 @@ export default function Login() {
               <div className="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">{error}</div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-0">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {form.mode === 'email' ? 'Email' : 'Phone Number'}
@@ -205,7 +192,7 @@ export default function Login() {
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                    placeholder="you@example.com"
+                    placeholder="resident@gmail.com"
                   />
                 ) : (
                   <input
@@ -282,59 +269,6 @@ export default function Login() {
                 Sign up
               </button>
             </p>
-
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <p className="text-center text-xs text-gray-500 mb-3">Demo Accounts (for testing)</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLoading(true)
-                    setError('')
-                    try {
-                      const { user, error } = await signIn({ email: 'demo@tapwatch.com', password: 'demo123' })
-                      setLoading(false)
-                      if (error) {
-                        setError('Demo resident error: ' + error)
-                      } else if (user) {
-                        navigate('/dashboard')
-                      }
-                    } catch (err) {
-                      setLoading(false)
-                      setError('Error: ' + err.message)
-                    }
-                  }}
-                  disabled={loading}
-                  className="py-2 px-3 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm font-medium hover:bg-blue-100 disabled:opacity-50"
-                >
-                  Demo Resident
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setLoading(true)
-                    setError('')
-                    try {
-                      const { user, error } = await signIn({ email: 'admin@tapwatch.com', password: 'admin123' })
-                      setLoading(false)
-                      if (error) {
-                        setError('Demo admin error: ' + error)
-                      } else if (user) {
-                        navigate('/admin')
-                      }
-                    } catch (err) {
-                      setLoading(false)
-                  setError('Error: ' + err.message)
-                }
-              }}
-              disabled={loading}
-              className="py-2 px-3 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm font-medium hover:bg-blue-100 disabled:opacity-50"
-            >
-              Demo Admin
-            </button>
-          </div>
-          <p className="text-center text-xs text-gray-400 mt-3">If buttons don't work, create demo accounts in Supabase first</p>
-            </div>
             
           </div>
         </div>

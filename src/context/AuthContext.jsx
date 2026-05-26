@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext()
@@ -8,33 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-        fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        await fetchProfile(session.user.id)
-      } else {
-        setUser(null)
-        setProfile(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async (userId, authUser) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -42,26 +16,60 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .single()
       
-      if (error) throw error
-      setProfile(data)
+      if (error) {
+        setProfile({ 
+          id: userId, 
+          role: 'resident', 
+          full_name: authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'User' 
+        })
+      } else {
+        setProfile(data)
+      }
     } catch (error) {
       console.error('Error fetching profile:', error)
+      setProfile({ id: userId, role: 'resident' })
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+  let initialized = false  // ← pigilan ang double fetch
+
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      setUser(session.user)
+      fetchProfile(session.user.id, session.user)
+    } else {
+      setLoading(false)
+    }
+    initialized = true
+  })
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (!initialized) return  // ← skip kung hindi pa tapos ang getSession
+    if (session?.user) {
+      setUser(session.user)
+      await fetchProfile(session.user.id, session.user)
+    } else {
+      setUser(null)
+      setProfile(null)
+      setLoading(false)
+    }
+  })
+
+  return () => subscription.unsubscribe()
+}, [])
 
   const signIn = async (credentials) => {
     try {
       let result
       
       if (credentials.phone) {
-        // Phone OTP login
         result = await supabase.auth.signInWithOtp({
           phone: credentials.phone,
         })
       } else if (credentials.email) {
-        // Email login
         result = await supabase.auth.signInWithPassword({
           email: credentials.email,
           password: credentials.password,
@@ -69,8 +77,8 @@ export function AuthProvider({ children }) {
       }
 
       if (result.error) throw result.error
-      
-      return { user: result.data?.user || { phone: credentials.phone }, error: null }
+    
+      return { user: result.data?.user, error: null }
     } catch (error) {
       return { user: null, error: error.message }
     }
@@ -97,7 +105,6 @@ export function AuthProvider({ children }) {
       let result
       
       if (credentials.phone) {
-        // Phone signup with OTP
         result = await supabase.auth.signUp({
           phone: credentials.phone,
           password: credentials.password,
@@ -108,7 +115,6 @@ export function AuthProvider({ children }) {
           },
         })
       } else if (credentials.email) {
-        // Email signup
         result = await supabase.auth.signUp({
           email: credentials.email,
           password: credentials.password,
@@ -121,7 +127,7 @@ export function AuthProvider({ children }) {
       }
 
       if (result.error) throw result.error
-      
+    
       return { user: result.data?.user, error: null }
     } catch (error) {
       return { user: null, error: error.message }
@@ -145,8 +151,7 @@ export function AuthProvider({ children }) {
 
       if (error) throw error
 
-      // Refresh profile
-      await fetchProfile(user.id)
+      await fetchProfile(user.id, user)
       return { error: null }
     } catch (error) {
       return { error: error.message }
@@ -176,8 +181,4 @@ export function AuthProvider({ children }) {
   )
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
-}
+export default AuthContext

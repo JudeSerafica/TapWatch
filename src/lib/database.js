@@ -42,16 +42,56 @@ export const getIncidentById = async (id) => {
 }
 
 export const createIncident = async (incidentData) => {
-  const { data, error } = await supabase
-    .from('incidents')
-    .insert([{
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error("AUTH ERROR:", authError)
+      return { data: null, error: authError }
+    }
+
+    if (!user) {
+      return {
+        data: null,
+        error: { message: "User not authenticated" },
+      }
+    }
+
+    const payload = {
       ...incidentData,
+      user_id: user.id,
+      status: incidentData.status || "pending",
       created_at: new Date().toISOString(),
-    }])
-    .select()
-    .single()
-  
-  return { data, error }
+    }
+
+    console.log("INSERT PAYLOAD:", payload)
+
+    const { data, error } = await supabase
+      .from("incidents")
+      .insert([payload])
+      .select()
+      .single()
+
+    if (error) {
+      console.error("SUPABASE INSERT ERROR:", error)
+      return { data: null, error }
+    }
+
+    console.log("INCIDENT INSERTED:", data)
+
+    return { data, error: null }
+
+  } catch (err) {
+    console.error("CREATE INCIDENT FAILED:", err)
+
+    return {
+      data: null,
+      error: err,
+    }
+  }
 }
 
 export const updateIncident = async (id, updates) => {
@@ -378,7 +418,7 @@ export const getPredictiveInsights = async () => {
 
   const avgCount = incidents.length / Object.keys(purokCounts).length
   insights.highRiskPuroks = Object.entries(purokCounts)
-    .filter(([_, count]) => count > avgCount * 1.5)
+    .filter(([, count]) => count > avgCount * 1.5)
     .map(([purok, count]) => ({ purok, count, risk: count > avgCount * 2 ? 'high' : 'medium' }))
 
   // Analyze by hour
