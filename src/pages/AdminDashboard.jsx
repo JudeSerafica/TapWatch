@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, Activity, Clock, Zap, CheckCircle, ChevronRight, Image as ImageIcon, Play } from 'lucide-react'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
-import MobileBottomNav from '../components/MobileBottomNav'
+import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import StatusBadge from '../components/StatusBadge'
 import IncidentIcon from '../components/IncidentIcon'
 import TopBar from '../components/TopBar'
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
             <div className="text-gray-500">Loading dashboard...</div>
           </div>
         </div>
-        <MobileBottomNav />
+        <AdminMobileBottomNav />
       </div>
     )
   }
@@ -89,6 +89,7 @@ export default function AdminDashboard() {
           </span>
         </TopBar>
         <AdminNavTabs />
+        <AdminMobileBottomNav />
 
         <main className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div className="flex flex-col gap-2">
@@ -224,7 +225,7 @@ export default function AdminDashboard() {
           onClose={() => setMediaPreviewOpen(false)}
         />
       </div>
-      <MobileBottomNav />
+      <AdminMobileBottomNav />
     </div>
   )
 }

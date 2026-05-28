@@ -15,6 +15,11 @@
     "@turf/turf": "^7.3.5",
     "autoprefixer": "^10.5.0",
     "chart.js": "^4.5.1",
+    "docx": "^9.7.0",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^5.0.8",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.11.0",
     "postcss": "^8.5.12",
@@ -24,7 +29,8 @@
     "react-icons": "^5.6.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.14.2",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

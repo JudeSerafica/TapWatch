@@ -7,6 +7,7 @@ import AdminNavTabs from '../components/AdminNavTabs'
 import TopBar from '../components/TopBar'
 import { getIncidentStats, getHotspots } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
+import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler)
 
@@ -85,100 +86,99 @@ export default function Analytics() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
-      <div className="flex-1 ml-60">
-        <TopBar title="Analytics">
-          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />Live
-          </span>
-        </TopBar>
-        <AdminNavTabs />
+  <div className="flex min-h-screen bg-gray-50">
+    <AdminSidebar />
+    <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <TopBar title="Analytics">
+        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
+          <span className="w-2 h-2 rounded-full bg-blue-500" />Live
+        </span>
+      </TopBar>
+      <AdminNavTabs />
 
-        <main className="p-6 space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Analytics & Hotspots</h2>
-            <p className="text-sm text-gray-500 mt-1">Incident trends and pattern analysis</p>
-          </div>
+      <main className="p-4 md:p-6 space-y-4 md:space-y-6">
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Analytics & Hotspots</h2>
+          <p className="text-sm text-gray-500 mt-1">Incident trends and pattern analysis</p>
+        </div>
 
-          <div className="grid grid-cols-4 gap-4">
-            {summaryStats.map((s,i)=>{
-              return (
-                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 text-center">
-                  <div className={`text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
-                  <div className="text-xs text-gray-500">{s.label}</div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-600" />7-Day Incident Trend
-              </h3>
-              <div className="h-56">
-                <Line data={lineData} options={lineOpts} />
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {summaryStats.map((s,i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 text-center">
+              <div className={`text-2xl md:text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
+              <div className="text-xs text-gray-500">{s.label}</div>
             </div>
+          ))}
+        </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Flame size={16} className="text-orange-500" />By Incident Type
-              </h3>
-              <div className="flex items-center gap-6">
-                <div className="h-44 w-44 relative">
-                  <Doughnut data={donutData} options={donutOpts} />
-                </div>
-                <div className="flex-1 space-y-2">
-                  {Object.entries(T).map(([k,v],i)=> (
-                    <div key={k} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{background:C[k]}} />
-                        <span className="text-gray-700">{v}</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{stats?.tc?.[i]||0}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp size={16} className="text-blue-600" />7-Day Incident Trend
+            </h3>
+            <div className="h-48 md:h-56">
+              <Line data={lineData} options={lineOpts} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Flame size={16} className="text-orange-500" />By Incident Type
+            </h3>
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
+              <div className="h-44 w-44 relative flex-shrink-0">
+                <Doughnut data={donutData} options={donutOpts} />
+              </div>
+              <div className="flex-1 w-full space-y-2">
+                {Object.entries(T).map(([k,v],i) => (
+                  <div key={k} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:C[k]}} />
+                      <span className="text-gray-700">{v}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Response Status</h3>
-              <div className="h-56">
-                <Bar data={barData} options={barOpts} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Flame size={16} className="text-red-500" />Incident Hotspots by Purok
-              </h3>
-              <div className="space-y-3">
-                {stats?.hs?.map((h,i)=> (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center">{i+1}</span>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{h.location}</div>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <IncidentIcon type={h.type} size={12} />
-                          <span className="text-xs text-gray-500 capitalize">{h.type}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{h.count}</span>
+                    <span className="font-semibold text-gray-900">{stats?.tc?.[i]||0}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Response Status</h3>
+            <div className="h-48 md:h-56">
+              <Bar data={barData} options={barOpts} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Flame size={16} className="text-red-500" />Incident Hotspots by Purok
+            </h3>
+            <div className="space-y-3">
+              {stats?.hs?.map((h,i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{i+1}</span>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{h.location}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <IncidentIcon type={h.type} size={12} />
+                        <span className="text-xs text-gray-500 capitalize">{h.type}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">{h.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-  )
+    <AdminMobileBottomNav />
+  </div>
+)
 }
