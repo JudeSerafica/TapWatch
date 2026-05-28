@@ -5,7 +5,7 @@ import { useAuth } from '../context/useAuth'
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/report', label: 'Report Incident', icon: FileText },
-  { path: '/map', label: 'Incident Map', icon: MapPin },
+  { path: '/resident-map', label: 'Incident Map', icon: MapPin },
   { path: '/profile', label: 'My Profile', icon: User },
 ]
 

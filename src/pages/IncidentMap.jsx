@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   MapContainer,
   TileLayer,
@@ -28,30 +29,37 @@ const typeColors = {
   disturbance: '#eab308',
 }
 
-function createIcon(type) {
+function createIcon(type, isFocused = false) {
   return L.divIcon({
     className: 'custom-marker',
     html: `
       <div style="
         background:${typeColors[type]};
-        width:28px;
-        height:28px;
+        width:${isFocused ? '36px' : '28px'};
+        height:${isFocused ? '36px' : '28px'};
         border-radius:50%;
-        border:2px solid white;
-        box-shadow:0 2px 4px rgba(0,0,0,0.2);
+        border:${isFocused ? '3px' : '2px'} solid white;
+        box-shadow:0 ${isFocused ? '4px 8px' : '2px 4px'} rgba(0,0,0,${isFocused ? '0.3' : '0.2'});
         display:flex;
         align-items:center;
         justify-content:center;
         color:white;
         font-weight:bold;
-        font-size:12px;
+        font-size:${isFocused ? '16px' : '12px'};
+        ${isFocused ? 'animation: pulse 2s infinite;' : ''}
       ">
         ${type[0].toUpperCase()}
       </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>
     `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -14],
+    iconSize: [isFocused ? 36 : 28, isFocused ? 36 : 28],
+    iconAnchor: [isFocused ? 18 : 14, isFocused ? 18 : 14],
+    popupAnchor: [0, isFocused ? -18 : -14],
   })
 }
 
@@ -104,13 +112,32 @@ function MapBoundsHandler() {
   )
 }
 
+// Component to focus on a specific incident
+function FocusOnIncident({ incident }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (incident && incident.latitude && incident.longitude) {
+      // Fly to the incident location
+      map.flyTo([incident.latitude, incident.longitude], 18, {
+        duration: 1.5,
+      })
+    }
+  }, [incident, map])
+
+  return null
+}
+
 export default function IncidentMap() {
   const { isAdmin } = useAuth()
+  const [searchParams] = useSearchParams()
+  const focusIncidentId = searchParams.get('incident')
 
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [statusFilter, setStatusFilter] = useState('All Status')
+  const [focusedIncident, setFocusedIncident] = useState(null)
 
   useEffect(() => {
     const loadIncidents = async () => {
@@ -120,6 +147,14 @@ export default function IncidentMap() {
         console.error('Error fetching incidents:', error)
       } else {
         setIncidents(data || [])
+        
+        // If there's a focus incident ID, find it
+        if (focusIncidentId && data) {
+          const incident = data.find(i => i.id === focusIncidentId)
+          if (incident) {
+            setFocusedIncident(incident)
+          }
+        }
       }
       setLoading(false)
     }
@@ -133,6 +168,10 @@ export default function IncidentMap() {
         setIncidents((prev) =>
           prev.map((i) => (i.id === payload.new.id ? payload.new : i))
         )
+        // Update focused incident if it was updated
+        if (focusedIncident && payload.new.id === focusedIncident.id) {
+          setFocusedIncident(payload.new)
+        }
       } else if (payload.eventType === 'DELETE') {
         setIncidents((prev) =>
           prev.filter((i) => i.id !== payload.old.id)
@@ -141,7 +180,7 @@ export default function IncidentMap() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [focusIncidentId])
 
   const filtered = incidents.filter((i) => {
     if (
