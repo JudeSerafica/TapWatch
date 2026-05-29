@@ -222,10 +222,53 @@ export default function IncidentMap() {
 
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
         <TopBar title="Incident Map">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            Live
-          </span>
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+          >
+            <style>{`
+              @keyframes pulse-slow {
+                0%, 100% {
+                  opacity: 1;
+                  transform: scale(1);
+                }
+                50% {
+                  opacity: 0.7;
+                  transform: scale(1.05);
+                }
+              }
+              @keyframes ripple {
+                0% {
+                  transform: scale(1);
+                  opacity: 0.6;
+                }
+                100% {
+                  transform: scale(1.8);
+                  opacity: 0;
+                }
+              }
+              .animate-pulse-slow {
+                animation: pulse-slow 2s ease-in-out infinite;
+              }
+              .sos-ripple {
+                position: absolute;
+                inset: 0;
+                border-radius: 50%;
+                border: 2px solid #dc2626;
+                animation: ripple 2s ease-out infinite;
+              }
+              .sos-ripple:nth-child(2) {
+                animation-delay: 0.7s;
+              }
+              .sos-ripple:nth-child(3) {
+                animation-delay: 1.4s;
+              }
+            `}</style>
+            <span className="sos-ripple"></span>
+            <span className="sos-ripple"></span>
+            <span className="sos-ripple"></span>
+            <span className="relative z-10 text-xl">🚨</span>
+          </button>
         </TopBar>
 
         {isAdmin && <AdminNavTabs />}

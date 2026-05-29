@@ -627,15 +627,53 @@ const uploadMedia = async () => {
         <ResidentSidebar />
         <div style={{ flex: 1, marginLeft: 0, paddingBottom: 64 }} className="md:ml-60 md:pb-0">
           <TopBar title="Report Incident">
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '4px 12px', borderRadius: 20,
-              border: '1px solid #e5e7eb', background: '#fff',
-              fontSize: 12, color: '#6b7280', fontFamily: "'DM Sans', sans-serif"
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 0 2px rgba(34,197,94,0.25)' }} />
-              Live
-            </span>
+            <button
+              onClick={() => window.location.href = '/dashboard'}
+              className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+            >
+              <style>{`
+                @keyframes pulse-slow {
+                  0%, 100% {
+                    opacity: 1;
+                    transform: scale(1);
+                  }
+                  50% {
+                    opacity: 0.7;
+                    transform: scale(1.05);
+                  }
+                }
+                @keyframes ripple {
+                  0% {
+                    transform: scale(1);
+                    opacity: 0.6;
+                  }
+                  100% {
+                    transform: scale(1.8);
+                    opacity: 0;
+                  }
+                }
+                .animate-pulse-slow {
+                  animation: pulse-slow 2s ease-in-out infinite;
+                }
+                .sos-ripple {
+                  position: absolute;
+                  inset: 0;
+                  border-radius: 50%;
+                  border: 2px solid #dc2626;
+                  animation: ripple 2s ease-out infinite;
+                }
+                .sos-ripple:nth-child(2) {
+                  animation-delay: 0.7s;
+                }
+                .sos-ripple:nth-child(3) {
+                  animation-delay: 1.4s;
+                }
+              `}</style>
+              <span className="sos-ripple"></span>
+              <span className="sos-ripple"></span>
+              <span className="sos-ripple"></span>
+              <span className="relative z-10 text-xl">🚨</span>
+            </button>
           </TopBar>
 
           <main style={{ padding: '16px', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} className="md:p-7">

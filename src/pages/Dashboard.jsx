@@ -1160,10 +1160,53 @@ export default function Dashboard() {
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
 
         <TopBar title="Dashboard">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded border bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-green-600"></span>
-            Live
-          </div>
+          <button
+            onClick={() => setSOSModalOpen(true)}
+            className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+          >
+            <style>{`
+              @keyframes pulse-slow {
+                0%, 100% {
+                  opacity: 1;
+                  transform: scale(1);
+                }
+                50% {
+                  opacity: 0.7;
+                  transform: scale(1.05);
+                }
+              }
+              @keyframes ripple {
+                0% {
+                  transform: scale(1);
+                  opacity: 0.6;
+                }
+                100% {
+                  transform: scale(1.8);
+                  opacity: 0;
+                }
+              }
+              .animate-pulse-slow {
+                animation: pulse-slow 2s ease-in-out infinite;
+              }
+              .sos-ripple {
+                position: absolute;
+                inset: 0;
+                border-radius: 50%;
+                border: 2px solid #dc2626;
+                animation: ripple 2s ease-out infinite;
+              }
+              .sos-ripple:nth-child(2) {
+                animation-delay: 0.7s;
+              }
+              .sos-ripple:nth-child(3) {
+                animation-delay: 1.4s;
+              }
+            `}</style>
+            <span className="sos-ripple"></span>
+            <span className="sos-ripple"></span>
+            <span className="sos-ripple"></span>
+            <span className="relative z-10 text-xl">🚨</span>
+          </button>
         </TopBar>
 
         <main className="p-4 md:p-8 space-y-6 md:space-y-8">
@@ -1175,15 +1218,6 @@ export default function Dashboard() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
 
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -ml-8 -mb-8"></div>
-
-            {/* SOS PANIC BUTTON - FLOATING */}
-            <button
-              onClick={() => setSOSModalOpen(true)}
-              className="absolute top-4 right-4 w-16 h-16 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 animate-pulse z-10"
-              title="Emergency SOS"
-            >
-              <span className="text-3xl">🚨</span>
-            </button>
 
             <div className="relative z-10">
 
