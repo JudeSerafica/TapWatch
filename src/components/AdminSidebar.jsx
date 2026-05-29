@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, BarChart3, LogOut } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { path: '/admin-map', label: 'Incident Map', icon: MapPin },
   { path: '/admin-reports', label: 'All Reports', icon: FileText },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/admin-contacts', label: 'Emergency Contacts', icon: Phone },
 ]
 
 export default function AdminSidebar() {
