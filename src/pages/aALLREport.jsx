@@ -43,7 +43,6 @@ export default function AllReports() {
 
   useEffect(() => {
     const loadIncidents = async () => {
-      setLoading(true)
       const { data, error } = await getIncidents()
       if (error) {
         console.error('Error fetching incidents:', error)
@@ -124,7 +123,7 @@ export default function AllReports() {
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
         <TopBar title="All Reports">
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
             <span className="w-2 h-2 rounded-full bg-blue-500" />Live
           </span>
         </TopBar>
@@ -136,7 +135,7 @@ export default function AllReports() {
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900">All Reports</h2>
-            <span className="text-xs md:text-sm font-semibold text-gray-900 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+            <span className="text-xs md:text-sm font-semibold text-gray-900 bg-white px-3 py-1.5 rounded-lg border">
               {incidents.length} records
             </span>
           </div>
@@ -149,7 +148,7 @@ export default function AllReports() {
                 type="text"
                 value={search}
                 onChange={e=>setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-xs md:text-sm"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border bg-white text-xs md:text-sm"
                 placeholder="Search incidents..."
               />
             </div>
@@ -190,8 +189,22 @@ export default function AllReports() {
               <tbody>
                 {filtered.map(i => (
                   <tr key={i.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3"><IncidentIcon type={i.type} /></td>
-                    <td>{i.description}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1">
+                        <IncidentIcon type={i.type} />
+                        {i.is_sos && <span className="text-xs">🚨</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        {i.is_sos && (
+                          <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold w-fit animate-pulse">
+                            🚨 SOS EMERGENCY
+                          </span>
+                        )}
+                        <span>{i.description}</span>
+                      </div>
+                    </td>
                     <td>{i.location}</td>
                     <td>{new Date(i.created_at).toLocaleDateString()}</td>
                     <td><StatusBadge status={i.status} /></td>

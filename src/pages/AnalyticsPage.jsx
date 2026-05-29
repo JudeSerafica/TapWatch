@@ -23,19 +23,21 @@ export default function Analytics() {
 
   useEffect(() => {
     const loadStats = async () => {
-      setLoading(true)
-      const { data: statsData } = await getIncidentStats('7d')
-      const { data: hotspotsData } = await getHotspots()
+      // Parallel data fetching for faster loading
+      const [statsResult, hotspotsResult] = await Promise.all([
+        getIncidentStats('7d'),
+        getHotspots()
+      ])
       
-      if (statsData) {
-        const total = statsData.total
-        const resolved = statsData.byStatus.resolved || 0
+      if (statsResult.data) {
+        const total = statsResult.data.total
+        const resolved = statsResult.data.byStatus.resolved || 0
         const rate = total > 0 ? Math.round((resolved/total)*100) : 0
         
-        const tc = ['crime','accident','fire','flood','disturbance'].map(t=>statsData.byType[t] || 0)
-        const sc = ['pending','responding','resolved'].map(s=>statsData.byStatus[s] || 0)
+        const tc = ['crime','accident','fire','flood','disturbance'].map(t=>statsResult.data.byType[t] || 0)
+        const sc = ['pending','responding','resolved'].map(s=>statsResult.data.byStatus[s] || 0)
         
-        const hs = Object.entries(hotspotsData || {}).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([loc,d])=>{
+        const hs = Object.entries(hotspotsResult.data || {}).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([loc,d])=>{
           const tt=Object.entries(d.types).sort((a,b)=>b[1]-a[1])[0]
           return{location:loc,count:d.count,type:tt[0]}
         })
@@ -91,7 +93,7 @@ export default function Analytics() {
     <div className="flex-1 md:ml-60 pb-16 md:pb-0">
       <TopBar title="Analytics">
         <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
+        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
           <span className="w-2 h-2 rounded-full bg-blue-500" />Live
         </span>
       </TopBar>
@@ -105,7 +107,7 @@ export default function Analytics() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {summaryStats.map((s,i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 text-center">
+            <div key={i} className="bg-white rounded-xl border p-4 md:p-5 text-center">
               <div className={`text-2xl md:text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
               <div className="text-xs text-gray-500">{s.label}</div>
             </div>
@@ -113,7 +115,7 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+          <div className="bg-white rounded-xl border p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <TrendingUp size={16} className="text-blue-600" />7-Day Incident Trend
             </h3>
@@ -122,7 +124,7 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+          <div className="bg-white rounded-xl border p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Flame size={16} className="text-orange-500" />By Incident Type
             </h3>
@@ -146,14 +148,14 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+          <div className="bg-white rounded-xl border p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Response Status</h3>
             <div className="h-48 md:h-56">
               <Bar data={barData} options={barOpts} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+          <div className="bg-white rounded-xl border p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Flame size={16} className="text-red-500" />Incident Hotspots by Purok
             </h3>

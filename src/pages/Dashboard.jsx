@@ -72,21 +72,17 @@ function createIcon(type) {
 
     html: `
       <div style="
-        background:${color};
         width:36px;
-        height:36px;
-        border-radius:50%;
-        border:3px solid white;
-        box-shadow:0 4px 8px rgba(0,0,0,0.3);
+        height:45px;
         display:flex;
         align-items:center;
         justify-content:center;
-        color:white;
-        font-weight:bold;
-        font-size:16px;
         animation:pulse 2s infinite;
       ">
-        ${type[0].toUpperCase()}
+        <svg width="36" height="45" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C7.58 0 4 3.58 4 8C4 14 12 24 12 24C12 24 20 14 20 8C20 3.58 16.42 0 12 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="8" r="3" fill="white"/>
+        </svg>
       </div>
 
       <style>
@@ -97,9 +93,9 @@ function createIcon(type) {
       </style>
     `,
 
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -18],
+    iconSize: [36, 45],
+    iconAnchor: [18, 45],
+    popupAnchor: [0, -45],
   })
 }
 
@@ -335,6 +331,649 @@ function IncidentMapModal({ incident, onClose }) {
 }
 
 /* ─────────────────────────────────────────────
+   SOS PANIC BUTTON MODAL
+───────────────────────────────────────────── */
+
+function SOSPanicModal({ isOpen, onClose, profile }) {
+  const [countdown, setCountdown] = useState(5)
+  const [isActivated, setIsActivated] = useState(false)
+  const [location, setLocation] = useState(null)
+  const [showSuccess, setShowSuccess] = useState(false)  // ← BAGO
+
+  useEffect(() => {
+    if (isOpen && !isActivated) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            })
+          },
+          (error) => { console.error('Location error:', error) }
+        )
+      }
+    }
+  }, [isOpen, isActivated])
+
+  useEffect(() => {
+    if (isActivated && countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (isActivated && countdown === 0) {
+      sendSOSAlert()
+    }
+  }, [isActivated, countdown])
+
+  const sendSOSAlert = async () => {
+    const sosIncident = {
+      type: 'crime',
+      description: `🚨 EMERGENCY SOS ALERT from ${profile?.full_name || 'User'}. Immediate assistance needed!`,
+      location: location ? `${location.latitude}, ${location.longitude}` : 'Location unavailable',
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      status: 'pending',
+      user_id: profile?.id,
+      reporter_name: profile?.full_name,
+      created_at: new Date().toISOString(),
+      is_sos: true
+    }
+    console.log('SOS Alert Sent:', sosIncident)
+    setIsActivated(false)
+    setShowSuccess(true)  // ← show success modal instead of alert()
+  }
+
+  const handleActivate = () => {
+    setIsActivated(true)
+  }
+
+  const handleCancel = () => {
+    setIsActivated(false)
+    setCountdown(5)
+    onClose()
+  }
+
+  const handleCloseSuccess = () => {
+    setShowSuccess(false)
+    setCountdown(5)
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  // ── SUCCESS MODAL ──
+  if (showSuccess) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <style>{`
+          @keyframes sos-fadeInScale {
+            0% { opacity: 0; transform: scale(0.85); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes sos-ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.6); opacity: 0; }
+          }
+          @keyframes sos-checkDraw {
+            0% { stroke-dashoffset: 100; }
+            100% { stroke-dashoffset: 0; }
+          }
+          @keyframes sos-fadeInUp {
+            0% { opacity: 0; transform: translateY(18px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes sos-slideIn {
+            0% { opacity: 0; transform: translateX(-14px); }
+            100% { opacity: 1; transform: translateX(0); }
+          }
+          .sos-wrap { animation: sos-fadeInScale 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+          .sos-r1 { animation: sos-ripple 1.8s ease-out infinite; }
+          .sos-r2 { animation: sos-ripple 1.8s ease-out 0.6s infinite; }
+          .sos-r3 { animation: sos-ripple 1.8s ease-out 1.2s infinite; }
+          .sos-check { stroke-dasharray: 100; stroke-dashoffset: 100; animation: sos-checkDraw 0.55s ease forwards 0.45s; }
+          .sos-t1 { animation: sos-fadeInUp 0.45s ease forwards 0.75s; opacity: 0; }
+          .sos-t2 { animation: sos-fadeInUp 0.45s ease forwards 0.95s; opacity: 0; }
+          .sos-i1 { animation: sos-slideIn 0.4s ease forwards 1.05s; opacity: 0; }
+          .sos-i2 { animation: sos-slideIn 0.4s ease forwards 1.2s; opacity: 0; }
+          .sos-i3 { animation: sos-slideIn 0.4s ease forwards 1.35s; opacity: 0; }
+          .sos-f1 { animation: sos-fadeInUp 0.4s ease forwards 1.55s; opacity: 0; }
+          .sos-f2 { animation: sos-fadeInUp 0.4s ease forwards 1.75s; opacity: 0; }
+        `}</style>
+
+        <div className="sos-wrap bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+          {/* TOP — red section with ripple + checkmark */}
+          <div className="bg-red-600 pt-10 pb-8 px-8 text-center relative">
+            <div className="relative w-32 h-32 mx-auto mb-5">
+              <div className="sos-r1 absolute inset-0 rounded-full border-2 border-white/50" />
+              <div className="sos-r2 absolute inset-0 rounded-full border-2 border-white/35" />
+              <div className="sos-r3 absolute inset-0 rounded-full border-2 border-white/20" />
+              <div className="absolute inset-3 bg-white/20 rounded-full flex items-center justify-center">
+                <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+                  <path
+                    className="sos-check"
+                    d="M11 28L22 39L43 17"
+                    stroke="white"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h2 className="sos-t1 text-white text-2xl font-bold mb-1">SOS Alert Sent!</h2>
+            <p className="sos-t2 text-white/80 text-sm">Emergency services have been notified</p>
+          </div>
+
+          {/* BOTTOM — checklist + footer */}
+          <div className="px-6 pt-5 pb-6">
+            <div className="bg-red-50 rounded-xl p-4 mb-4 space-y-2.5">
+              <div className="sos-i1 flex items-center gap-3 text-gray-800 text-sm">
+                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                Barangay officials notified
+              </div>
+              <div className="sos-i2 flex items-center gap-3 text-gray-800 text-sm">
+                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                Your location has been shared
+              </div>
+              <div className="sos-i3 flex items-center gap-3 text-gray-800 text-sm">
+                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                Emergency services alerted
+              </div>
+            </div>
+
+            <p className="sos-f1 text-gray-600 text-xs text-center mb-4 leading-relaxed">
+              Help is on the way! Stay safe and stay on the line if possible.
+            </p>
+
+            <button
+              onClick={handleCloseSuccess}
+              className="sos-f2 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-base transition"
+            >
+              OK
+            </button>
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
+  // ── ORIGINAL MODAL (unchanged) ──
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {!isActivated ? (
+          <>
+            <div className="p-8 text-center">
+              <div className="w-32 h-32 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
+                <span className="text-6xl">🚨</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Emergency SOS
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                This will immediately alert emergency services and share your location.
+                Use only in life-threatening situations.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={handleActivate}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg transition"
+                >
+                  ACTIVATE SOS
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-8 text-center bg-red-600 text-white">
+              <div className="w-40 h-40 mx-auto mb-6 bg-white rounded-full flex items-center justify-center">
+                <span className="text-7xl font-bold text-red-600 animate-pulse">
+                  {countdown}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold mb-3">
+                Sending SOS Alert...
+              </h2>
+              <p className="text-sm opacity-90 mb-6">
+                Emergency services will be notified in {countdown} seconds
+              </p>
+              <button
+                onClick={handleCancel}
+                className="w-full py-3 bg-white text-red-600 rounded-xl font-bold transition hover:bg-gray-100"
+              >
+                CANCEL
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   COMMUNITY ALERTS MODAL
+───────────────────────────────────────────── */
+
+function CommunityAlertsModal({ isOpen, onClose, incidents }) {
+  const [filterSeverity, setFilterSeverity] = useState('All')
+  const [filterType, setFilterType] = useState('All')
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    if (isOpen) {
+      window.addEventListener('keydown', handler)
+    }
+    return () => {
+      window.removeEventListener('keydown', handler)
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  // Get incidents from last 48 hours
+  const now = new Date()
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000)
+  
+  const recentIncidents = incidents.filter(inc => {
+    const incidentDate = new Date(inc.created_at)
+    return incidentDate >= twoDaysAgo
+  })
+
+  // Categorize by severity
+  const getSeverity = (incident) => {
+    if (incident.status === 'pending' && (incident.type === 'fire' || incident.type === 'crime')) {
+      return 'critical'
+    }
+    if (incident.status === 'responding') {
+      return 'warning'
+    }
+    if (incident.status === 'resolved') {
+      return 'resolved'
+    }
+    return 'info'
+  }
+
+  const getSeverityBadge = (severity) => {
+    switch (severity) {
+      case 'critical':
+        return { label: 'Critical', color: 'bg-red-100 text-red-700 border-red-300', icon: '🚨' }
+      case 'warning':
+        return { label: 'Warning', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '⚠️' }
+      case 'resolved':
+        return { label: 'Resolved', color: 'bg-green-100 text-green-700 border-green-300', icon: '✅' }
+      default:
+        return { label: 'Info', color: 'bg-blue-100 text-blue-700 border-blue-300', icon: '📢' }
+    }
+  }
+
+  const getTimeAgo = (date) => {
+    const now = new Date()
+    const incidentDate = new Date(date)
+    const diffMs = now - incidentDate
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${Math.floor(diffHours / 24)}d ago`
+  }
+
+  const handleShare = (incident) => {
+    const text = `🚨 Community Alert: ${incident.type.toUpperCase()} incident at ${incident.location}. Status: ${incident.status}. Stay safe!`
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Community Alert',
+        text: text,
+      }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(text)
+      alert('Alert copied to clipboard!')
+    }
+  }
+
+  // Filter incidents
+  const filteredIncidents = recentIncidents.filter(inc => {
+    const severity = getSeverity(inc)
+    if (filterSeverity !== 'All' && severity !== filterSeverity.toLowerCase()) return false
+    if (filterType !== 'All' && inc.type !== filterType.toLowerCase()) return false
+    return true
+  })
+
+  const criticalCount = recentIncidents.filter(i => getSeverity(i) === 'critical').length
+  const warningCount = recentIncidents.filter(i => getSeverity(i) === 'warning').length
+  const resolvedCount = recentIncidents.filter(i => getSeverity(i) === 'resolved').length
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={handleBackdrop}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* HEADER */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3 bg-gradient-to-r from-yellow-500 to-orange-500">
+          <div className="text-white">
+            <div className="flex items-center gap-2 mb-0.5">
+              <FaBell className="text-xl" />
+              <span className="font-bold text-lg">Community Alerts</span>
+              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-semibold">
+                Last 48 hours
+              </span>
+            </div>
+            <p className="text-xs opacity-90">
+              Real-time updates from your community
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* STATS */}
+        <div className="px-5 py-3 bg-gray-50 border-b grid grid-cols-3 gap-3">
+          <div className="text-center">
+            <div className="text-xl font-bold text-red-600">{criticalCount}</div>
+            <div className="text-xs text-gray-600">Critical</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-orange-600">{warningCount}</div>
+            <div className="text-xs text-gray-600">Warnings</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-green-600">{resolvedCount}</div>
+            <div className="text-xs text-gray-600">Resolved</div>
+          </div>
+        </div>
+
+        {/* FILTERS */}
+        <div className="px-5 py-3 border-b bg-white flex gap-2 flex-wrap">
+          <select
+            value={filterSeverity}
+            onChange={(e) => setFilterSeverity(e.target.value)}
+            className="px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            <option>All</option>
+            <option>Critical</option>
+            <option>Warning</option>
+            <option>Resolved</option>
+            <option>Info</option>
+          </select>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            <option>All</option>
+            <option>Crime</option>
+            <option>Fire</option>
+            <option>Flood</option>
+            <option>Accident</option>
+            <option>Disturbance</option>
+          </select>
+        </div>
+
+        {/* ALERTS LIST */}
+        <div className="overflow-y-auto p-5 space-y-3 flex-1">
+          {filteredIncidents.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <FaBell className="mx-auto mb-3 text-4xl text-gray-300" />
+              <p className="text-sm">No alerts found</p>
+            </div>
+          ) : (
+            filteredIncidents
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .map((incident) => {
+                const severity = getSeverity(incident)
+                const badge = getSeverityBadge(severity)
+                
+                return (
+                  <div
+                    key={incident.id}
+                    className="border rounded-xl p-4 hover:border-gray-400 transition"
+                  >
+                    <div className="flex items-start gap-3">
+                      <IncidentIcon type={incident.type} size={20} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-sm capitalize">
+                              {incident.type} Incident
+                            </h3>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {getTimeAgo(incident.created_at)}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${badge.color} flex items-center gap-1`}>
+                            <span>{badge.icon}</span>
+                            {badge.label}
+                          </span>
+                        </div>
+                        
+                        <p className="text-sm text-gray-700 mb-2">
+                          {incident.description}
+                        </p>
+                        
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                          <span className="flex items-center gap-1">
+                            <FaMapPin className="text-red-500" size={10} />
+                            {incident.location || 'Unknown location'}
+                          </span>
+                          <StatusBadge status={incident.status} />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              onClose()
+                              // Navigate to map with this incident
+                              window.location.href = `/resident-map?incident=${incident.id}`
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition"
+                          >
+                            View on Map
+                          </button>
+                          <button
+                            onClick={() => handleShare(incident)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition"
+                          >
+                            Share
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+          )}
+        </div>
+
+        {/* FOOTER */}
+        <div className="px-5 py-3 border-t bg-gray-50 text-center">
+          <p className="text-xs text-gray-600">
+            💡 Stay informed and stay safe. Report incidents to help your community.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   EMERGENCY HOTLINE MODAL
+───────────────────────────────────────────── */
+
+function EmergencyHotlineModal({ isOpen, onClose }) {
+  const emergencyContacts = [
+    {
+      name: 'National Emergency Hotline',
+      number: '911',
+      icon: '🚨',
+      color: 'bg-red-600',
+      description: 'Police, Fire, Medical emergencies'
+    },
+    {
+      name: 'Philippine National Police',
+      number: '117',
+      icon: '👮',
+      color: 'bg-blue-600',
+      description: 'Crime reporting and police assistance'
+    },
+    {
+      name: 'Bureau of Fire Protection',
+      number: '(02) 8426-0219',
+      icon: '🚒',
+      color: 'bg-orange-600',
+      description: 'Fire emergencies and rescue'
+    },
+    {
+      name: 'Barangay East Tapinac',
+      number: '(123) 456-7890',
+      icon: '🏛️',
+      color: 'bg-green-600',
+      description: 'Local barangay assistance'
+    },
+    {
+      name: 'Red Cross Emergency',
+      number: '143',
+      icon: '🏥',
+      color: 'bg-red-500',
+      description: 'Medical emergencies and ambulance'
+    },
+    {
+      name: 'NDRRMC Hotline',
+      number: '(02) 8911-1406',
+      icon: '⚠️',
+      color: 'bg-yellow-600',
+      description: 'Disaster response and management'
+    }
+  ]
+
+  const handleCall = (number) => {
+    // Remove special characters for tel: link
+    const cleanNumber = number.replace(/[^0-9+]/g, '')
+    window.location.href = `tel:${cleanNumber}`
+  }
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    if (isOpen) {
+      window.addEventListener('keydown', handler)
+    }
+    return () => {
+      window.removeEventListener('keydown', handler)
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={handleBackdrop}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* HEADER */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3 bg-red-600">
+          <div className="text-white">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-2xl">🚨</span>
+              <span className="font-bold text-lg">Emergency Hotlines</span>
+            </div>
+            <p className="text-xs opacity-90">
+              Quick access to emergency services
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* EMERGENCY CONTACTS */}
+        <div className="overflow-y-auto p-5 space-y-3">
+          {emergencyContacts.map((contact, index) => (
+            <div
+              key={index}
+              className="border rounded-xl p-4 hover:border-gray-400 transition"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`${contact.color} w-12 h-12 rounded-full flex items-center justify-center text-2xl flex-shrink-0`}>
+                  {contact.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 text-sm mb-1">
+                    {contact.name}
+                  </h3>
+                  <p className="text-xs text-gray-600 mb-2">
+                    {contact.description}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-gray-900">
+                      {contact.number}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleCall(contact.number)}
+                  className="flex-shrink-0 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition flex items-center gap-2"
+                >
+                  <BsFillTelephoneFill size={14} />
+                  Call
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* FOOTER */}
+        <div className="px-5 py-4 border-t bg-gray-50">
+          <p className="text-xs text-gray-600 text-center">
+            ⚠️ For life-threatening emergencies, call <strong>911</strong> immediately
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    MAIN DASHBOARD
 ───────────────────────────────────────────── */
 
@@ -357,6 +996,15 @@ export default function Dashboard() {
   const [selectedIncident, setSelectedIncident] =
     useState(null)
 
+  const [emergencyModalOpen, setEmergencyModalOpen] =
+    useState(false)
+
+  const [alertsModalOpen, setAlertsModalOpen] =
+    useState(false)
+
+  const [sosModalOpen, setSOSModalOpen] =
+    useState(false)
+
   const today = new Date().toLocaleDateString(
     'en-US',
     {
@@ -371,8 +1019,6 @@ export default function Dashboard() {
   useEffect(() => {
 
     const loadIncidents = async () => {
-
-      setLoading(true)
 
       const { data, error } =
         await getIncidents()
@@ -514,8 +1160,8 @@ export default function Dashboard() {
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
 
         <TopBar title="Dashboard">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-gray-200 bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded border bg-white text-xs text-gray-600">
+            <span className="w-2 h-2 rounded-full bg-green-600"></span>
             Live
           </div>
         </TopBar>
@@ -529,6 +1175,15 @@ export default function Dashboard() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
 
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -ml-8 -mb-8"></div>
+
+            {/* SOS PANIC BUTTON - FLOATING */}
+            <button
+              onClick={() => setSOSModalOpen(true)}
+              className="absolute top-4 right-4 w-16 h-16 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 animate-pulse z-10"
+              title="Emergency SOS"
+            >
+              <span className="text-3xl">🚨</span>
+            </button>
 
             <div className="relative z-10">
 
@@ -568,7 +1223,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => navigate('/report')}
-                className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 text-left hover:border-red-300 hover:bg-red-50 transition flex flex-col items-start"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-red-300 hover:bg-red-50 transition flex flex-col items-start"
               >
                 <div className="text-2xl mb-2">
                   <FaMapPin style={{ color: 'red' }} />
@@ -585,7 +1240,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => navigate('/resident-map')}
-                className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 text-left hover:border-blue-300 hover:bg-blue-50 transition flex flex-col items-start"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-blue-300 hover:bg-blue-50 transition flex flex-col items-start"
               >
                 <div className="text-2xl mb-2">
                   <FaMapMarkedAlt style={{ color: 'blue' }} />
@@ -601,7 +1256,8 @@ export default function Dashboard() {
               </button>
 
               <button
-                className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 text-left hover:border-green-300 hover:bg-green-50 transition flex flex-col items-start"
+                onClick={() => setAlertsModalOpen(true)}
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-green-300 hover:bg-green-50 transition flex flex-col items-start cursor-pointer"
               >
                 <div className="text-2xl mb-2">
                   <FaBell className="text-yellow-500" />
@@ -617,7 +1273,8 @@ export default function Dashboard() {
               </button>
 
               <button
-                className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 text-left hover:border-orange-300 hover:bg-orange-50 transition flex flex-col items-start"
+                onClick={() => setEmergencyModalOpen(true)}
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-orange-300 hover:bg-orange-50 transition flex flex-col items-start cursor-pointer"
               >
                 <div className="text-2xl mb-2">
                   <BsFillTelephoneFill className="text-red-400" />
@@ -637,7 +1294,7 @@ export default function Dashboard() {
 
           {/* MY REPORTS */}
 
-          <div className="bg-white border border-gray-200 rounded-xl">
+          <div className="bg-white border rounded-xl">
 
             <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200">
 
@@ -687,9 +1344,9 @@ export default function Dashboard() {
 
           {/* RECENT ALERTS */}
 
-          <div className="bg-white rounded-xl border border-gray-200">
+          <div className="bg-white rounded-xl border">
 
-            <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b">
 
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                 🚨 Recent Community Alerts
@@ -799,6 +1456,29 @@ export default function Dashboard() {
           }
         />
       )}
+
+      {/* EMERGENCY HOTLINE MODAL */}
+
+      <EmergencyHotlineModal
+        isOpen={emergencyModalOpen}
+        onClose={() => setEmergencyModalOpen(false)}
+      />
+
+      {/* COMMUNITY ALERTS MODAL */}
+
+      <CommunityAlertsModal
+        isOpen={alertsModalOpen}
+        onClose={() => setAlertsModalOpen(false)}
+        incidents={incidents}
+      />
+
+      {/* SOS PANIC BUTTON MODAL */}
+
+      <SOSPanicModal
+        isOpen={sosModalOpen}
+        onClose={() => setSOSModalOpen(false)}
+        profile={profile}
+      />
     </div>
   )
 }

@@ -318,7 +318,6 @@ export default function AllReports() {
   // LOAD INCIDENTS
   useEffect(() => {
     const loadIncidents = async () => {
-      setLoading(true)
 
       const { data, error } = await getIncidents()
 
@@ -466,7 +465,7 @@ export default function AllReports() {
           </span>
 
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="w-2 h-2 rounded-full bg-green-500" />
             Live
           </span>
         </TopBar>
@@ -695,13 +694,25 @@ export default function AllReports() {
                     className="border-b hover:bg-gray-50"
                   >
                     <td className="px-1.5 py-2.5">
-                      <IncidentIcon type={i.type} />
+                      <div className="flex items-center gap-1">
+                        <IncidentIcon type={i.type} />
+                        {i.is_sos && (
+                          <span className="text-xs">🚨</span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-1.5 py-2.5">
-                      <span className="block truncate text-gray-800">
-                        {i.description}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        {i.is_sos && (
+                          <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold w-fit animate-pulse">
+                            🚨 SOS EMERGENCY
+                          </span>
+                        )}
+                        <span className="block truncate text-gray-800">
+                          {i.description}
+                        </span>
+                      </div>
                     </td>
 
                     <td className="px-1.5 py-2.5">

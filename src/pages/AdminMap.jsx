@@ -27,29 +27,27 @@ const typeColors = {
 }
 
 function createIcon(type) {
+  const color = typeColors[type] || '#6b7280'
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
       <div style="
-        background:${typeColors[type]};
         width:28px;
-        height:28px;
-        border-radius:50%;
-        border:2px solid white;
-        box-shadow:0 2px 4px rgba(0,0,0,0.2);
+        height:35px;
         display:flex;
         align-items:center;
         justify-content:center;
-        color:white;
-        font-weight:bold;
-        font-size:12px;
       ">
-        ${type[0].toUpperCase()}
+        <svg width="28" height="35" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C7.58 0 4 3.58 4 8C4 14 12 24 12 24C12 24 20 14 20 8C20 3.58 16.42 0 12 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="8" r="3" fill="white"/>
+        </svg>
       </div>
     `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -14],
+    iconSize: [28, 35],
+    iconAnchor: [14, 35],
+    popupAnchor: [0, -35],
   })
 }
 
@@ -111,7 +109,6 @@ export default function IncidentMap() {
 
   useEffect(() => {
     const loadIncidents = async () => {
-      setLoading(true)
       const { data, error } = await getIncidents()
       if (error) {
         console.error('Error fetching incidents:', error)
@@ -181,8 +178,8 @@ export default function IncidentMap() {
 
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
         <TopBar title="Incident Map">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
             Live
           </span>
         </TopBar>
@@ -221,7 +218,7 @@ export default function IncidentMap() {
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
+                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
                 >
                   <option>All Types</option>
                   <option>Crime</option>
@@ -242,7 +239,7 @@ export default function IncidentMap() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
+                  className="w-full md:w-auto appearance-none pl-3 pr-8 py-2 bg-white border rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
                 >
                   <option>All Status</option>
                   <option>Pending</option>
@@ -259,7 +256,7 @@ export default function IncidentMap() {
           </div>
 
           {/* MAP */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden h-96 md:h-[580px]">
+          <div className="bg-white rounded-xl border overflow-hidden h-96 md:h-[580px]">
             <MapContainer
               center={[14.835, 120.283]}
               zoom={15}
