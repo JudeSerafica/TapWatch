@@ -1,6 +1,6 @@
 {
   "name": "TapWatch - Barangay Incident Reporting System",
-  "short_name": "TapWatch",
+  "short_name": "Tap-Watch",
   "description": "Community incident reporting and emergency response system for Barangay Tapinac",
   "start_url": "/",
   "scope": "/",
