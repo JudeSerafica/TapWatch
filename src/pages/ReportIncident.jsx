@@ -629,7 +629,7 @@ const uploadMedia = async () => {
           <TopBar title="Report Incident">
             <button
               onClick={() => window.location.href = '/dashboard'}
-              className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+              className="relative flex items-center justify-center w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
             >
               <style>{`
                 @keyframes pulse-slow {

@@ -1162,7 +1162,7 @@ export default function Dashboard() {
         <TopBar title="Dashboard">
           <button
             onClick={() => setSOSModalOpen(true)}
-            className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
           >
             <style>{`
               @keyframes pulse-slow {
@@ -1192,7 +1192,7 @@ export default function Dashboard() {
                 position: absolute;
                 inset: 0;
                 border-radius: 50%;
-                border: 2px solid #dc2626;
+                border: 1px solid #dc2626;
                 animation: ripple 2s ease-out infinite;
               }
               .sos-ripple:nth-child(2) {
