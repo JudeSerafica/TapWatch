@@ -1,11 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/((?!manifest\\.json|sw\\.js|web-app-manifest.*\\.png|.*\\.(jpg|png|css|js|ico|svg)).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
@@ -42,14 +38,6 @@
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
         }
       ]
     }
