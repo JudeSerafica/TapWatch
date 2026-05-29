@@ -9,6 +9,8 @@
   "theme_color": "#0f172a",
   "orientation": "any",
   "categories": ["utilities", "productivity", "government"],
+  "lang": "en-US",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/Tapinac.logo.jpg",
@@ -48,6 +50,34 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/Tapinac.logo.jpg",
+          "sizes": "192x192"
+        }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/report",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "description",
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "prefer_related_applications": false
 }

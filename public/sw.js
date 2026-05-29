@@ -1,5 +1,8 @@
 // Service Worker for TapWatch PWA
 const CACHE_NAME = 'tapwatch-v1';
+const RUNTIME_CACHE = 'tapwatch-runtime-v1';
+
+// Essential files to cache on install
 const urlsToCache = [
   '/',
   '/index.html',
@@ -19,40 +22,9 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request).then(
-          (response) => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
-        );
-      })
-  );
-});
-
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
+  const cacheWhitelist = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -66,3 +38,104 @@ self.addEventListener('activate', (event) => {
   );
   self.clients.claim();
 });
+
+// Fetch event - Network First, fallback to Cache strategy
+self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Check if valid response
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+
+        // Clone and cache the response
+        const responseToCache = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return response;
+      })
+      .catch(() => {
+        // Network failed, try cache
+        return caches.match(event.request).then((response) => {
+          if (response) {
+            return response;
+          }
+          
+          // Return offline page for navigation requests
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
+      })
+  );
+});
+
+// Background Sync - for offline incident reports
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-incidents') {
+    event.waitUntil(syncIncidents());
+  }
+});
+
+async function syncIncidents() {
+  // This will be called when connection is restored
+  console.log('Syncing incidents...');
+  // Your sync logic here
+}
+
+// Push Notifications - for emergency alerts
+self.addEventListener('push', (event) => {
+  const options = {
+    body: event.data ? event.data.text() : 'New incident alert',
+    icon: '/Tapinac.logo.jpg',
+    badge: '/Tapinac.logo.jpg',
+    vibrate: [200, 100, 200],
+    tag: 'incident-notification',
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'view',
+        title: 'View Incident'
+      },
+      {
+        action: 'close',
+        title: 'Close'
+      }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification('TapWatch Alert', options)
+  );
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'view') {
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  }
+});
+
+// Periodic Background Sync (for checking new incidents)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-incidents') {
+    event.waitUntil(checkForNewIncidents());
+  }
+});
+
+async function checkForNewIncidents() {
+  console.log('Checking for new incidents...');
+  // Your periodic check logic here
+}
