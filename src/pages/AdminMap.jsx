@@ -177,7 +177,7 @@ export default function IncidentMap() {
       <Sidebar />
 
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar title="Incident Map">
+        <TopBar title="Incident Map" showUserMenu={true}>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             Live

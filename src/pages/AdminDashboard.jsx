@@ -414,7 +414,7 @@ export default function AdminDashboard() {
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar title="Officials Dashboard">
+        <TopBar title="Officials Dashboard" showUserMenu={true}>
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white text-xs text-gray-600">
             <span className="w-2 h-2 rounded-full bg-green-500" />Live

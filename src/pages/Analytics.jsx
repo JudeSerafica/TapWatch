@@ -8,7 +8,7 @@ export default function Analytics() {
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
       <div className="flex-1 ml-60">
-        <TopBar title="Analytics">
+        <TopBar title="Analytics" showUserMenu={true}>
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-600">
             <span className="w-2 h-2 rounded-full bg-green-500" />Live

@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, BarChart3, Phone } from 'lucide-react'
 
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/admin-map', label: 'Admin Map', icon: MapPin },
-  { path: '/admin-reports', label: 'All Reports', icon: FileText },
+  { path: '/admin-map', label: 'Map', icon: MapPin },
+  { path: '/admin-reports', label: 'Reports', icon: FileText },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/admin-contacts', label: 'Contacts', icon: Phone },
 ]
 
 export default function AdminMobileBottomNav() {
@@ -26,14 +27,14 @@ export default function AdminMobileBottomNav() {
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className={`flex flex-col items-center justify-center w-1/4 h-full transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
               active
                 ? 'text-blue-600'
                 : 'text-gray-500'
             }`}
           >
-            <Icon size={24} />
-            <span className="text-xs mt-0.5">{item.label}</span>
+            <Icon size={22} />
+            <span className="text-[10px] mt-0.5">{item.label}</span>
           </button>
         )
       })}

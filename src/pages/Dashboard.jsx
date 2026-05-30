@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Clock, X } from 'lucide-react'
+import { Clock, X, AlertCircle, Shield, Phone, Mail, User } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
 import {
@@ -21,6 +21,7 @@ import IncidentIcon from '../components/IncidentIcon'
 
 import { useAuth } from '../context/useAuth'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
+import { supabase } from '../lib/supabase'
 
 import {
   FaMapPin,
@@ -828,55 +829,84 @@ function CommunityAlertsModal({ isOpen, onClose, incidents }) {
 ───────────────────────────────────────────── */
 
 function EmergencyHotlineModal({ isOpen, onClose }) {
-  const emergencyContacts = [
+  const [activeTab, setActiveTab] = useState('emergency') // 'emergency' or 'officials'
+  const [barangayContacts, setBarangayContacts] = useState([])
+  const [loadingContacts, setLoadingContacts] = useState(true)
+
+  // Emergency hotline numbers
+  const emergencyNumbers = [
     {
+      id: 1,
       name: 'National Emergency Hotline',
       number: '911',
+      description: 'Police, Fire, Medical Emergency',
       icon: '🚨',
-      color: 'bg-red-600',
-      description: 'Police, Fire, Medical emergencies'
+      color: 'red'
     },
     {
-      name: 'Philippine National Police',
+      id: 2,
+      name: 'PNP Hotline',
       number: '117',
+      description: 'Philippine National Police',
       icon: '👮',
-      color: 'bg-blue-600',
-      description: 'Crime reporting and police assistance'
+      color: 'blue'
     },
     {
-      name: 'Bureau of Fire Protection',
-      number: '(02) 8426-0219',
-      icon: '🚒',
-      color: 'bg-orange-600',
-      description: 'Fire emergencies and rescue'
-    },
-    {
-      name: 'Barangay East Tapinac',
-      number: '(123) 456-7890',
-      icon: '🏛️',
-      color: 'bg-green-600',
-      description: 'Local barangay assistance'
-    },
-    {
-      name: 'Red Cross Emergency',
-      number: '143',
-      icon: '🏥',
-      color: 'bg-red-500',
-      description: 'Medical emergencies and ambulance'
-    },
-    {
-      name: 'NDRRMC Hotline',
+      id: 3,
+      name: 'NDRRMC',
       number: '(02) 8911-1406',
-      icon: '⚠️',
-      color: 'bg-yellow-600',
-      description: 'Disaster response and management'
+      description: 'Disaster Response',
+      icon: '🆘',
+      color: 'orange'
+    },
+    {
+      id: 4,
+      name: 'Red Cross',
+      number: '143',
+      description: 'Emergency Medical Services',
+      icon: '🏥',
+      color: 'red'
+    },
+    {
+      id: 5,
+      name: 'BFP Fire Emergency',
+      number: '(02) 8426-0219',
+      description: 'Bureau of Fire Protection',
+      icon: '🚒',
+      color: 'orange'
+    },
+    {
+      id: 6,
+      name: 'Coast Guard',
+      number: '(02) 8527-8481',
+      description: 'Maritime Emergency',
+      icon: '⚓',
+      color: 'blue'
     }
   ]
 
-  const handleCall = (number) => {
-    // Remove special characters for tel: link
-    const cleanNumber = number.replace(/[^0-9+]/g, '')
-    window.location.href = `tel:${cleanNumber}`
+  // Fetch barangay officials from database
+  useEffect(() => {
+    if (isOpen) {
+      fetchBarangayContacts()
+    }
+  }, [isOpen])
+
+  const fetchBarangayContacts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      setBarangayContacts(data || [])
+    } catch (error) {
+      console.error('Error fetching barangay contacts:', error)
+    } finally {
+      setLoadingContacts(false)
+    }
   }
 
   const handleBackdrop = (e) => {
@@ -912,7 +942,7 @@ function EmergencyHotlineModal({ isOpen, onClose }) {
           <div className="text-white">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-2xl">🚨</span>
-              <span className="font-bold text-lg">Emergency Hotlines</span>
+              <span className="font-bold text-lg">Emergency Contacts</span>
             </div>
             <p className="text-xs opacity-90">
               Quick access to emergency services
@@ -926,47 +956,146 @@ function EmergencyHotlineModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* EMERGENCY CONTACTS */}
-        <div className="overflow-y-auto p-5 space-y-3">
-          {emergencyContacts.map((contact, index) => (
-            <div
-              key={index}
-              className="border rounded-xl p-4 hover:border-gray-400 transition"
-            >
-              <div className="flex items-start gap-4">
-                <div className={`${contact.color} w-12 h-12 rounded-full flex items-center justify-center text-2xl flex-shrink-0`}>
-                  {contact.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 text-sm mb-1">
-                    {contact.name}
-                  </h3>
-                  <p className="text-xs text-gray-600 mb-2">
-                    {contact.description}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-gray-900">
-                      {contact.number}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleCall(contact.number)}
-                  className="flex-shrink-0 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition flex items-center gap-2"
-                >
-                  <BsFillTelephoneFill size={14} />
-                  Call
-                </button>
+        {/* TABS */}
+        <div className="flex border-b border-gray-200 bg-gray-50">
+          <button
+            onClick={() => setActiveTab('emergency')}
+            className={`flex-1 px-6 py-3 text-sm font-medium transition ${
+              activeTab === 'emergency'
+                ? 'text-red-600 border-b-2 border-red-600 bg-white'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <AlertCircle size={18} />
+              Emergency Hotlines
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('officials')}
+            className={`flex-1 px-6 py-3 text-sm font-medium transition ${
+              activeTab === 'officials'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Shield size={18} />
+              Barangay Officials
+            </div>
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {/* Emergency Numbers Tab */}
+          {activeTab === 'emergency' && (
+            <div className="space-y-3">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-red-800 font-medium">
+                  🚨 For life-threatening emergencies, call 911 immediately
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {emergencyNumbers.map((emergency) => (
+                  <a
+                    key={emergency.id}
+                    href={`tel:${emergency.number}`}
+                    className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-red-300 hover:shadow-md transition group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="text-3xl">{emergency.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-900 text-sm mb-1">
+                          {emergency.name}
+                        </h4>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {emergency.description}
+                        </p>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
+                          <Phone size={14} className="text-red-600" />
+                          <span className="text-sm font-bold text-red-600">
+                            {emergency.number}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                ))}
               </div>
             </div>
-          ))}
+          )}
+
+          {/* Barangay Officials Tab */}
+          {activeTab === 'officials' && (
+            <div>
+              {loadingContacts ? (
+                <div className="text-center py-12 text-gray-500">
+                  Loading contacts...
+                </div>
+              ) : barangayContacts.length === 0 ? (
+                <div className="text-center py-12">
+                  <User size={48} className="mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">No barangay officials available</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {barangayContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className="bg-gray-50 rounded-xl p-4 border border-gray-200"
+                    >
+                      <div className="flex flex-col items-center text-center mb-3">
+                        {contact.photo_url ? (
+                          <img
+                            src={contact.photo_url}
+                            alt={contact.name}
+                            className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-3 border-2 border-gray-200">
+                            <User size={32} className="text-blue-600" />
+                          </div>
+                        )}
+                        <h4 className="font-bold text-gray-900">{contact.name}</h4>
+                        <p className="text-sm text-blue-600 font-medium">{contact.position}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <a
+                          href={`tel:${contact.phone}`}
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-green-50 hover:border-green-300 transition"
+                        >
+                          <Phone size={16} className="text-green-600" />
+                          {contact.phone}
+                        </a>
+                        {contact.email && (
+                          <a
+                            href={`mailto:${contact.email}`}
+                            className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-blue-50 hover:border-blue-300 transition"
+                          >
+                            <Mail size={16} className="text-blue-600" />
+                            <span className="truncate">{contact.email}</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* FOOTER */}
         <div className="px-5 py-4 border-t bg-gray-50">
-          <p className="text-xs text-gray-600 text-center">
-            ⚠️ For life-threatening emergencies, call <strong>911</strong> immediately
-          </p>
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -1315,7 +1444,7 @@ export default function Dashboard() {
                 </div>
 
                 <h3 className="font-semibold text-gray-900 text-sm">
-                  Emergency Hotline
+                  Emergency Contacts
                 </h3>
 
                 <p className="text-xs text-gray-600">

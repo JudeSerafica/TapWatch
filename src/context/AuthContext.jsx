@@ -159,9 +159,28 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+    try {
+      // Clear all storage
+      sessionStorage.clear()
+      localStorage.clear()
+      
+      // Clear local state first
+      setUser(null)
+      setProfile(null)
+      
+      // Sign out from Supabase with scope: 'global' to clear all sessions
+      await supabase.auth.signOut({ scope: 'global' })
+      
+      // Force a complete page reload to clear all React state
+      window.location.href = '/login'
+      
+      return { error: null }
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Even if there's an error, force redirect to login
+      window.location.href = '/login'
+      return { error: error.message }
+    }
   }
 
   return (

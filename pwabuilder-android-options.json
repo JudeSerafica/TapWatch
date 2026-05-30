@@ -36,5 +36,6 @@
   "shortcuts": [],
   "signingMode": "new",
   "isChromeOSOnly": false,
-  "webManifestUrl": "https://tap-watch.vercel.app/manifest.json"
+  "webManifestUrl": "https://tap-watch.vercel.app/manifest.json",
+  "packageName": "app.tapwatch.pwa"
 }

@@ -459,7 +459,7 @@ export default function AllReports() {
       <AdminSidebar />
 
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar title="All Reports">
+        <TopBar title="All Reports" showUserMenu={true}>
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">
             Official
           </span>
