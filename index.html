@@ -6,13 +6,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tap-Watch - Incident System</title>
+    <title>Tap-Watch - Incident Reporting System</title>
+    
+    <!-- Preload critical assets for faster splash screen -->
+    <link rel="preload" href="/mobileintro.png" as="image" />
+    <link rel="preload" href="/Tapinac.logo.jpg" as="image" />
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
     <!-- Theme color for mobile browsers -->
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#ffffff" />
     
     <!-- Apple Touch Icon -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -22,6 +26,34 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TapWatch" />
+    
+    <!-- Disable default splash screen -->
+    <style>
+      /* Instant load - no flash */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+        overflow: hidden;
+      }
+      
+      #root {
+        background-color: #ffffff;
+        min-height: 100vh;
+      }
+      
+      /* Prevent any white flash during load */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        z-index: -1;
+      }
+    </style>
     
     <!-- Description -->
     <meta name="description" content="Community incident reporting and emergency response system for Barangay Tapinac" />

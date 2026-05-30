@@ -1,0 +1,40 @@
+{
+  "packageId": "app.tapwatch.pwa",
+  "name": "TapWatch",
+  "launcherName": "TapWatch",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "host": "tap-watch.vercel.app",
+  "startUrl": "/",
+  "display": "standalone",
+  "backgroundColor": "#ffffff",
+  "themeColor": "#ffffff",
+  "navigationColor": "#ffffff",
+  "navigationColorDark": "#ffffff",
+  "navigationDividerColor": "#ffffff",
+  "navigationDividerColorDark": "#ffffff",
+  "iconUrl": "https://tap-watch.vercel.app/web-app-manifest-512x512.png",
+  "maskableIconUrl": "https://tap-watch.vercel.app/web-app-manifest-512x512.png",
+  "monochromeIconUrl": "https://tap-watch.vercel.app/web-app-manifest-512x512.png",
+  "splashScreenFadeOutDuration": 0,
+  "enableNotifications": true,
+  "enableSiteSettingsShortcut": true,
+  "orientation": "portrait",
+  "signing": {
+    "file": "",
+    "alias": ""
+  },
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "shortcuts": [],
+  "signingMode": "new",
+  "isChromeOSOnly": false,
+  "webManifestUrl": "https://tap-watch.vercel.app/manifest.json"
+}

@@ -48,13 +48,13 @@ function AuthRoute({ children }) {
 function AppRoutes() {
   const [showSplash, setShowSplash] = useState(false)
   const { user, profile, loading } = useAuth()
-  const location = useLocation()
 
   useEffect(() => {
-    // Check if we're on mobile/tablet and if splash hasn't been shown this session
+    // Check if we're on mobile/tablet
     const isMobileOrTablet = window.innerWidth < 1024
     const hasShownSplash = sessionStorage.getItem('splashShown')
     
+    // Show splash IMMEDIATELY on mobile, even before auth check
     if (isMobileOrTablet && !hasShownSplash) {
       setShowSplash(true)
     }
@@ -65,7 +65,7 @@ function AppRoutes() {
     sessionStorage.setItem('splashShown', 'true')
   }
 
-  // Show splash screen if needed
+  // Show splash screen FIRST, before anything else
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />
   }
