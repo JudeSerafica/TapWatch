@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './context/useAuth'
 import SplashScreen from './components/SplashScreen'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -16,9 +17,38 @@ import Analytics from './pages/AnalyticsPage'
 import Profile from './pages/Profile'
 import EmergencyContacts from './pages/EmergencyContacts'
 
-function App() {
+// Protected Route Component - redirects to dashboard if logged in
+function ProtectedLanding() {
+  const { user, profile, loading } = useAuth()
+  
+  if (loading) return <div>Loading...</div>
+  
+  // If user is logged in, redirect to appropriate dashboard
+  if (user && profile) {
+    return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+  }
+  
+  return <LandingPage />
+}
+
+// Auth Route Component - redirects to dashboard if already logged in
+function AuthRoute({ children }) {
+  const { user, profile, loading } = useAuth()
+  
+  if (loading) return <div>Loading...</div>
+  
+  // If user is logged in, redirect to appropriate dashboard
+  if (user && profile) {
+    return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+  }
+  
+  return children
+}
+
+function AppRoutes() {
   const [showSplash, setShowSplash] = useState(false)
-  const [splashShown, setSplashShown] = useState(false)
+  const { user, profile, loading } = useAuth()
+  const location = useLocation()
 
   useEffect(() => {
     // Check if we're on mobile/tablet and if splash hasn't been shown this session
@@ -32,29 +62,48 @@ function App() {
 
   const handleSplashComplete = () => {
     setShowSplash(false)
-    setSplashShown(true)
     sessionStorage.setItem('splashShown', 'true')
   }
 
+  // Show splash screen if needed
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />
+  }
+
+  // Show loading while checking auth
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <Routes>
+      {/* Landing page - redirects to dashboard if logged in */}
+      <Route path="/" element={<ProtectedLanding />} />
+      
+      {/* Auth routes - redirects to dashboard if already logged in */}
+      <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+      <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
+      
+      {/* Protected routes */}
+      <Route path="/profile-setup" element={<ProfileSetup />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/report" element={<ReportIncident />} />
+      <Route path="/resident-map" element={<IncidentMap />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin-map" element={<AdminMap />} />
+      <Route path="/admin-reports" element={<AllReports />} />
+      <Route path="/admin-analytics" element={<Analytics />} />
+      <Route path="/admin-contacts" element={<EmergencyContacts />} />
+    </Routes>
+  )
+}
+
+function App() {
   return (
     <AuthProvider>
-      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/profile-setup" element={<ProfileSetup />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/report" element={<ReportIncident />} />
-          <Route path="/resident-map" element={<IncidentMap />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin-map" element={<AdminMap />} />
-          <Route path="/admin-reports" element={<AllReports />} />
-          <Route path="/admin-analytics" element={<Analytics />} />
-          <Route path="/admin-contacts" element={<EmergencyContacts />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </AuthProvider>
   )
