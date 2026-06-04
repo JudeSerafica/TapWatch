@@ -10,6 +10,7 @@ import {
 } from 'react-leaflet'
 import { ChevronDown } from 'lucide-react'
 import L from 'leaflet'
+import { useTranslation } from '../lib/i18n'
 
 import ResidentSidebar from '../components/ResidentSidebar'
 import AdminSidebar from '../components/AdminSidebar'
@@ -132,6 +133,7 @@ function FocusOnIncident({ incident }) {
 
 export default function IncidentMap() {
   const { isAdmin, profile } = useAuth()
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const focusIncidentId = searchParams.get('incident')
 
@@ -225,7 +227,7 @@ export default function IncidentMap() {
 
       <div className="flex-1 md:ml-60 pb-16 md:pb-0">
         <TopBar 
-          title="Incident Map"
+          title={t('incidentMap')}
           showNotifications={true}
           onNotificationClick={() => {
             // Handle notification click

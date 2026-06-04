@@ -59,10 +59,15 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       onUpdateUnreadCount(newUnreadCount)
     }
 
+    // Dispatch event for NotificationButton to update its count
+    window.dispatchEvent(new CustomEvent('notificationUnreadUpdate', { 
+      detail: { count: newUnreadCount } 
+    }))
+
     // Then update database
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('id', notificationId)
 
     if (error) {
@@ -74,6 +79,10 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       if (onUpdateUnreadCount) {
         onUpdateUnreadCount(currentUnreadCount)
       }
+      // Revert the event dispatch
+      window.dispatchEvent(new CustomEvent('notificationUnreadUpdate', { 
+        detail: { count: currentUnreadCount } 
+      }))
     }
   }
 
@@ -124,10 +133,15 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       onUpdateUnreadCount(0)
     }
 
+    // Dispatch event for NotificationButton
+    window.dispatchEvent(new CustomEvent('notificationUnreadUpdate', { 
+      detail: { count: 0 } 
+    }))
+
     // Then update database
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ is_read: true, read_at: new Date().toISOString() })
       .in('id', unreadIds)
 
     if (error) {

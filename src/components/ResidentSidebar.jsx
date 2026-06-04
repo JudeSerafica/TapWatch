@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, LogOut, User, X, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, LogOut, User, X, AlertTriangle, Shield } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import { useState } from 'react'
 
@@ -7,6 +7,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/report', label: 'Report Incident', icon: FileText },
   { path: '/resident-map', label: 'Incident Map', icon: MapPin },
+  { path: '/verification', label: 'Verification', icon: Shield },
   { path: '/profile', label: 'My Profile', icon: User },
 ]
 
@@ -67,10 +68,18 @@ export default function ResidentSidebar() {
             onClick={() => navigate('/profile')}
             className="flex items-center gap-3 mb-3 w-full text-left hover:bg-gray-800 rounded p-2 -mx-2 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center">
-              <span className="text-xs font-semibold text-white">
-                {initials}
-              </span>
+            <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center overflow-hidden">
+              {profile?.avatar_url ? (
+                <img 
+                  src={profile.avatar_url} 
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-semibold text-white">
+                  {initials}
+                </span>
+              )}
             </div>
             <div>
               <div className="text-sm font-medium text-gray-50">{displayName}</div>

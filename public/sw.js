@@ -87,7 +87,70 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncIncidents() {
-  console.log('Syncing incidents...');
+  try {
+    console.log('[SW] Starting incident sync...');
+    
+    // Open IndexedDB and get queued items
+    const db = await openDB();
+    const tx = db.transaction('incident-queue', 'readonly');
+    const store = tx.objectStore('incident-queue');
+    const index = store.index('synced');
+    const items = await index.getAll(false);
+
+    console.log(`[SW] Found ${items.length} queued incidents`);
+
+    for (const item of items) {
+      try {
+        // Attempt to sync item
+        const response = await fetch('/api/incidents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.data)
+        });
+
+        if (response.ok) {
+          // Mark as synced
+          const updateTx = db.transaction('incident-queue', 'readwrite');
+          const updateStore = updateTx.objectStore('incident-queue');
+          item.synced = true;
+          item.syncedAt = new Date().toISOString();
+          await updateStore.put(item);
+          console.log('[SW] Successfully synced incident:', item.id);
+        } else {
+          console.warn('[SW] Sync failed with status:', response.status);
+        }
+      } catch (error) {
+        console.error('[SW] Failed to sync item:', item.id, error);
+      }
+    }
+
+    console.log('[SW] Incident sync complete');
+  } catch (error) {
+    console.error('[SW] Sync error:', error);
+  }
+}
+
+// Helper to open IndexedDB
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('tapwatch-offline', 1);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('incident-queue')) {
+        const store = db.createObjectStore('incident-queue', {
+          keyPath: 'id',
+          autoIncrement: true
+        });
+        store.createIndex('timestamp', 'timestamp');
+        store.createIndex('type', 'type');
+        store.createIndex('synced', 'synced');
+      }
+    };
+    
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // Push Notifications - for emergency alerts

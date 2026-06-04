@@ -4,6 +4,7 @@ import { AlertTriangle, Activity, Clock, Zap, CheckCircle, ChevronRight, Image a
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useTranslation } from '../lib/i18n'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
@@ -220,6 +221,7 @@ function IncidentMapModal({ incident, onClose }) {
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [incidents, setIncidents] = useState([])
   const [typeStats, setTypeStats] = useState([])
   const [hotspots, setHotspots] = useState([])
@@ -551,7 +553,7 @@ export default function AdminDashboard() {
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900">Officials Dashboard</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('adminDashboard')}</h2>
               <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-medium">Admin View</span>
             </div>
             <p className="text-xs md:text-sm text-gray-500">{today}</p>
@@ -567,10 +569,10 @@ export default function AdminDashboard() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {[
-              { icon: Activity, label: "Today's Incidents", val: incidents.length, bg: 'bg-blue-50', ic: 'text-blue-600' },
-              { icon: Clock, label: "Pending Action", val: pendingCount, bg: 'bg-amber-50', ic: 'text-amber-600' },
-              { icon: Zap, label: "Responding", val: respondingCount, bg: 'bg-blue-50', ic: 'text-blue-600' },
-              { icon: CheckCircle, label: "Resolved", val: resolvedCount, bg: 'bg-emerald-50', ic: 'text-emerald-600' },
+              { icon: Activity, label: t('allIncidents'), val: incidents.length, bg: 'bg-blue-50', ic: 'text-blue-600' },
+              { icon: Clock, label: t('pending'), val: pendingCount, bg: 'bg-amber-50', ic: 'text-amber-600' },
+              { icon: Zap, label: t('responding'), val: respondingCount, bg: 'bg-blue-50', ic: 'text-blue-600' },
+              { icon: CheckCircle, label: t('resolved'), val: resolvedCount, bg: 'bg-emerald-50', ic: 'text-emerald-600' },
             ].map((s, i) => {
               const Icon = s.icon
               return (
@@ -590,8 +592,8 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             <div className="lg:col-span-2 bg-white rounded-xl border">
               <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b">
-                <h3 className="font-bold text-gray-900 text-sm">Recent Incidents</h3>
-                <button onClick={() => navigate('/admin-reports')} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:text-blue-700">View All<ChevronRight size={14} /></button>
+                <h3 className="font-bold text-gray-900 text-sm">{t('recentIncidents')}</h3>
+                <button onClick={() => navigate('/admin-reports')} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:text-blue-700">{t('viewAll')}<ChevronRight size={14} /></button>
               </div>
               <div className="divide-y">
                 {incidents.map(inc => (
@@ -656,12 +658,20 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+                {/* Color-coded progress bars */}
                 <div className="mt-4 space-y-1.5">
                   {typeStats.map(t => {
                     const maxCount = Math.max(...typeStats.map(s => s.count), 1)
+                    const color = typeColors[t.type] || '#3b82f6'
                     return (
                       <div key={t.type} className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                        <div className="h-full rounded-full bg-blue-600" style={{ width: `${(t.count / maxCount) * 100}%` }} />
+                        <div 
+                          className="h-full rounded-full transition-all duration-300" 
+                          style={{ 
+                            width: `${(t.count / maxCount) * 100}%`,
+                            backgroundColor: color
+                          }} 
+                        />
                       </div>
                     )
                   })}

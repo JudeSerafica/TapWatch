@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Edit3, LogOut, X, Save } from 'lucide-react'
+import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Edit3, LogOut, X, Save, Camera } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
+import { supabase } from '../lib/supabase'
 import ResidentSidebar from '../components/ResidentSidebar'
 import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
@@ -20,6 +21,9 @@ export default function Profile() {
     address: '',
     purok: '',
   })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   // Initialize form when profile loads or modal opens
   useEffect(() => {
@@ -31,27 +35,98 @@ export default function Profile() {
         purok: profile.purok || '',
       })
       setError('')
+      setAvatarPreview(profile.avatar_url || null)
+      setAvatarFile(null)
     }
   }, [showEditModal, profile])
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Image size should be less than 5MB')
+        return
+      }
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const uploadAvatar = async () => {
+    if (!avatarFile) return profile?.avatar_url
+
+    setUploadingAvatar(true)
+    try {
+      const fileExt = avatarFile.name.split('.').pop()
+      const fileName = `${user.id}/avatar_${Date.now()}.${fileExt}`
+
+      // Delete old avatar if exists
+      if (profile?.avatar_url) {
+        const oldPath = profile.avatar_url.split('/').pop()
+        await supabase.storage.from('avatars').remove([`${user.id}/${oldPath}`])
+      }
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, avatarFile, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName)
+
+      return urlData.publicUrl
+    } catch (err) {
+      console.error('Avatar upload error:', err)
+      throw new Error('Failed to upload avatar')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     setError('')
     setIsSaving(true)
     
-    const { error } = await saveProfile({
-      fullName: form.fullName,
-      phone: form.phone,
-      address: form.address,
-      purok: form.purok,
-    })
-    
-    setIsSaving(false)
-    
-    if (error) {
-      setError(error)
-    } else {
-      setShowEditModal(false)
+    try {
+      // Upload avatar first if changed
+      let avatarUrl = profile?.avatar_url
+      if (avatarFile) {
+        avatarUrl = await uploadAvatar()
+      }
+
+      // Save profile with avatar URL
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: form.fullName,
+          phone: form.phone,
+          address: form.address,
+          purok: form.purok,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+      
+      if (error) throw error
+
+      // Reload profile
+      window.location.reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -78,8 +153,16 @@ export default function Profile() {
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 md:p-6 text-white">
               <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-white/20 flex items-center justify-center">
-                  <User size={24} className="text-white md:w-8 md:h-8" />
+                <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img 
+                      src={profile.avatar_url} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={24} className="text-white md:w-8 md:h-8" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || user?.user_metadata?.full_name || 'Resident'}</h2>
@@ -134,13 +217,6 @@ export default function Profile() {
                     <Edit3 size={14} />
                     Edit Profile
                   </button>
-                  <button
-                    onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    <ArrowLeft size={14} />
-                    Back
-                  </button>
                 </div>
                 
                 {/* Sign Out Button - Mobile & Tablet Only */}
@@ -184,6 +260,40 @@ export default function Profile() {
                   {error}
                 </div>
               )}
+
+              {/* Avatar Upload */}
+              <div className="mb-6 flex flex-col items-center">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+                    {avatarPreview ? (
+                      <img 
+                        src={avatarPreview} 
+                        alt="Avatar Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User size={40} className="text-gray-400" />
+                    )}
+                  </div>
+                  <label
+                    htmlFor="avatar-upload"
+                    className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition shadow-lg"
+                  >
+                    <Camera size={16} className="text-white" />
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    disabled={isSaving}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Click the camera icon to upload photo
+                </p>
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -260,10 +370,10 @@ export default function Profile() {
                 <button
                   type="submit"
                   className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  disabled={isSaving}
+                  disabled={isSaving || uploadingAvatar}
                 >
-                  {isSaving ? (
-                    'Saving...'
+                  {isSaving || uploadingAvatar ? (
+                    uploadingAvatar ? 'Uploading...' : 'Saving...'
                   ) : (
                     <>
                       <Save size={14} />

@@ -11,8 +11,10 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Filter,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { useTranslation } from '../lib/i18n'
 
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
@@ -27,8 +29,11 @@ import autoTable from 'jspdf-autotable'
 import {
   getIncidents,
   updateIncident,
+  updateIncidentStatus,
   subscribeToIncidents,
 } from '../lib/database'
+
+// Emergency fix will be imported dynamically when needed
 
 import {
   generateIncidentSummary,
@@ -299,9 +304,17 @@ const exportToWord = (data, typeFilter) => {
 // ─────────────────────────────────────────────────────────────
 
 export default function AllReports() {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [statusFilter, setStatusFilter] = useState('All Status')
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState({
+    startDate: '',
+    endDate: '',
+    hasEvidence: false,
+    sosOnly: false,
+  })
 
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -365,23 +378,64 @@ export default function AllReports() {
     setOfficialNotes('')
   }
 
-  // UPDATE STATUS
+  // UPDATE STATUS (with emergency fix)
   const updateStatus = async (newStatus) => {
-    const { error } = await updateIncident(
+    console.log(`🔄 Attempting to update status to: ${newStatus}`)
+    
+    // Try emergency fix first
+    const { directStatusUpdate } = await import('../lib/emergencyFix')
+    const { success, error, data } = await directStatusUpdate(
       selectedIncident.id,
-      {
-        status: newStatus,
-      }
+      newStatus
     )
 
-    if (error) {
-      alert('Failed to update status: ' + error.message)
-    } else {
-      setSelectedIncident((prev) => ({
-        ...prev,
-        status: newStatus,
-      }))
+    if (!success || error) {
+      // If emergency fix fails, try the regular way
+      console.warn('⚠️ Emergency fix failed, trying regular update...')
+      const { error: regularError } = await updateIncidentStatus(
+        selectedIncident.id,
+        newStatus
+      )
+      
+      if (regularError) {
+        alert('Failed to update status: ' + regularError.message)
+        console.error('❌ All status update methods failed:', regularError)
+        return
+      }
     }
+
+    console.log('✅ Status update successful:', data)
+    
+    // Update both selected incident and incidents array
+    setSelectedIncident((prev) => ({
+      ...prev,
+      status: newStatus,
+    }))
+    
+    // Update incidents array so it reflects in the table
+    setIncidents((prev) => 
+      prev.map(incident => 
+        incident.id === selectedIncident.id 
+          ? { ...incident, status: newStatus }
+          : incident
+      )
+    )
+    
+    // Show success message
+    alert(`✅ Status updated to ${newStatus}! This should save to database now.`)
+    console.log(`✅ Status updated to ${newStatus}`)
+    
+    // Verify the status was actually saved
+    setTimeout(async () => {
+      const { verifyStatusUpdate } = await import('../lib/emergencyFix')
+      const verify = await verifyStatusUpdate(selectedIncident.id)
+      console.log('🔍 Status verification:', verify)
+      if (verify.success && verify.data?.status === newStatus) {
+        console.log('✅ CONFIRMED: Status saved to database!')
+      } else {
+        console.warn('⚠️ WARNING: Status may not have saved to database')
+      }
+    }, 1000)
   }
 
   // SAVE NOTES
@@ -423,6 +477,25 @@ export default function AllReports() {
       statusFilter !== 'All Status' &&
       i.status !== statusFilter.toLowerCase()
     ) {
+      return false
+    }
+
+    // Advanced Filters
+    if (advancedFilters.startDate && i.created_at) {
+      const incidentDate = new Date(i.created_at)
+      if (incidentDate < new Date(advancedFilters.startDate)) return false
+    }
+
+    if (advancedFilters.endDate && i.created_at) {
+      const incidentDate = new Date(i.created_at)
+      if (incidentDate > new Date(advancedFilters.endDate)) return false
+    }
+
+    if (advancedFilters.hasEvidence && !i.media_url) {
+      return false
+    }
+
+    if (advancedFilters.sosOnly && !i.is_sos) {
       return false
     }
 
@@ -478,7 +551,7 @@ export default function AllReports() {
           {/* HEADER */}
           <div className="flex flex-row flex-wrap items-center gap-2">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-              All Reports
+              {t('reports')}
             </h2>
 
             <span className="text-xs md:text-sm font-semibold text-gray-900 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
@@ -486,66 +559,176 @@ export default function AllReports() {
             </span>
           </div>
 
-          {/* FILTERS */}
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-            <div className="relative flex-1">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+          {/* FILTERS - ADVANCED SEARCH */}
+          <div className="space-y-3">
+            {/* Search Bar Row */}
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+              <div className="relative flex-1">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
 
-              <input
-                type="text"
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Search incidents..."
-              />
-            </div>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Search incidents by description, location..."
+                />
+              </div>
 
-            <div className="relative flex-1 md:flex-none md:max-w-fit">
-              <select
-                value={typeFilter}
-                onChange={(e) =>
-                  setTypeFilter(e.target.value)
-                }
-                className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="px-4 py-2 border border-gray-200 rounded-lg font-medium hover:bg-gray-50 transition flex items-center justify-center gap-2 text-xs md:text-sm"
               >
-                <option>All Types</option>
-                <option>Crime</option>
-                <option>Accident</option>
-                <option>Fire</option>
-                <option>Flood</option>
-                <option>Disturbance</option>
-              </select>
-
-              <ChevronDown
-                size={14}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
+                <Filter size={16} />
+                Filters
+                {(advancedFilters.startDate || advancedFilters.endDate || advancedFilters.hasEvidence || advancedFilters.sosOnly) && (
+                  <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs">
+                    {[advancedFilters.startDate, advancedFilters.endDate, advancedFilters.hasEvidence, advancedFilters.sosOnly].filter(Boolean).length}
+                  </span>
+                )}
+              </button>
             </div>
 
-            <div className="relative flex-1 md:flex-none md:max-w-fit">
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value)
-                }
-                className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
-              >
-                <option>All Status</option>
-                <option>Pending</option>
-                <option>Responding</option>
-                <option>Resolved</option>
-              </select>
+            {/* Advanced Filters Panel */}
+            {showAdvancedFilters && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Filter size={14} />
+                    Filters
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setAdvancedFilters({
+                        startDate: '',
+                        endDate: '',
+                        hasEvidence: false,
+                        sosOnly: false,
+                      })
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Clear All
+                  </button>
+                </div>
 
-              <ChevronDown
-                size={14}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Incident Type
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
+                      >
+                        <option>All Types</option>
+                        <option>Crime</option>
+                        <option>Accident</option>
+                        <option>Fire</option>
+                        <option>Flood</option>
+                        <option>Disturbance</option>
+                      </select>
+                      <ChevronDown
+                        size={14}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Status
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
+                      >
+                        <option>All Status</option>
+                        <option>Pending</option>
+                        <option>Responding</option>
+                        <option>Resolved</option>
+                      </select>
+                      <ChevronDown
+                        size={14}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={advancedFilters.startDate}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, startDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={advancedFilters.endDate}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, endDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="hasEvidence"
+                      checked={advancedFilters.hasEvidence}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, hasEvidence: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="hasEvidence" className="text-xs text-gray-700">
+                      Has Evidence
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="sosOnly"
+                      checked={advancedFilters.sosOnly}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, sosOnly: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="sosOnly" className="text-xs text-gray-700">
+                      SOS Only
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                  <button
+                    onClick={() => setShowAdvancedFilters(false)}
+                    className="px-4 py-2 text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => setShowAdvancedFilters(false)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* SUMMARY */}
@@ -683,7 +866,7 @@ export default function AllReports() {
                     Status
                   </th>
 
-                  <th className="px-1.5 py-2.5 w-[12%]" text-rigth>
+                  <th className="px-1.5 py-2.5 w-[12%] text-right">
                     Action
                   </th>
                 </tr>

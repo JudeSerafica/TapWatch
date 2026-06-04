@@ -27,9 +27,9 @@ export default function NotificationButton({ onNotificationClick }) {
 
     fetchUnreadCount()
 
-    // Subscribe to new notifications
+    // Subscribe to real-time changes for notifications
     const subscription = supabase
-      .channel('notifications-changes')
+      .channel(`notifications-${profile.id}`)
       .on(
         'postgres_changes',
         {
@@ -38,14 +38,27 @@ export default function NotificationButton({ onNotificationClick }) {
           table: 'notifications',
           filter: `user_id=eq.${profile.id}`
         },
-        () => {
+        (payload) => {
+          // Refetch count on any change
           fetchUnreadCount()
         }
       )
       .subscribe()
 
+    // Also listen for manual updates from NotificationCenter
+    const handleUnreadUpdate = (event) => {
+      if (event.detail?.count !== undefined) {
+        setUnreadCount(event.detail.count)
+      } else {
+        fetchUnreadCount()
+      }
+    }
+
+    window.addEventListener('notificationUnreadUpdate', handleUnreadUpdate)
+
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener('notificationUnreadUpdate', handleUnreadUpdate)
     }
   }, [profile?.id])
 

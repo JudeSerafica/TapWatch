@@ -1,15 +1,16 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTriangle, Shield } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getPendingVerifications } from '../lib/userVerification'
 
 const navItems = [
   { path: '/admin', label: 'Officials Dashboard', icon: LayoutDashboard },
   { path: '/admin-map', label: 'Incident Map', icon: MapPin },
   { path: '/admin-reports', label: 'All Reports', icon: FileText },
+  { path: '/admin-verification', label: 'Verification Review', icon: Shield },
   { path: '/admin-contacts', label: 'Emergency Contacts', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
-  ,
 ]
 
 export default function AdminSidebar() {
@@ -17,6 +18,23 @@ export default function AdminSidebar() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const [showSignOutModal, setShowSignOutModal] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    loadPendingCount()
+    // Refresh count every 30 seconds
+    const interval = setInterval(loadPendingCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadPendingCount = async () => {
+    try {
+      const { data } = await getPendingVerifications()
+      setPendingCount(data?.length || 0)
+    } catch (err) {
+      console.error('Error loading pending count:', err)
+    }
+  }
 
   const isActive = (path) => {
     if (path === '/admin') return location.pathname === '/admin'
@@ -49,11 +67,12 @@ export default function AdminSidebar() {
           {navItems.map((item) => {
             const active = isActive(item.path)
             const Icon = item.icon
+            const showBadge = item.path === '/admin-verification' && pendingCount > 0
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors relative ${
                   active
                     ? 'bg-blue-700 text-white'
                     : 'text-gray-300 hover:bg-gray-800'
@@ -61,6 +80,11 @@ export default function AdminSidebar() {
               >
                 <Icon size={18} />
                 {item.label}
+                {showBadge && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {pendingCount}
+                  </span>
+                )}
               </button>
             )
           })}

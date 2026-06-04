@@ -1,28 +1,112 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { notifyAllAdmins } from '../lib/notificationService'
+import { getUserVerificationStatus, VERIFICATION_LEVELS } from '../lib/userVerification'
+import { useNavigate } from 'react-router-dom'
 
 export default function SOSPanicModal({ isOpen, onClose, profile }) {
+  const navigate = useNavigate()
   const [countdown, setCountdown] = useState(5)
   const [isActivated, setIsActivated] = useState(false)
   const [location, setLocation] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [locationPermission, setLocationPermission] = useState(null) // 'granted', 'denied', 'prompt', null
+  const [showLocationWarning, setShowLocationWarning] = useState(false)
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false)
+  const [showVerificationModal, setShowVerificationModal] = useState(false)
 
+  // Check location permission when modal opens
   useEffect(() => {
     if (isOpen && !isActivated) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLocation({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            })
-          },
-          (error) => { console.error('Location error:', error) }
-        )
-      }
+      checkLocationPermission()
     }
   }, [isOpen, isActivated])
+
+  const checkLocationPermission = async () => {
+    try {
+      // Check if geolocation is supported
+      if (!navigator.geolocation) {
+        setLocationPermission('denied')
+        setShowLocationWarning(true)
+        return
+      }
+
+      // Try to get location permission status
+      if (navigator.permissions) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' })
+        setLocationPermission(permission.state)
+        
+        if (permission.state === 'denied') {
+          setShowLocationWarning(true)
+        } else if (permission.state === 'granted') {
+          // Get location immediately if already granted
+          getCurrentLocation()
+        }
+      } else {
+        // Fallback: try to get location directly
+        getCurrentLocation()
+      }
+    } catch (error) {
+      console.error('Error checking location permission:', error)
+      // Try to get location anyway
+      getCurrentLocation()
+    }
+  }
+
+  const getCurrentLocation = () => {
+    console.log('🔍 Requesting location...')
+    setIsRequestingLocation(true)
+    
+    if (!navigator.geolocation) {
+      console.error('❌ Geolocation not supported')
+      alert('Location services not supported by your browser.')
+      setIsRequestingLocation(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('✅ Location obtained:', position.coords)
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        })
+        setLocationPermission('granted')
+        setShowLocationWarning(false)
+        setIsRequestingLocation(false)
+      },
+      (error) => {
+        console.error('❌ Location error:', error)
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Unable to access your location. '
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += 'Please allow location access in your browser settings.'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information is unavailable.'
+            break
+          case error.TIMEOUT:
+            errorMessage += 'Location request timed out. Please try again.'
+            break
+          default:
+            errorMessage += 'An unknown error occurred.'
+        }
+        
+        alert(errorMessage)
+        setLocationPermission('denied')
+        setShowLocationWarning(true)
+        setIsRequestingLocation(false)
+      },
+      { 
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    )
+  }
 
   useEffect(() => {
     if (isActivated && countdown > 0) {
@@ -91,7 +175,26 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   }
 
   const handleActivate = () => {
+    // ✅ CHECK VERIFICATION STATUS FIRST
+    if (!profile?.verification_status || profile.verification_status === 'unverified') {
+      setShowVerificationModal(true)
+      return
+    }
+
+    // Check if location is available before activating
+    if (!location && locationPermission !== 'granted') {
+      setShowLocationWarning(true)
+      // Try to request location again
+      getCurrentLocation()
+      return
+    }
     setIsActivated(true)
+  }
+
+  const handleRequestLocation = () => {
+    console.log('📍 User clicked "Enable Location" button')
+    setShowLocationWarning(false)
+    getCurrentLocation()
   }
 
   const handleCancel = () => {
@@ -107,6 +210,53 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   }
 
   if (!isOpen) return null
+
+  // ── VERIFICATION MODAL ──
+  if (showVerificationModal) {
+    return (
+      <div 
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" 
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.6)'
+        }}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-amber-50 p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+              <span className="text-4xl">⚠️</span>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">
+              Verification Required
+            </h2>
+            <p className="text-sm text-gray-600 mb-6">
+              You need to verify your account before sending an SOS alert. This helps us ensure the safety of all residents.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false)
+                  onClose()
+                  navigate('/profile')
+                }}
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold transition"
+              >
+                Go to Profile & Verify
+              </button>
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false)
+                  onClose()
+                }}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ── SUCCESS MODAL ──
   if (showSuccess) {
@@ -221,6 +371,44 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {!isActivated ? (
           <>
+            {/* LOCATION WARNING */}
+            {showLocationWarning && (
+              <div className="bg-amber-50 border-b-2 border-amber-200 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl flex-shrink-0">📍</span>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-amber-900 text-sm mb-1">
+                      Location Access Required
+                    </h3>
+                    <p className="text-xs text-amber-800 mb-3">
+                      SOS alerts require your location to send help to the right place. Please enable location access for this device.
+                    </p>
+                    <button
+                      onClick={handleRequestLocation}
+                      disabled={isRequestingLocation}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
+                        isRequestingLocation
+                          ? 'bg-amber-400 text-white cursor-wait'
+                          : 'bg-amber-600 hover:bg-amber-700 text-white'
+                      }`}
+                    >
+                      {isRequestingLocation ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Requesting...
+                        </span>
+                      ) : (
+                        'Enable Location'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="p-8 text-center">
               <div className="w-32 h-32 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
                 <span className="text-6xl">🚨</span>
@@ -232,10 +420,32 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                 This will immediately alert emergency services and share your location.
                 Use only in life-threatening situations.
               </p>
+              
+              {/* Location Status Indicator */}
+              <div className={`mb-4 p-3 rounded-lg text-sm ${
+                location 
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-amber-50 text-amber-800 border border-amber-200'
+              }`}>
+                <div className="flex items-center justify-center gap-2">
+                  <span>{location ? '✓' : '⚠'}</span>
+                  <span className="font-medium">
+                    {location 
+                      ? 'Location detected' 
+                      : 'Location required'}
+                  </span>
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <button
                   onClick={handleActivate}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg transition"
+                  disabled={!location}
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition ${
+                    location
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   ACTIVATE SOS
                 </button>

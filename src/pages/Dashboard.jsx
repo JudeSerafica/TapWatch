@@ -4,6 +4,7 @@ import { FaClipboardList, FaCheckCircle } from 'react-icons/fa'
 import { FaPersonRunning } from 'react-icons/fa6'
 import { MdPendingActions } from 'react-icons/md'
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from '../lib/i18n'
 
 import {
   MapContainer,
@@ -882,7 +883,7 @@ function EmergencyHotlineModal({ isOpen, onClose }) {
 export default function Dashboard() {
 
   const navigate = useNavigate()
-
+  const { t } = useTranslation()
   const { profile } = useAuth()
 
   const [incidents, setIncidents] = useState([])

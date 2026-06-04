@@ -17,6 +17,9 @@ import AllReports from './pages/AllReports'
 import Analytics from './pages/AnalyticsPage'
 import Profile from './pages/Profile'
 import EmergencyContacts from './pages/EmergencyContacts'
+import VerificationCenter from './pages/VerificationCenter'
+import AdminVerificationReview from './pages/AdminVerificationReview'
+import OfflineIndicator from './components/OfflineIndicator'
 
 // Loading Component
 function LoadingScreen() {
@@ -105,6 +108,8 @@ function AppRoutes() {
       <Route path="/admin-reports" element={<AllReports />} />
       <Route path="/admin-analytics" element={<Analytics />} />
       <Route path="/admin-contacts" element={<EmergencyContacts />} />
+      <Route path="/verification" element={<VerificationCenter />} />
+      <Route path="/admin-verification" element={<AdminVerificationReview />} />
     </Routes>
   )
 }
@@ -114,6 +119,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
+        <OfflineIndicator />
       </BrowserRouter>
     </AuthProvider>
   )

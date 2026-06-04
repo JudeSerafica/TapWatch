@@ -26,6 +26,47 @@ body {
   color: #333333;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Prevent zoom and pinch on mobile */
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+  
+  /* Disable text selection by default (enabled in inputs) */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Disable double-tap zoom on iOS */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection in interactive elements */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  touch-action: auto;
+}
+
+/* Prevent zoom on focus for iOS */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+textarea {
+  font-size: 16px !important; /* iOS won't zoom if font-size >= 16px */
+}
+
+/* Additional zoom prevention */
+* {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
 }
 
 #root {

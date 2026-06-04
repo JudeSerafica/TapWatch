@@ -2,10 +2,12 @@ import { TrendingUp, Calendar, Percent, Flame, MapPin } from 'lucide-react'
 import { Line, Doughnut, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 import { useState, useEffect } from 'react'
+import { useTranslation } from '../lib/i18n'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import TopBar from '../components/TopBar'
-import { getIncidentStats, getHotspots } from '../lib/database'
+import DataExportPanel from '../components/DataExportPanel'
+import { getIncidentStats, getHotspots, getIncidents } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 
@@ -18,16 +20,23 @@ const base = { responsive:true, maintainAspectRatio:false, plugins:{legend:{disp
 const xy = { x:{grid:{display:false},ticks:{color:'#9ca3af',font:{size:11}}}, y:{beginAtZero:true,grid:{color:'#f3f4f6'},ticks:{color:'#9ca3af',font:{size:11}}} }
 
 export default function Analytics() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState(null)
+  const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadStats = async () => {
       // Parallel data fetching for faster loading
-      const [statsResult, hotspotsResult] = await Promise.all([
+      const [statsResult, hotspotsResult, incidentsResult] = await Promise.all([
         getIncidentStats('7d'),
-        getHotspots()
+        getHotspots(),
+        getIncidents()
       ])
+      
+      if (incidentsResult.data) {
+        setIncidents(incidentsResult.data)
+      }
       
       if (statsResult.data) {
         const total = statsResult.data.total
@@ -96,10 +105,10 @@ export default function Analytics() {
   const barOpts = { ...base, scales:{...xy,y:{...xy.y,max:Math.max(5, Math.max(...(stats?.sc||[0]))+1),ticks:{...xy.y.ticks,stepSize:1}}} }
 
   const summaryStats = [
-    {icon:Calendar,label:'Total Incidents',value:stats?.total||0,color:'text-blue-700'},
-    {icon:Calendar,label:'This Week',value:0,color:'text-gray-700'},
-    {icon:Percent,label:'Resolution Rate',value:`${stats?.rate||0}%`,color:'text-emerald-600'},
-    {icon:MapPin,label:'Hotspot Puroks',value:stats?.hs?.length||0,color:'text-orange-500'},
+    {icon:Calendar,label:t('allIncidents'),value:stats?.total||0,color:'text-blue-700'},
+    {icon:Calendar,label:t('thisWeek'),value:0,color:'text-gray-700'},
+    {icon:Percent,label:t('resolved'),value:`${stats?.rate||0}%`,color:'text-emerald-600'},
+    {icon:MapPin,label:t('hotspots'),value:stats?.hs?.length||0,color:'text-orange-500'},
   ]
 
   if (loading) {
@@ -137,8 +146,8 @@ export default function Analytics() {
 
       <main className="p-4 md:p-6 space-y-4 md:space-y-6">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Analytics & Hotspots</h2>
-          <p className="text-sm text-gray-500 mt-1">Incident trends and pattern analysis</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('analytics')}</h2>
+          <p className="text-sm text-gray-500 mt-1">{t('trends')}</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -180,6 +189,24 @@ export default function Analytics() {
                 ))}
               </div>
             </div>
+            {/* Progress bars with incident type colors */}
+            <div className="mt-4 space-y-1.5">
+              {Object.entries(T).map(([k,v],i) => {
+                const maxCount = Math.max(...(stats?.tc||[0]), 1)
+                const count = stats?.tc?.[i] || 0
+                return (
+                  <div key={k} className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-300" 
+                      style={{ 
+                        width: `${(count / maxCount) * 100}%`,
+                        backgroundColor: C[k]
+                      }} 
+                    />
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 
@@ -212,6 +239,11 @@ export default function Analytics() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Data Export Panel */}
+          <div className="col-span-full">
+            <DataExportPanel incidents={incidents} />
           </div>
         </div>
       </main>

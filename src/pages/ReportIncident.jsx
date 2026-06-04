@@ -19,6 +19,7 @@ import {
 import { RiSparklingFill } from 'react-icons/ri'
 import { OrbitProgress } from 'react-loading-indicators'
 import L from 'leaflet'
+import { useTranslation } from '../lib/i18n'
 import ResidentSidebar from '../components/ResidentSidebar'
 import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
@@ -342,6 +343,7 @@ function CameraMenu({ onFileChange }) {
 
 export default function ReportIncident() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { profile } = useAuth()
   const [pin, setPin] = useState(null)
   const [aiType, setAiType] = useState('')
@@ -353,6 +355,7 @@ export default function ReportIncident() {
   const [notification, setNotification] = useState(null)
   const [boundaryError, setBoundaryError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [showVerificationModal, setShowVerificationModal] = useState(false)
 
   const [form, setForm] = useState({
     type: '', description: '', date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5),
@@ -457,6 +460,12 @@ const uploadMedia = async () => {
 
   const handleSubmit = async (e) => {
   e.preventDefault()
+
+  // ✅ CHECK VERIFICATION STATUS FIRST
+  if (!profile?.verification_status || profile.verification_status === 'unverified') {
+    setShowVerificationModal(true)
+    return
+  }
 
   if (!form.type || !form.description) {
     showNotification('Please fill in required fields.', 'error')
@@ -716,10 +725,10 @@ const uploadMedia = async () => {
                 </div>
                 <div>
                   <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
-                    Report an Incident
+                    {t('reportIncident')}
                   </h2>
                   <p style={{ fontSize: 13, color: '#94a3b8', margin: '3px 0 0', fontWeight: 400 }}>
-                    Drop a pin on the map, then fill in the details below.
+                    {t('pinLocation')}
                   </p>
                 </div>
               </div>
@@ -1004,6 +1013,225 @@ const uploadMedia = async () => {
         </div>
         <MobileBottomNav />
       </div>
+
+      {/* VERIFICATION REQUIRED MODAL */}
+      {showVerificationModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          padding: 16,
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 20,
+            maxWidth: 480,
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            animation: 'scaleIn 0.3s ease',
+            overflow: 'hidden',
+          }}>
+            {/* Header with gradient */}
+            <div style={{
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              padding: '24px',
+              textAlign: 'center',
+              position: 'relative',
+            }}>
+              <div style={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                animation: 'bounce 1s infinite',
+              }}>
+                <span style={{ fontSize: 40 }}>🛡️</span>
+              </div>
+              <h2 style={{
+                margin: 0,
+                fontSize: 24,
+                fontWeight: 700,
+                color: '#fff',
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                Verification Required
+              </h2>
+            </div>
+
+            {/* Body */}
+            <div style={{
+              padding: '32px 24px',
+              textAlign: 'center',
+            }}>
+              <p style={{
+                margin: '0 0 24px',
+                fontSize: 16,
+                lineHeight: 1.6,
+                color: '#374151',
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                You need to <strong style={{ color: '#f59e0b' }}>verify your identity</strong> before you can submit incident reports. This helps us maintain trust and credibility in our community.
+              </p>
+
+              {/* Benefits list */}
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fbbf24',
+                borderRadius: 12,
+                padding: '16px',
+                marginBottom: 24,
+                textAlign: 'left',
+              }}>
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#92400e',
+                  marginBottom: 12,
+                  textAlign: 'center',
+                }}>
+                  ✨ Verification Benefits:
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>✅</span>
+                    <span style={{ fontSize: 13, color: '#78350f' }}>Submit incident reports</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>🏆</span>
+                    <span style={{ fontSize: 13, color: '#78350f' }}>Earn reputation points</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>🎖️</span>
+                    <span style={{ fontSize: 13, color: '#78350f' }}>Get verified badge</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>🤝</span>
+                    <span style={{ fontSize: 13, color: '#78350f' }}>Build community trust</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}>
+                <button
+                  onClick={() => {
+                    setShowVerificationModal(false)
+                    navigate('/verification')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '14px 24px',
+                    border: 'none',
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    color: '#fff',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: "'DM Sans', sans-serif",
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.5)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)'
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>🛡️</span>
+                  Get Verified Now
+                </button>
+
+                <button
+                  onClick={() => setShowVerificationModal(false)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 24px',
+                    border: '1.5px solid #e5e7eb',
+                    borderRadius: 12,
+                    background: '#fff',
+                    color: '#6b7280',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: "'DM Sans', sans-serif",
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f9fafb'
+                    e.currentTarget.style.borderColor = '#d1d5db'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#fff'
+                    e.currentTarget.style.borderColor = '#e5e7eb'
+                  }}
+                >
+                  Maybe Later
+                </button>
+              </div>
+
+              <p style={{
+                margin: '16px 0 0',
+                fontSize: 12,
+                color: '#9ca3af',
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                Verification takes less than 2 minutes
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { 
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          to { 
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+      `}</style>
 
       {/* LOADING MODAL */}
       {submitting && (
