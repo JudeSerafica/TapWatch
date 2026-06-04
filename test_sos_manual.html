@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test SOS Insert - Manual</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Manual SOS Test</h1>
+    <button onclick="testSOSInsert()">Test SOS Insert</button>
+    <div id="result"></div>
+
+    <script>
+        // Replace with your actual Supabase credentials
+        const SUPABASE_URL = 'https://wyucuxtowzkurlvjzime.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dWN1eHRvd3prdXJsdmp6aW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDY4MzAsImV4cCI6MjA5NTk4MjgzMH0.IwaV1LPmvZL2HvGpaZgWJIHQIIPUFXXAlNagxs7KIlY'
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        async function testSOSInsert() {
+            const resultDiv = document.getElementById('result')
+            resultDiv.innerHTML = '<p>Testing...</p>'
+
+            try {
+                // First check if user is authenticated
+                const { data: { user }, error: authError } = await supabase.auth.getUser()
+                
+                if (authError || !user) {
+                    resultDiv.innerHTML = '<p style="color:red">❌ ERROR: Not authenticated. Please login first.</p>'
+                    console.error('Auth error:', authError)
+                    return
+                }
+
+                console.log('✅ User authenticated:', user.id)
+
+                // Try to insert SOS alert
+                const sosData = {
+                    type: 'crime',
+                    description: '🚨 TEST SOS ALERT - Manual Insert Test',
+                    location: 'Test Location',
+                    latitude: 14.123456,
+                    longitude: 121.123456,
+                    status: 'pending',
+                    user_id: user.id,
+                    reporter_name: 'Test User',
+                    is_sos: true,
+                    created_at: new Date().toISOString()
+                }
+
+                console.log('📤 Attempting insert:', sosData)
+
+                const { data, error } = await supabase
+                    .from('incidents')
+                    .insert([sosData])
+                    .select()
+                    .single()
+
+                if (error) {
+                    resultDiv.innerHTML = `
+                        <p style="color:red">❌ INSERT FAILED</p>
+                        <pre>${JSON.stringify(error, null, 2)}</pre>
+                    `
+                    console.error('❌ Insert error:', error)
+                    return
+                }
+
+                resultDiv.innerHTML = `
+                    <p style="color:green">✅ SUCCESS! SOS Alert inserted.</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p>Go check Supabase incidents table!</p>
+                `
+                console.log('✅ Insert successful:', data)
+
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <p style="color:red">❌ UNEXPECTED ERROR</p>
+                    <pre>${err.message}</pre>
+                `
+                console.error('❌ Unexpected error:', err)
+            }
+        }
+    </script>
+</body>
+</html>

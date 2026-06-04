@@ -1,0 +1,45 @@
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.status-pending { 
+  background-color: #fef3c7; 
+  color: #854d0e; 
+}
+
+.status-responding { 
+  background-color: #dbeafe; 
+  color: #1d4ed8; 
+}
+
+.status-resolved { 
+  background-color: #d1fae5; 
+  color: #047857; 
+}
+
+.type-crime { 
+  background-color: #dc2626; 
+}
+
+.type-accident { 
+  background-color: #f59e0b; 
+}
+
+.type-fire { 
+  background-color: #ea580c; 
+}
+
+.type-flood { 
+  background-color: #2563eb; 
+}
+
+.type-disturbance { 
+  background-color: #7c3aed; 
+}
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}

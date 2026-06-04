@@ -1,0 +1,411 @@
+/* ── Container ── */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.8s ease-out;
+}
+
+.splash-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Background ── */
+.splash-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/mobileintro.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ── Splash content wrapper ── */
+.splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+}
+
+/* ── Stage label (loading only) ── */
+.loading-stage-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #2563eb;
+  background: rgba(219, 234, 254, 0.7);
+  border-radius: 20px;
+  padding: 4px 16px;
+  margin: 0 0 24px 0;
+}
+
+/* ── Stages ── */
+.loading-stage,
+.content-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* ── Logo wrapper — holds ring + floating icons ── */
+.logo-wrapper {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 28px 0;
+}
+
+/* ── Logo ring (grey-ish circle) ── */
+.logo-ring {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 2px solid #c8d8f0;
+  background: rgba(225, 235, 252, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* inner soft ring */
+.logo-ring::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #dce8fa;
+  background: rgba(240, 246, 255, 0.5);
+  pointer-events: none;
+}
+
+/* outer dotted ring */
+.logo-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed #c8d8f0;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.logo-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: pulse-glow 2s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+  50%       { transform: translate(-50%, -50%) scale(1.12); opacity: 0.3; }
+}
+
+.splash-logo {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 50%;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Floating icon circles ── */
+.icon-circle {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #dce8fa;
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.08);
+  z-index: 3;
+}
+
+.icon-top {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: float-top 3s ease-in-out infinite;
+}
+
+.icon-left {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  animation: float-side 3s ease-in-out infinite 0.5s;
+}
+
+.icon-right {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  animation: float-side 3s ease-in-out infinite 1s;
+}
+
+.icon-bottom {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: float-top 3s ease-in-out infinite 1.5s;
+}
+
+.icon-blue { color: #2563eb; }
+
+@keyframes float-top {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-7px); }
+}
+
+@keyframes float-side {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50%       { transform: translateY(-50%) translateX(0) translateY(-7px); }
+}
+
+/* connector lines from icons to ring */
+.icon-circle::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(180deg, #c8d8f0 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.icon-top::after {
+  width: 2px;
+  height: 32px;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.icon-left::after {
+  width: 32px;
+  height: 2px;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, #c8d8f0 0%, transparent 100%);
+}
+
+.icon-right::after {
+  width: 32px;
+  height: 2px;
+  top: 50%;
+  right: 100%;
+  transform: translateY(-50%);
+  background: linear-gradient(270deg, #c8d8f0 0%, transparent 100%);
+}
+
+.icon-bottom::after {
+  width: 2px;
+  height: 32px;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(0deg, #c8d8f0 0%, transparent 100%);
+}
+
+/* ── Typography ── */
+.app-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  letter-spacing: 3px;
+  line-height: 1;
+}
+
+.text-dark { color: #1e293b; }
+.text-blue { color: #2563eb; }
+
+.barangay-text {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0 0 32px 0;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+}
+
+/* ── Progress section ── */
+.progress-section {
+  width: 100%;
+  max-width: 300px;
+}
+
+.progress-label {
+  font-size: 1rem;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 7px;
+  background: #dde7f5;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%);
+  border-radius: 10px;
+  transition: width 0.25s ease-out;
+}
+
+.progress-percentage {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin: 0 0 3px 0;
+}
+
+.progress-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* ── Tagline (stage 2) ── */
+.tagline-section {
+  margin-bottom: 32px;
+  animation: fadeIn 0.6s ease-out 0.4s backwards;
+}
+
+.tagline-text {
+  font-size: 1rem;
+  color: #1e293b;
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+/* ── System Ready ── */
+.ready-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.check-icon-container {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: iconZoom 0.5s ease-out;
+}
+
+@keyframes iconZoom {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.check-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.check-circle {
+  animation: pulse-check 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-check {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
+}
+
+.check-mark {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: drawCheck 0.5s ease-out 0.2s forwards;
+}
+
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+.ready-text {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* ── Shared fade-in ── */
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ── */
+@media (min-width: 1024px) {
+  .splash-screen { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .app-title { font-size: 2.1rem; }
+
+  .logo-wrapper { width: 300px; height: 300px; }
+  .logo-ring    { width: 215px; height: 215px; }
+  .splash-logo  { width: 150px; height: 150px; }
+
+  .icon-circle { width: 46px; height: 46px; }
+  .icon-circle svg { width: 20px; height: 20px; }
+}
+
+@media (max-width: 480px) {
+  .app-title { font-size: 1.9rem; }
+
+  .logo-wrapper { width: 300px; height: 300px; }
+  .logo-ring    { width: 215px; height: 215px; }
+  .splash-logo  { width: 150px; height: 150px; }
+
+  .icon-circle { width: 42px; height: 42px; }
+  .icon-circle svg { width: 18px; height: 18px; }
+}

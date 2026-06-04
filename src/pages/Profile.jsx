@@ -1,0 +1,335 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Edit3, LogOut, X, Save } from 'lucide-react'
+import { useAuth } from '../context/useAuth'
+import ResidentSidebar from '../components/ResidentSidebar'
+import MobileBottomNav from '../components/MobileBottomNav'
+import TopBar from '../components/TopBar'
+
+export default function Profile() {
+  const navigate = useNavigate()
+  const { user, profile, signOut, saveProfile } = useAuth()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({
+    fullName: '',
+    phone: '',
+    address: '',
+    purok: '',
+  })
+
+  // Initialize form when profile loads or modal opens
+  useEffect(() => {
+    if (showEditModal && profile) {
+      setForm({
+        fullName: profile.full_name || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        purok: profile.purok || '',
+      })
+      setError('')
+    }
+  }, [showEditModal, profile])
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    setError('')
+    setIsSaving(true)
+    
+    const { error } = await saveProfile({
+      fullName: form.fullName,
+      phone: form.phone,
+      address: form.address,
+      purok: form.purok,
+    })
+    
+    setIsSaving(false)
+    
+    if (error) {
+      setError(error)
+    } else {
+      setShowEditModal(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setIsLoggingOut(false)
+      setShowLogoutModal(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <ResidentSidebar />
+      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+        <TopBar title="My Profile" showNotifications={true} />
+        <main className="p-4 md:p-6 max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl shadow-sm border border-black overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 md:p-6 text-white">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <User size={24} className="text-white md:w-8 md:h-8" />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || user?.user_metadata?.full_name || 'Resident'}</h2>
+                  <p className="text-xs md:text-sm text-blue-100 capitalize">{profile?.role || 'Resident'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="p-4 md:p-6 space-y-3 md:space-y-4">
+              <div className="flex items-center gap-2 md:gap-3 p-3 md:p-3 rounded-lg bg-gray-50">
+                <Mail size={16} className="text-gray-500 md:w-5 md:h-5" />
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-900">{user?.email || profile?.email || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 md:gap-3 p-3 md:p-3 rounded-lg bg-gray-50">
+                <Phone size={16} className="text-gray-500 md:w-5 md:h-5" />
+                <div>
+                  <p className="text-xs text-gray-500">Contact Number</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-900">{profile?.phone || 'Not set'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 md:gap-3 p-3 md:p-3 rounded-lg bg-gray-50">
+                <MapPin size={16} className="text-gray-500 md:w-5 md:h-5" />
+                <div>
+                  <p className="text-xs text-gray-500">Address / Purok</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-900">{profile?.address || profile?.purok || 'Not set'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 md:gap-3 p-3 md:p-3 rounded-lg bg-gray-50">
+                <Shield size={16} className="text-gray-500 md:w-5 md:h-5" />
+                <div>
+                  <p className="text-xs text-gray-500">Account Status</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <p className="text-xs md:text-sm font-medium text-gray-900">Active</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 md:pt-4 border-t border-gray-100 space-y-2">
+                <div className="flex gap-2 md:gap-3">
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Edit3 size={14} />
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    <ArrowLeft size={14} />
+                    Back
+                  </button>
+                </div>
+                
+                {/* Sign Out Button - Mobile & Tablet Only */}
+                <button
+                  onClick={() => setShowLogoutModal(true)}
+                  className="lg:hidden w-full flex items-center justify-center gap-2 px-3 md:px-4 py-2.5 bg-red-50 text-red-600 rounded-lg text-xs md:text-sm font-medium hover:bg-red-100 transition-colors border border-red-200"
+                >
+                  <LogOut size={14} />
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      <MobileBottomNav />
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white p-4 md:p-5 border-b border-gray-100 flex items-center justify-between z-10">
+              <div className="flex items-center gap-2">
+                <Edit3 size={20} className="text-blue-600" />
+                <h3 className="text-base md:text-lg font-semibold text-gray-900">Edit Profile</h3>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={isSaving}
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSaveProfile} className="p-4 md:p-6">
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Juan Dela Cruz"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="09123456789"
+                    disabled={isSaving}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    This will be used for notifications
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Purok
+                  </label>
+                  <input
+                    type="text"
+                    value={form.purok}
+                    onChange={(e) => setForm({ ...form, purok: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Purok 1"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                    placeholder="e.g. Purok 1, East Tapinac, Olongapo City"
+                    rows={3}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-6 flex gap-2 md:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    'Saving...'
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
+            {/* Modal Header */}
+            <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-base md:text-lg font-semibold text-gray-900">Confirm Logout</h3>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={isLoggingOut}
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 md:p-6">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-red-100 flex items-center justify-center">
+                  <LogOut size={24} className="text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm md:text-base text-gray-700 font-medium mb-1">
+                    Are you sure you want to logout?
+                  </p>
+                  <p className="text-xs md:text-sm text-gray-500">
+                    You'll need to sign in again to access your account.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 md:p-5 border-t border-gray-100 flex gap-2 md:gap-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
+                disabled={isLoggingOut}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? 'Logging out...' : 'Yes, Logout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
