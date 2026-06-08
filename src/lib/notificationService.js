@@ -2,24 +2,41 @@ import { supabase } from './supabase'
 
 /**
  * Create a notification for a specific user
+ * Uses RPC function to bypass RLS restrictions
  */
 export const createNotification = async ({ userId, title, message, type = 'info', incidentId = null }) => {
   try {
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert([
-        {
-          user_id: userId,
-          title,
-          message,
-          type,
-          incident_id: incidentId,
-          is_read: false
-        }
-      ])
-      .select()
+    // Try using RPC function first (more secure, bypasses RLS properly)
+    const { data, error } = await supabase.rpc('create_notification', {
+      p_user_id: userId,
+      p_title: title,
+      p_message: message,
+      p_type: type,
+      p_incident_id: incidentId
+    })
 
-    if (error) throw error
+    if (error) {
+      // If RPC fails, fall back to direct insert (will work if user is owner)
+      console.warn('RPC function failed, attempting direct insert:', error.message)
+      
+      const { data: directData, error: directError } = await supabase
+        .from('notifications')
+        .insert([
+          {
+            user_id: userId,
+            title,
+            message,
+            type,
+            incident_id: incidentId,
+            is_read: false
+          }
+        ])
+        .select()
+
+      if (directError) throw directError
+      return { data: directData, error: null }
+    }
+
     return { data, error: null }
   } catch (error) {
     console.error('Error creating notification:', error)
@@ -32,21 +49,34 @@ export const createNotification = async ({ userId, title, message, type = 'info'
  */
 export const createBulkNotifications = async ({ userIds, title, message, type = 'info', incidentId = null }) => {
   try {
-    const notifications = userIds.map(userId => ({
-      user_id: userId,
-      title,
-      message,
-      type,
-      incident_id: incidentId,
-      is_read: false
-    }))
+    // Try using RPC function first (more secure, bypasses RLS properly)
+    const { data, error } = await supabase.rpc('create_bulk_notifications', {
+      p_user_ids: userIds,
+      p_title: title,
+      p_message: message,
+      p_type: type,
+      p_incident_id: incidentId
+    })
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert(notifications)
-      .select()
+    if (error) {
+      // If RPC fails, fall back to creating notifications individually
+      console.warn('Bulk RPC function failed, falling back to individual creates:', error.message)
+      
+      const results = []
+      for (const userId of userIds) {
+        const result = await createNotification({
+          userId,
+          title,
+          message,
+          type,
+          incidentId
+        })
+        if (result.data) results.push(result.data)
+      }
+      
+      return { data: results.flat(), error: null }
+    }
 
-    if (error) throw error
     return { data, error: null }
   } catch (error) {
     console.error('Error creating bulk notifications:', error)

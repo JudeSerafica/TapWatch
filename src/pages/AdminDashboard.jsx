@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { AlertTriangle, Activity, Clock, Zap, CheckCircle, ChevronRight, Image as ImageIcon, Play, X, AlertCircle, Phone } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useTranslation } from '../lib/i18n'
@@ -14,6 +14,7 @@ import TopBar from '../components/TopBar'
 import MediaPreview from '../components/MediaPreview'
 import { getIncidents, getIncidentStats, getHotspots, subscribeToIncidents } from '../lib/database'
 import { supabase } from '../lib/supabase'
+import { eastTapinacGeoJSON } from '../data/EastTapinac'
 
 /* ---------------------------------------------
    FIX LEAFLET DEFAULT ICON ISSUE
@@ -102,6 +103,54 @@ function ResizeMap() {
 }
 
 /* ---------------------------------------------
+   MAP BOUNDS HANDLER FOR GEOJSON BOUNDARIES
+--------------------------------------------- */
+function MapBoundsHandler() {
+  const map = useMap()
+  const geoJsonRef = useRef(null)
+
+  useEffect(() => {
+    if (!map || !geoJsonRef.current) return
+
+    const layer = geoJsonRef.current
+
+    let bounds = null
+
+    if (layer.getLayers) {
+      layer.getLayers().forEach((geoLayer) => {
+        const layerBounds = geoLayer.getBounds()
+
+        if (bounds) {
+          bounds.extend(layerBounds)
+        } else {
+          bounds = layerBounds
+        }
+      })
+    }
+
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+      })
+    }
+  }, [map])
+
+  return (
+    <GeoJSON
+      ref={geoJsonRef}
+      data={eastTapinacGeoJSON}
+      style={{
+        color: '#1d4ed8',
+        weight: 5,
+        opacity: 0.7,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+      }}
+    />
+  )
+}
+
+/* ---------------------------------------------
    INCIDENT MAP MODAL
 --------------------------------------------- */
 function IncidentMapModal({ incident, onClose }) {
@@ -177,8 +226,9 @@ function IncidentMapModal({ incident, onClose }) {
           {hasCoords ? (
             <MapContainer
               center={[Number(incident.latitude), Number(incident.longitude)]}
-              zoom={17}
+              zoom={15}
               scrollWheelZoom={true}
+              dragging={true}
               style={{ height: '100%', width: '100%' }}
               className="z-0"
             >
@@ -187,6 +237,7 @@ function IncidentMapModal({ incident, onClose }) {
                 attribution='&copy; OpenStreetMap contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+              <MapBoundsHandler />
               <FlyToIncident incident={incident} />
               <Marker
                 position={[Number(incident.latitude), Number(incident.longitude)]}

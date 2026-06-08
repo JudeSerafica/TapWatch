@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Clock, X, AlertCircle, Shield, Phone, Mail, User, Save } from 'lucide-react'
+import { Clock, X, AlertCircle, Shield, Phone, Mail, User, Save, MapPin } from 'lucide-react'
 import { FaClipboardList, FaCheckCircle } from 'react-icons/fa'
 import { FaPersonRunning } from 'react-icons/fa6'
 import { MdPendingActions } from 'react-icons/md'
@@ -12,6 +12,7 @@ import {
   Marker,
   Popup,
   useMap,
+  GeoJSON,
 } from 'react-leaflet'
 
 import L from 'leaflet'
@@ -27,6 +28,7 @@ import SOSPanicModal from '../components/SOSPanicModal'
 import { useAuth } from '../context/useAuth'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
 import { supabase } from '../lib/supabase'
+import { eastTapinacGeoJSON } from '../data/EastTapinac'
 
 import {
   FaMapPin,
@@ -103,6 +105,52 @@ function createIcon(type) {
     iconAnchor: [18, 45],
     popupAnchor: [0, -45],
   })
+}
+
+// Map Bounds Handler Component for displaying GeoJSON boundaries
+function MapBoundsHandler() {
+  const map = useMap()
+  const geoJsonRef = useRef(null)
+
+  useEffect(() => {
+    if (!map || !geoJsonRef.current) return
+
+    const layer = geoJsonRef.current
+
+    let bounds = null
+
+    if (layer.getLayers) {
+      layer.getLayers().forEach((geoLayer) => {
+        const layerBounds = geoLayer.getBounds()
+
+        if (bounds) {
+          bounds.extend(layerBounds)
+        } else {
+          bounds = layerBounds
+        }
+      })
+    }
+
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+      })
+    }
+  }, [map])
+
+  return (
+    <GeoJSON
+      ref={geoJsonRef}
+      data={eastTapinacGeoJSON}
+      style={{
+        color: '#1d4ed8',
+        weight: 5,
+        opacity: 0.7,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+      }}
+    />
+  )
 }
 
 /* ─────────────────────────────────────────────
@@ -269,8 +317,9 @@ function IncidentMapModal({ incident, onClose }) {
                 Number(incident.latitude),
                 Number(incident.longitude),
               ]}
-              zoom={17}
+              zoom={15}
               scrollWheelZoom={true}
+              dragging={true}
               style={{
                 height: '100%',
                 width: '100%',
@@ -283,6 +332,8 @@ function IncidentMapModal({ incident, onClose }) {
                 attribution='&copy; OpenStreetMap contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+
+              <MapBoundsHandler />
 
               <FlyToIncident incident={incident} />
 
@@ -331,6 +382,18 @@ function IncidentMapModal({ incident, onClose }) {
           </p>
 
         </div>
+
+        {/* OFFICIAL NOTES FROM ADMIN */}
+        {incident.official_notes && (
+          <div className="px-5 py-4 border-t border-gray-100 bg-blue-50">
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
+              📋 Official Notes from Barangay
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed bg-white p-3 rounded-lg border border-blue-200">
+              {incident.official_notes}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -896,6 +959,8 @@ export default function Dashboard() {
       resolved: 0,
     })
 
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState(null) // NEW: For filtering by status
+
   const [selectedIncident, setSelectedIncident] =
     useState(null)
 
@@ -1296,38 +1361,41 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-3 gap-3 p-4 md:p-6">
 
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
-
+              <button 
+                onClick={() => setSelectedStatusFilter('pending')}
+                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center hover:shadow-md transition cursor-pointer"
+              >
                 <div className="text-2xl md:text-3xl font-bold text-blue-600">
                   {loading ? '...' : myReports.pending}
                 </div>
-
                 <div className="text-xs text-blue-700 mt-2 font-medium flex items-center justify-center gap-1">
                   <MdPendingActions className="text-sm" /> Pending
                 </div>
-              </div>
+              </button>
 
-              <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 text-center">
-
+              <button 
+                onClick={() => setSelectedStatusFilter('responding')}
+                className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 text-center hover:shadow-md transition cursor-pointer"
+              >
                 <div className="text-2xl md:text-3xl font-bold text-amber-600">
                   {loading ? '...' : myReports.responding}
                 </div>
-
                 <div className="text-xs text-amber-700 mt-2 font-medium flex items-center justify-center gap-1">
                   <FaPersonRunning className="text-sm" /> Responding
                 </div>
-              </div>
+              </button>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 text-center">
-
+              <button 
+                onClick={() => setSelectedStatusFilter('resolved')}
+                className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 text-center hover:shadow-md transition cursor-pointer"
+              >
                 <div className="text-2xl md:text-3xl font-bold text-green-600">
                   {loading ? '...' : myReports.resolved}
                 </div>
-
                 <div className="text-xs text-green-700 mt-2 font-medium flex items-center justify-center gap-1">
                   <FaCheckCircle className="text-sm" /> Resolved
                 </div>
-              </div>
+              </button>
 
             </div>
           </div>
@@ -1438,13 +1506,72 @@ export default function Dashboard() {
 
       {/* MAP MODAL */}
 
-      {selectedIncident && (
+      {selectedIncident && !selectedStatusFilter && (
         <IncidentMapModal
           incident={selectedIncident}
           onClose={() =>
             setSelectedIncident(null)
           }
         />
+      )}
+
+      {/* STATUS FILTER MODAL - Show incidents by status */}
+      {selectedStatusFilter && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white p-4 md:p-6 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">
+                {selectedStatusFilter === 'pending' && '📋 Pending Reports'}
+                {selectedStatusFilter === 'responding' && '🚨 Responding Reports'}
+                {selectedStatusFilter === 'resolved' && '✅ Resolved Reports'}
+              </h3>
+              <button
+                onClick={() => setSelectedStatusFilter(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 md:p-6">
+              {!incidents || incidents.filter(i => i.user_id === profile?.id && i.status === selectedStatusFilter).length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No {selectedStatusFilter} reports yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {incidents
+                    .filter(i => i.user_id === profile?.id && i.status === selectedStatusFilter)
+                    .map(incident => (
+                      <div
+                        key={incident.id}
+                        onClick={() => {
+                          setSelectedIncident(incident)
+                          setSelectedStatusFilter(null)
+                        }}
+                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-semibold text-gray-900 capitalize flex items-center gap-2">
+                            <IncidentIcon type={incident.type} size={16} />
+                            {incident.type}
+                          </h4>
+                          <StatusBadge status={incident.status} />
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{incident.description}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <FaMapPin size={12} className="text-red-500" />
+                          <span>{incident.location}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* EMERGENCY HOTLINE MODAL */}

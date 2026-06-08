@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Search,
   ChevronDown,
@@ -13,6 +13,15 @@ import {
   FileText,
   Filter,
 } from 'lucide-react'
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  GeoJSON,
+  useMap,
+} from 'react-leaflet'
+import L from 'leaflet'
 import * as XLSX from 'xlsx'
 import { useTranslation } from '../lib/i18n'
 
@@ -22,15 +31,20 @@ import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import StatusBadge from '../components/StatusBadge'
 import IncidentIcon from '../components/IncidentIcon'
 import TopBar from '../components/TopBar'
+import Toast, { useToast } from '../components/Toast'
 import { FaDownload } from 'react-icons/fa6'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { supabase } from '../lib/supabase'
+import { MdDelete } from "react-icons/md"
+import { eastTapinacGeoJSON } from '../data/EastTapinac'
 
 import {
   getIncidents,
   updateIncident,
   updateIncidentStatus,
   subscribeToIncidents,
+  deleteIncident as deleteIncidentDB,
 } from '../lib/database'
 
 // Emergency fix will be imported dynamically when needed
@@ -39,6 +53,113 @@ import {
   generateIncidentSummary,
   generateNarrativeReport,
 } from '../lib/reportGenerator'
+
+// ─────────────────────────────────────────────────────────────
+// MAP UTILITIES
+// ─────────────────────────────────────────────────────────────
+
+const typeColors = {
+  crime: '#9333ea',
+  accident: '#f97316',
+  fire: '#ef4444',
+  flood: '#3b82f6',
+  disturbance: '#eab308',
+}
+
+function createIncidentIcon(type, isFocused = true) {
+  const color = typeColors[type] || '#6b7280'
+  const size = isFocused ? 36 : 28
+  const height = isFocused ? 45 : 35
+
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="
+        width:${size}px;
+        height:${height}px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        ${isFocused ? 'animation: pulse 2s infinite;' : ''}
+      ">
+        <svg width="${size}" height="${height}" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C7.58 0 4 3.58 4 8C4 14 12 24 12 24C12 24 20 14 20 8C20 3.58 16.42 0 12 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="8" r="3" fill="white"/>
+        </svg>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>
+    `,
+    iconSize: [size, height],
+    iconAnchor: [size / 2, height],
+    popupAnchor: [0, -height],
+  })
+}
+
+// Map Bounds Handler Component for displaying GeoJSON boundaries
+function MapBoundsHandler() {
+  const map = useMap()
+  const geoJsonRef = useRef(null)
+
+  useEffect(() => {
+    if (!map || !geoJsonRef.current) return
+
+    const layer = geoJsonRef.current
+
+    let bounds = null
+
+    if (layer.getLayers) {
+      layer.getLayers().forEach((geoLayer) => {
+        const layerBounds = geoLayer.getBounds()
+
+        if (bounds) {
+          bounds.extend(layerBounds)
+        } else {
+          bounds = layerBounds
+        }
+      })
+    }
+
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+      })
+    }
+  }, [map])
+
+  return (
+    <GeoJSON
+      ref={geoJsonRef}
+      data={eastTapinacGeoJSON}
+      style={{
+        color: '#1d4ed8',
+        weight: 5,
+        opacity: 0.7,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+      }}
+    />
+  )
+}
+
+// Fly to incident location component
+function FlyToIncidentModal({ incident }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (incident && incident.latitude && incident.longitude) {
+      map.flyTo([incident.latitude, incident.longitude], 18, {
+        duration: 1.2,
+      })
+    }
+  }, [incident, map])
+
+  return null
+}
 
 const isVideoFile = (url = '', name = '') => {
   if (!url) return false
@@ -84,6 +205,7 @@ const exportToExcel = (data, filename = 'incidents_report') => {
     }),
     'Status': incident.status?.toUpperCase() || 'N/A',
     'Reporter': incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
+    'Contact': incident.reporter_contact || 'N/A',
     'AI Classification': incident.ai_classification || incident.type || 'N/A',
     'Official Notes': incident.official_notes || 'N/A',
   }))
@@ -163,11 +285,12 @@ const exportToPDF = (data, typeFilter) => {
       new Date(incident.created_at).toLocaleDateString(),
       (incident.status || 'N/A').toUpperCase(),
       incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
+      incident.reporter_contact || 'N/A',
     ])
 
     autoTable(doc, {
       startY: 40,
-      head: [['Type', 'Description', 'Location', 'Date', 'Status', 'Reporter']],
+      head: [['Type', 'Description', 'Location', 'Date', 'Status', 'Reporter', 'Contact']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -182,11 +305,12 @@ const exportToPDF = (data, typeFilter) => {
       },
       columnStyles: {
         0: { cellWidth: 20 },
-        1: { cellWidth: 50 },
-        2: { cellWidth: 40 },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 35 },
         3: { cellWidth: 25 },
         4: { cellWidth: 25 },
-        5: { cellWidth: 30 },
+        5: { cellWidth: 28 },
+        6: { cellWidth: 25 },
       },
       margin: { top: 40, left: 14, right: 14 },
       styles: {
@@ -223,7 +347,7 @@ const exportToWord = (data, typeFilter) => {
       ? 'All Incidents Report'
       : `${typeFilter} Incidents Report`
 
-    const headerLabels = ['Type', 'Description', 'Location', 'Date', 'Status', 'Reporter']
+    const headerLabels = ['Type', 'Description', 'Location', 'Date', 'Status', 'Reporter', 'Contact']
 
     // Header row — blue background, white bold text
     const headerRow = new TableRow({
@@ -261,6 +385,7 @@ const exportToWord = (data, typeFilter) => {
           new TableCell({ children: [new Paragraph(new Date(incident.created_at).toLocaleDateString())] }),
           new TableCell({ children: [new Paragraph(incident.status?.toUpperCase() || 'N/A')] }),
           new TableCell({ children: [new Paragraph(incident.reporter_name || incident.profiles?.full_name || 'Anonymous')] }),
+          new TableCell({ children: [new Paragraph(incident.reporter_contact || 'N/A')] }),
         ],
       })
     )
@@ -305,6 +430,7 @@ const exportToWord = (data, typeFilter) => {
 
 export default function AllReports() {
   const { t } = useTranslation()
+  const { toast, showToast } = useToast()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [statusFilter, setStatusFilter] = useState('All Status')
@@ -328,6 +454,7 @@ export default function AllReports() {
   const [mediaPreviewOpen, setMediaPreviewOpen] = useState(false)
 
   const [exportOpen, setExportOpen] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   // LOAD INCIDENTS
   useEffect(() => {
     const loadIncidents = async () => {
@@ -398,7 +525,7 @@ export default function AllReports() {
       )
       
       if (regularError) {
-        alert('Failed to update status: ' + regularError.message)
+        showToast('Failed to update status: ' + regularError.message, 'error')
         console.error('❌ All status update methods failed:', regularError)
         return
       }
@@ -421,8 +548,14 @@ export default function AllReports() {
       )
     )
     
-    // Show success message
-    alert(`✅ Status updated to ${newStatus}! This should save to database now.`)
+    // Show success toast
+    const statusEmoji = {
+      'pending': '📋',
+      'responding': '🚨',
+      'resolved': '✅'
+    }
+    const emoji = statusEmoji[newStatus] || ''
+    showToast(`${emoji} Status updated to ${newStatus}!`, 'success', 2000)
     console.log(`✅ Status updated to ${newStatus}`)
     
     // Verify the status was actually saved
@@ -440,6 +573,11 @@ export default function AllReports() {
 
   // SAVE NOTES
   const saveNotes = async () => {
+    if (!officialNotes || officialNotes.trim() === '') {
+      showToast('Please add notes before saving', 'warning')
+      return
+    }
+
     const { error } = await updateIncident(
       selectedIncident.id,
       {
@@ -448,8 +586,154 @@ export default function AllReports() {
     )
 
     if (error) {
-      alert('Failed to save notes: ' + error.message)
+      showToast('Failed to save notes: ' + error.message, 'error')
+      console.error('❌ Failed to save notes:', error)
+      return
     }
+
+    console.log('✅ Notes saved to database')
+
+    // Send notification to user that official notes were added
+    try {
+      const { createNotification } = await import('../lib/notificationService')
+      
+      console.log('📤 Creating notification for user:', selectedIncident.user_id)
+      
+      const { data: notifData, error: notifError } = await createNotification({
+        userId: selectedIncident.user_id,
+        title: `📋 Official Notes on Your ${selectedIncident.type?.toUpperCase()} Report`,
+        message: `The barangay has added official notes to your incident report. Please check your incident details to read them.`,
+        type: 'note',
+        incidentId: selectedIncident.id
+      })
+      
+      if (notifError) {
+        console.warn('⚠️ Notification creation failed:', notifError)
+        showToast('✅ Notes saved! (notification to user pending)', 'success', 2000)
+      } else {
+        console.log('✅ Notification created successfully:', notifData)
+        showToast('✅ Notes saved and user notified!', 'success', 2000)
+      }
+    } catch (notifErr) {
+      console.error('❌ Error creating notification:', notifErr)
+      showToast('✅ Notes saved! (notification pending)', 'success', 2000)
+    }
+  }
+
+  // SEND NOTES TO USER
+  const sendNotesToUser = async () => {
+    if (!officialNotes || !selectedIncident) {
+      showToast('No notes to send', 'warning')
+      return
+    }
+
+    try {
+      console.log('📬 Starting to send notes to user:', selectedIncident.user_id)
+      
+      // First save the notes
+      const { error: saveError } = await updateIncident(
+        selectedIncident.id,
+        {
+          official_notes: officialNotes,
+        }
+      )
+
+      if (saveError) {
+        console.error('❌ Failed to save notes:', saveError)
+        showToast('Failed to save notes: ' + saveError.message, 'error')
+        return
+      }
+
+      console.log('✅ Notes saved to incident')
+      showToast('✅ Notes saved successfully!', 'success', 2000)
+
+      // Then send notification to user using the proper function
+      // This is optional - don't fail if it doesn't work
+      try {
+        const { createNotification } = await import('../lib/notificationService')
+        
+        const notificationData = {
+          userId: selectedIncident.user_id,
+          title: `📋 Official Notes on Your ${selectedIncident.type?.toUpperCase()} Report`,
+          message: `The barangay has added official notes to your incident report. Please check your incident details to read them.`,
+          type: 'note',
+          incidentId: selectedIncident.id
+        }
+
+        console.log('📤 Sending notification with data:', notificationData)
+
+        const { data: notifData, error: notifError } = await createNotification(notificationData)
+
+        if (notifError) {
+          console.warn('⚠️ Notification creation error (non-critical):', notifError)
+          // Don't fail - just log warning
+          console.log('✅ Notes were saved, but notification to user failed (this is OK)')
+        } else {
+          console.log('✅ Notification created successfully:', notifData)
+          
+          // Show browser notification if supported
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('📋 Official Notes from Barangay', {
+              body: `Official notes have been added to your ${selectedIncident.type} incident report`,
+              icon: '/favicon.ico',
+              tag: 'official-notes-' + selectedIncident.id
+            })
+            console.log('✅ Browser notification sent')
+          }
+        }
+      } catch (notifErr) {
+        console.warn('⚠️ Notification service error (non-critical):', notifErr)
+        // Don't fail - just log warning
+      }
+
+      console.log('✅ Complete: Notes sent to user:', selectedIncident.user_id)
+    } catch (err) {
+      console.error('❌ Error sending notes:', err)
+      showToast('Error: ' + err.message, 'error')
+    }
+  }
+
+  // DELETE INCIDENT
+  const deleteIncident = async () => {
+    if (!selectedIncident) return
+
+    try {
+      console.log('🗑️ Deleting incident:', selectedIncident.id)
+
+      const { error } = await deleteIncidentDB(selectedIncident.id)
+
+      if (error) {
+        console.error('❌ Failed to delete incident:', error)
+        showToast('Failed to delete incident: ' + error.message, 'error')
+        return
+      }
+
+      console.log('✅ Incident deleted successfully')
+
+      // Remove from local state
+      setIncidents(prev => prev.filter(i => i.id !== selectedIncident.id))
+
+      // Close modals
+      setShowDeleteConfirm(false)
+      setIsModalOpen(false)
+      setSelectedIncident(null)
+
+      // Show success toast
+      showToast('✅ Incident report deleted successfully!', 'success', 3000)
+    } catch (err) {
+      console.error('❌ Error deleting incident:', err)
+      showToast('Error: ' + err.message, 'error')
+    }
+  }
+
+  // CONFIRM DELETE
+  const confirmDelete = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  // CANCEL DELETE
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false)
   }
 
   // FILTERED DATA
@@ -934,10 +1218,10 @@ export default function AllReports() {
 {isModalOpen && selectedIncident && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
 
-    <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
       {/* HEADER */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
 
         <div className="flex items-center gap-3 min-w-0">
 
@@ -966,8 +1250,44 @@ export default function AllReports() {
 
       </div>
 
-      {/* BODY */}
-      <div className="p-5 space-y-4">
+      {/* BODY - SCROLLABLE */}
+      <div className="overflow-y-auto flex-1">
+        <div className="p-5 space-y-4">
+
+        {/* MAP DISPLAY */}
+        {selectedIncident.latitude && selectedIncident.longitude && (
+          <div className="relative rounded-xl border border-gray-200 overflow-hidden h-64 bg-gray-100">
+            <MapContainer
+              center={[selectedIncident.latitude, selectedIncident.longitude]}
+              zoom={15}
+              scrollWheelZoom={true}
+              dragging={true}
+              className="h-full w-full"
+              style={{ zIndex: 1 }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapBoundsHandler />
+              <FlyToIncidentModal incident={selectedIncident} />
+              <Marker
+                position={[selectedIncident.latitude, selectedIncident.longitude]}
+                icon={createIncidentIcon(selectedIncident.type, true)}
+              >
+                <Popup>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-sm capitalize">{selectedIncident.type}</p>
+                    <p className="text-xs text-gray-600">{selectedIncident.location}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            </MapContainer>
+            
+            {/* Coordinates Badge */}
+            <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-gray-200 text-[10px] font-mono text-gray-700 shadow-sm">
+              <div>📍 {selectedIncident.latitude.toFixed(6)}</div>
+              <div>📍 {selectedIncident.longitude.toFixed(6)}</div>
+            </div>
+          </div>
+        )}
 
         {/* STATUS + DATE */}
         <div className="grid grid-cols-2 gap-3">
@@ -1028,7 +1348,7 @@ export default function AllReports() {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-xl border border-gray-100 p-3">
+          <div className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
               Reporter
             </p>
@@ -1042,6 +1362,19 @@ export default function AllReports() {
                   'Anonymous'}
               </span>
             </div>
+
+            {selectedIncident.reporter_contact && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-700">
+                <span className="text-gray-400 shrink-0">📱</span>
+                <span className="truncate">{selectedIncident.reporter_contact}</span>
+              </div>
+            )}
+            {!selectedIncident.reporter_contact && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="text-gray-400 shrink-0">📱</span>
+                <span>No contact provided</span>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1134,6 +1467,16 @@ export default function AllReports() {
             placeholder="Add notes..."
             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
+
+          {/* Send Notes to User Button */}
+          {officialNotes && (
+            <button
+              onClick={() => sendNotesToUser()}
+              className="mt-2 w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+            >
+              📬 Send Notes to User
+            </button>
+          )}
         </div>
 
         {/* UPDATE STATUS */}
@@ -1165,6 +1508,33 @@ export default function AllReports() {
           </div>
         </div>
 
+        {/* DELETE INCIDENT BUTTON */}
+        <div>
+          <button
+            onClick={confirmDelete}
+            className="w-full px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-semibold transition border border-red-200 flex items-center justify-center gap-2"
+          >
+            <MdDelete /> Delete Report
+          </button>
+        </div>
+
+        </div>
+      </div>
+
+      {/* STICKY FOOTER - Action Buttons */}
+      <div className="shrink-0 border-t border-gray-100 bg-gray-50 p-4 flex gap-3">
+        <button
+          onClick={closeModal}
+          className="flex-1 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 transition"
+        >
+          Close
+        </button>
+        <button
+          onClick={() => updateStatus(selectedIncident.status === 'pending' ? 'responding' : selectedIncident.status === 'responding' ? 'resolved' : 'pending')}
+          className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+        >
+          ⚡ Quick Update Status
+        </button>
       </div>
 
     </div>
@@ -1213,7 +1583,91 @@ export default function AllReports() {
         </main>
       </div>
 
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            {/* Header */}
+            <div className="bg-red-50 p-6 border-b border-red-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <span className="text-2xl"><MdDelete /> 
+</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Delete Report</h3>
+                  <p className="text-sm text-gray-600 mt-1">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              <div className="mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-sm text-gray-700 mb-3">
+                  Are you sure you want to delete this <span className="font-bold capitalize">{selectedIncident?.type}</span> incident report?
+                </p>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p>📋 <span className="font-medium">Reporter:</span> {selectedIncident?.reporter_name || 'Anonymous'}</p>
+                  <p>📅 <span className="font-medium">Date:</span> {selectedIncident?.created_at ? new Date(selectedIncident.created_at).toLocaleDateString() : 'N/A'}</p>
+                  <p>📍 <span className="font-medium">Location:</span> {selectedIncident?.location || 'Unknown'}</p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+                <p className="text-xs text-amber-900 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">⚠️</span>
+                  <span>Deleting this report will permanently remove all associated data including notes, media, and comments. This cannot be reversed.</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteIncident}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition text-sm flex items-center justify-center gap-2"
+              >
+                <MdDelete /> Delete Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out forwards;
+        }
+      `}</style>
+
       <AdminMobileBottomNav />
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast 
+          key={toast.key}
+          message={toast.message} 
+          type={toast.type} 
+          duration={toast.duration}
+        />
+      )}
     </div>
   )
 }

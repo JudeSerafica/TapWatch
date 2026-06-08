@@ -1,8 +1,115 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-leaflet'
+import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { notifyAllAdmins } from '../lib/notificationService'
-import { getUserVerificationStatus, VERIFICATION_LEVELS } from '../lib/userVerification'
 import { useNavigate } from 'react-router-dom'
+import { eastTapinacGeoJSON } from '../data/EastTapinac'
+
+// Color mapping for incident types
+const typeColors = {
+  crime: '#9333ea',
+  accident: '#f97316',
+  fire: '#ef4444',
+  flood: '#3b82f6',
+  disturbance: '#eab308',
+}
+
+// Create colored marker icon
+function createSOSIcon() {
+  const color = typeColors['crime']
+  const size = 36
+  const height = 45
+
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="
+        width:${size}px;
+        height:${height}px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        animation: pulse 2s infinite;
+      ">
+        <svg width="${size}" height="${height}" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C7.58 0 4 3.58 4 8C4 14 12 24 12 24C12 24 20 14 20 8C20 3.58 16.42 0 12 0Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="8" r="3" fill="white"/>
+        </svg>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>
+    `,
+    iconSize: [size, height],
+    iconAnchor: [size / 2, height],
+    popupAnchor: [0, -height],
+  })
+}
+
+// Map Bounds Handler Component for displaying GeoJSON boundaries
+function MapBoundsHandler() {
+  const map = useMap()
+  const geoJsonRef = useRef(null)
+
+  useEffect(() => {
+    if (!map || !geoJsonRef.current) return
+
+    const layer = geoJsonRef.current
+
+    let bounds = null
+
+    if (layer.getLayers) {
+      layer.getLayers().forEach((geoLayer) => {
+        const layerBounds = geoLayer.getBounds()
+
+        if (bounds) {
+          bounds.extend(layerBounds)
+        } else {
+          bounds = layerBounds
+        }
+      })
+    }
+
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+      })
+    }
+  }, [map])
+
+  return (
+    <GeoJSON
+      ref={geoJsonRef}
+      data={eastTapinacGeoJSON}
+      style={{
+        color: '#1d4ed8',
+        weight: 5,
+        opacity: 0.7,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+      }}
+    />
+  )
+}
+
+// Fly to SOS location component
+function FlyToLocationModal({ location }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (location && location.latitude && location.longitude) {
+      map.flyTo([location.latitude, location.longitude], 18, {
+        duration: 1.2,
+      })
+    }
+  }, [location, map])
+
+  return null
+}
 
 export default function SOSPanicModal({ isOpen, onClose, profile }) {
   const navigate = useNavigate()
@@ -10,100 +117,87 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   const [isActivated, setIsActivated] = useState(false)
   const [location, setLocation] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [locationPermission, setLocationPermission] = useState(null) // 'granted', 'denied', 'prompt', null
-  const [showLocationWarning, setShowLocationWarning] = useState(false)
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false)
 
-  // Check location permission when modal opens
-  useEffect(() => {
-    if (isOpen && !isActivated) {
-      checkLocationPermission()
-    }
-  }, [isOpen, isActivated])
-
-  const checkLocationPermission = async () => {
-    try {
-      // Check if geolocation is supported
-      if (!navigator.geolocation) {
-        setLocationPermission('denied')
-        setShowLocationWarning(true)
-        return
-      }
-
-      // Try to get location permission status
-      if (navigator.permissions) {
-        const permission = await navigator.permissions.query({ name: 'geolocation' })
-        setLocationPermission(permission.state)
-        
-        if (permission.state === 'denied') {
-          setShowLocationWarning(true)
-        } else if (permission.state === 'granted') {
-          // Get location immediately if already granted
-          getCurrentLocation()
-        }
-      } else {
-        // Fallback: try to get location directly
-        getCurrentLocation()
-      }
-    } catch (error) {
-      console.error('Error checking location permission:', error)
-      // Try to get location anyway
-      getCurrentLocation()
-    }
-  }
-
-  const getCurrentLocation = () => {
-    console.log('🔍 Requesting location...')
-    setIsRequestingLocation(true)
+  // Get location with proper permission handling
+  const requestLocationPermission = () => {
+    console.log('🔴 USER CLICKED ACTIVATE SOS - REQUESTING LOCATION')
+    setIsRequestingPermission(true)
     
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported')
-      alert('Location services not supported by your browser.')
-      setIsRequestingLocation(false)
+      console.error('❌ CRITICAL: Geolocation API not available on this device')
+      setIsRequestingPermission(false)
+      setIsActivated(true)
       return
     }
 
+    console.log('📍 Calling navigator.geolocation.getCurrentPosition()...')
+    console.log('   This should trigger a permission dialog on the device')
+
+    // Timeout for location request
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Location request timed out after 30 seconds')
+      setIsRequestingPermission(false)
+      setIsActivated(true)
+    }, 30000)
+
+    // This will trigger the browser's/device's NATIVE permission dialog
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log('✅ Location obtained:', position.coords)
+        clearTimeout(timeoutId)
+        // SUCCESS - User allowed location
+        console.log('✅✅✅ LOCATION PERMISSION GRANTED AND CAPTURED ✅✅✅')
+        console.log('Position object:', position)
+        
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        const accuracy = position.coords.accuracy
+        
+        console.log(`📍📍 COORDINATES OBTAINED:`)
+        console.log(`    Latitude:  ${lat}`)
+        console.log(`    Longitude: ${lng}`)
+        console.log(`    Accuracy:  ${accuracy}m`)
+        
         setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
+          latitude: lat,
+          longitude: lng
         })
-        setLocationPermission('granted')
-        setShowLocationWarning(false)
-        setIsRequestingLocation(false)
+        
+        setIsRequestingPermission(false)
+        setIsActivated(true)
       },
       (error) => {
-        console.error('❌ Location error:', error)
+        clearTimeout(timeoutId)
+        // ERROR - Location failed
+        console.error('❌ GEOLOCATION ERROR')
+        console.error('Error Code:', error.code)
+        console.error('Error Message:', error.message)
         
-        // Provide user-friendly error messages
-        let errorMessage = 'Unable to access your location. '
+        const errorMsg = (() => {
+          switch(error.code) {
+            case 1:
+              return 'PERMISSION_DENIED - User clicked "Deny" OR location is turned OFF'
+            case 2:
+              return 'POSITION_UNAVAILABLE - Location services not available'
+            case 3:
+              return 'TIMEOUT - Location request took too long'
+            default:
+              return `UNKNOWN_ERROR (code: ${error.code})`
+          }
+        })()
         
-        switch(error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += 'Please allow location access in your browser settings.'
-            break
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += 'Location information is unavailable.'
-            break
-          case error.TIMEOUT:
-            errorMessage += 'Location request timed out. Please try again.'
-            break
-          default:
-            errorMessage += 'An unknown error occurred.'
-        }
+        console.error(`Details: ${errorMsg}`)
+        console.log('⚠️ NO FALLBACK - Location unavailable because user has location disabled or denied permission')
         
-        alert(errorMessage)
-        setLocationPermission('denied')
-        setShowLocationWarning(true)
-        setIsRequestingLocation(false)
+        // DO NOT use fallback - just proceed without location
+        setIsRequestingPermission(false)
+        setIsActivated(true)
       },
       { 
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        enableHighAccuracy: true,  // Request high accuracy
+        timeout: 30000,             // Wait up to 30 seconds for user response + location
+        maximumAge: 0              // Don't use cached location
       }
     )
   }
@@ -118,9 +212,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   }, [isActivated, countdown])
 
   const sendSOSAlert = async () => {
-    console.log('🚨 sendSOSAlert function called!')
-    console.log('Profile:', profile)
-    console.log('Location:', location)
+    console.log('🚨 SENDING SOS ALERT...')
+    console.log('Current location state:', location)
+    console.log('Current profile state:', profile)
     
     try {
       if (!profile?.id) {
@@ -129,20 +223,39 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         return
       }
 
+      // Fetch the latest profile data to ensure we have the phone number
+      const { data: latestProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .single()
+
+      if (profileError) {
+        console.error('❌ Could not fetch latest profile:', profileError)
+      } else if (latestProfile) {
+        console.log('✅ Latest profile fetched:', latestProfile)
+      }
+
+      // Use latest profile if available, otherwise fall back to passed profile
+      const profileToUse = latestProfile || profile
+
       const sosIncident = {
         type: 'crime',
-        description: `🚨 EMERGENCY SOS ALERT from ${profile?.full_name || 'User'}. Immediate assistance needed!`,
+        description: `from ${profileToUse?.full_name || 'User'}. Immediate assistance needed!`,
         location: location ? `Lat: ${location.latitude.toFixed(6)}, Lng: ${location.longitude.toFixed(6)}` : 'Location unavailable',
-        latitude: location?.latitude,
-        longitude: location?.longitude,
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
         status: 'pending',
-        user_id: profile?.id,
-        reporter_name: profile?.full_name,
+        user_id: profileToUse?.id,
+        reporter_name: profileToUse?.full_name,
+        reporter_contact: profileToUse?.phone || null,
         created_at: new Date().toISOString(),
         is_sos: true
       }
 
-      console.log('📤 Attempting to save SOS alert:', sosIncident)
+      console.log('📤 SOS Incident object:', sosIncident)
+      console.log(`📍 Location values - Latitude: ${sosIncident.latitude}, Longitude: ${sosIncident.longitude}`)
+      console.log(`📱 Contact: ${sosIncident.reporter_contact}`)
 
       const { data, error } = await supabase
         .from('incidents')
@@ -151,17 +264,17 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         .single()
 
       if (error) {
-        console.error('❌ Failed to save SOS alert:', error)
+        console.error('❌ Database error:', error)
         alert(`Failed to send SOS alert: ${error.message}\n\nPlease call 911 directly for immediate help!`)
         return
       }
 
-      console.log('✅ SOS Alert successfully saved to database:', data)
+      console.log('✅ SOS Alert saved successfully:', data)
       
       // Notify all admins about SOS alert
       await notifyAllAdmins({
         title: '🚨 EMERGENCY SOS ALERT',
-        message: `Emergency SOS from ${profile?.full_name || 'User'} at ${location ? `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}` : 'Unknown location'}. IMMEDIATE ATTENTION REQUIRED!`,
+        message: `Emergency SOS from ${profileToUse?.full_name || 'User'} (${profileToUse?.phone || 'No contact'}) at ${location ? `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}` : 'Unknown location'}. IMMEDIATE ATTENTION REQUIRED!`,
         type: 'alert',
         incidentId: data.id
       })
@@ -169,7 +282,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       setIsActivated(false)
       setShowSuccess(true)
     } catch (err) {
-      console.error('❌ Unexpected error sending SOS alert:', err)
+      console.error('❌ Unexpected error:', err)
       alert('Failed to send SOS alert. Please try again or call 911 directly.')
     }
   }
@@ -181,20 +294,10 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       return
     }
 
-    // Check if location is available before activating
-    if (!location && locationPermission !== 'granted') {
-      setShowLocationWarning(true)
-      // Try to request location again
-      getCurrentLocation()
-      return
-    }
-    setIsActivated(true)
-  }
-
-  const handleRequestLocation = () => {
-    console.log('📍 User clicked "Enable Location" button')
-    setShowLocationWarning(false)
-    getCurrentLocation()
+    console.log('🔴 ACTIVATE SOS button clicked - requesting location permission...')
+    // Request location permission from device when user activates SOS
+    // The permission dialog will appear on the user's device
+    requestLocationPermission()
   }
 
   const handleCancel = () => {
@@ -300,11 +403,12 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
           .sos-i3 { animation: sos-slideIn 0.4s ease forwards 1.35s; opacity: 0; }
           .sos-f1 { animation: sos-fadeInUp 0.4s ease forwards 1.55s; opacity: 0; }
           .sos-f2 { animation: sos-fadeInUp 0.4s ease forwards 1.75s; opacity: 0; }
+          .sos-m1 { animation: sos-fadeInUp 0.4s ease forwards 1.95s; opacity: 0; }
         `}</style>
 
-        <div className="sos-wrap bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="sos-wrap bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[85vh] flex flex-col">
           {/* TOP — red section with ripple + checkmark */}
-          <div className="bg-red-600 pt-10 pb-8 px-8 text-center relative">
+          <div className="bg-red-600 pt-10 pb-8 px-8 text-center relative shrink-0">
             <div className="relative w-32 h-32 mx-auto mb-5">
               <div className="sos-r1 absolute inset-0 rounded-full border-2 border-white/50" />
               <div className="sos-r2 absolute inset-0 rounded-full border-2 border-white/35" />
@@ -327,27 +431,68 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
             <p className="sos-t2 text-white/80 text-sm">Emergency services have been notified</p>
           </div>
 
-          {/* BOTTOM — checklist + footer */}
-          <div className="px-6 pt-5 pb-6">
-            <div className="bg-red-50 rounded-xl p-4 mb-4 space-y-2.5">
-              <div className="sos-i1 flex items-center gap-3 text-gray-800 text-sm">
-                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                Barangay officials notified
+          {/* SCROLLABLE BOTTOM — map + checklist + footer */}
+          <div className="overflow-y-auto flex-1">
+            <div className="px-6 pt-5 pb-6 space-y-4">
+              {/* MAP DISPLAY */}
+              {location?.latitude && location?.longitude && (
+                <div className="sos-m1 relative rounded-xl border border-red-200 overflow-hidden h-64 bg-gray-100">
+                  <MapContainer
+                    center={[location.latitude, location.longitude]}
+                    zoom={15}
+                    scrollWheelZoom={true}
+                    dragging={true}
+                    className="h-full w-full"
+                    style={{ zIndex: 1 }}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <MapBoundsHandler />
+                    <FlyToLocationModal location={location} />
+                    <Marker
+                      position={[location.latitude, location.longitude]}
+                      icon={createSOSIcon()}
+                    >
+                      <Popup>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-sm">🚨 SOS Alert Location</p>
+                          <p className="text-xs text-gray-600">Lat: {location.latitude.toFixed(6)}</p>
+                          <p className="text-xs text-gray-600">Lng: {location.longitude.toFixed(6)}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                  
+                  {/* Coordinates Badge */}
+                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-red-200 text-[10px] font-mono text-red-700 shadow-sm">
+                    <div>📍 {location.latitude.toFixed(6)}</div>
+                    <div>📍 {location.longitude.toFixed(6)}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-red-50 rounded-xl p-4 space-y-2.5">
+                <div className="sos-i1 flex items-center gap-3 text-gray-800 text-sm">
+                  <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                  Barangay officials notified
+                </div>
+                <div className="sos-i2 flex items-center gap-3 text-gray-800 text-sm">
+                  <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                  Your location has been shared
+                </div>
+                <div className="sos-i3 flex items-center gap-3 text-gray-800 text-sm">
+                  <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
+                  Emergency services alerted
+                </div>
               </div>
-              <div className="sos-i2 flex items-center gap-3 text-gray-800 text-sm">
-                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                Your location has been shared
-              </div>
-              <div className="sos-i3 flex items-center gap-3 text-gray-800 text-sm">
-                <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                Emergency services alerted
-              </div>
+
+              <p className="sos-f1 text-gray-600 text-xs text-center leading-relaxed">
+                Help is on the way! Stay safe and stay on the line if possible.
+              </p>
             </div>
+          </div>
 
-            <p className="sos-f1 text-gray-600 text-xs text-center mb-4 leading-relaxed">
-              Help is on the way! Stay safe and stay on the line if possible.
-            </p>
-
+          {/* FOOTER */}
+          <div className="border-t border-red-100 bg-white p-4 shrink-0">
             <button
               onClick={handleCloseSuccess}
               className="sos-f2 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-base transition"
@@ -371,44 +516,6 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {!isActivated ? (
           <>
-            {/* LOCATION WARNING */}
-            {showLocationWarning && (
-              <div className="bg-amber-50 border-b-2 border-amber-200 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl flex-shrink-0">📍</span>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-amber-900 text-sm mb-1">
-                      Location Access Required
-                    </h3>
-                    <p className="text-xs text-amber-800 mb-3">
-                      SOS alerts require your location to send help to the right place. Please enable location access for this device.
-                    </p>
-                    <button
-                      onClick={handleRequestLocation}
-                      disabled={isRequestingLocation}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-                        isRequestingLocation
-                          ? 'bg-amber-400 text-white cursor-wait'
-                          : 'bg-amber-600 hover:bg-amber-700 text-white'
-                      }`}
-                    >
-                      {isRequestingLocation ? (
-                        <span className="flex items-center gap-2">
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Requesting...
-                        </span>
-                      ) : (
-                        'Enable Location'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="p-8 text-center">
               <div className="w-32 h-32 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
                 <span className="text-6xl">🚨</span>
@@ -420,32 +527,11 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                 This will immediately alert emergency services and share your location.
                 Use only in life-threatening situations.
               </p>
-              
-              {/* Location Status Indicator */}
-              <div className={`mb-4 p-3 rounded-lg text-sm ${
-                location 
-                  ? 'bg-green-50 text-green-800 border border-green-200'
-                  : 'bg-amber-50 text-amber-800 border border-amber-200'
-              }`}>
-                <div className="flex items-center justify-center gap-2">
-                  <span>{location ? '✓' : '⚠'}</span>
-                  <span className="font-medium">
-                    {location 
-                      ? 'Location detected' 
-                      : 'Location required'}
-                  </span>
-                </div>
-              </div>
 
               <div className="space-y-3">
                 <button
                   onClick={handleActivate}
-                  disabled={!location}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition ${
-                    location
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  className="w-full py-4 rounded-xl font-bold text-lg transition bg-red-600 hover:bg-red-700 text-white"
                 >
                   ACTIVATE SOS
                 </button>
@@ -469,9 +555,19 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
               <h2 className="text-2xl font-bold mb-3">
                 Sending SOS Alert...
               </h2>
-              <p className="text-sm opacity-90 mb-6">
+              <p className="text-sm opacity-90 mb-2">
                 Emergency services will be notified in {countdown} seconds
               </p>
+              {isRequestingPermission && (
+                <p className="text-xs opacity-75 mb-4">
+                  📍 Capturing your location...
+                </p>
+              )}
+              {location && (
+                <p className="text-xs opacity-75 mb-4 text-green-200">
+                  ✓ Location captured
+                </p>
+              )}
               <button
                 onClick={handleCancel}
                 className="w-full py-3 bg-white text-red-600 rounded-xl font-bold transition hover:bg-gray-100"

@@ -166,12 +166,67 @@ export const updateIncident = async (id, updates) => {
 }
 
 export const deleteIncident = async (id) => {
-  const { error } = await supabase
-    .from('incidents')
-    .delete()
-    .eq('id', id)
-  
-  return { error }
+  try {
+    // Delete all related data in the correct order
+    console.log('🗑️ Starting incident deletion...')
+    
+    // Delete incident comments
+    console.log('🗑️ Deleting incident comments...')
+    const { error: commentsError } = await supabase
+      .from('incident_comments')
+      .delete()
+      .eq('incident_id', id)
+    
+    if (commentsError) {
+      console.warn('⚠️ Failed to delete comments:', commentsError)
+    } else {
+      console.log('✅ Comments deleted')
+    }
+
+    // Delete incident votes
+    console.log('🗑️ Deleting incident votes...')
+    const { error: votesError } = await supabase
+      .from('incident_votes')
+      .delete()
+      .eq('incident_id', id)
+    
+    if (votesError) {
+      console.warn('⚠️ Failed to delete votes:', votesError)
+    } else {
+      console.log('✅ Votes deleted')
+    }
+
+    // Delete all related audit logs (BEFORE trying to create new ones)
+    console.log('🗑️ Deleting incident audit logs...')
+    const { error: auditDeleteError } = await supabase
+      .from('audit_logs')
+      .delete()
+      .eq('incident_id', id)
+    
+    if (auditDeleteError) {
+      console.warn('⚠️ Failed to delete audit logs:', auditDeleteError)
+    } else {
+      console.log('✅ Audit logs deleted')
+    }
+
+    // Finally, delete the incident
+    console.log('🗑️ Deleting incident...')
+    const { error } = await supabase
+      .from('incidents')
+      .delete()
+      .eq('id', id)
+    
+    if (error) {
+      console.error('❌ Failed to delete incident:', error)
+    } else {
+      console.log('✅ Incident deleted successfully')
+    }
+    
+    return { error }
+  } catch (err) {
+    console.error('Error in deleteIncident:', err)
+    return { error: err }
+  }
 }
 
 export const updateIncidentStatus = async (id, status, responderId = null) => {
