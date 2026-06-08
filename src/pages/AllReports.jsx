@@ -1079,7 +1079,7 @@ export default function AllReports() {
     <div className="relative">
       <button
         onClick={() => setExportOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium transition"
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
       >
         <FaDownload size={14} />
         Export

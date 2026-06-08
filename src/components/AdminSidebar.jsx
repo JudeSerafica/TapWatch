@@ -3,6 +3,7 @@ import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTr
 import { useAuth } from '../context/useAuth'
 import { useState, useEffect } from 'react'
 import { getPendingVerifications } from '../lib/userVerification'
+import { MdOutlineAdminPanelSettings } from "react-icons/md";
 
 const navItems = [
   { path: '/admin', label: 'Officials Dashboard', icon: LayoutDashboard },
@@ -11,6 +12,7 @@ const navItems = [
   { path: '/admin-verification', label: 'Verification Review', icon: Shield },
   { path: '/admin-contacts', label: 'Emergency Contacts', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/admin-settings', label: 'System Settings', icon: MdOutlineAdminPanelSettings},
 ]
 
 export default function AdminSidebar() {
@@ -49,67 +51,150 @@ export default function AdminSidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex w-60 min-h-screen bg-gray-900 text-gray-50 flex-col fixed left-0 top-0 z-50">
+      <aside
+        className="hidden md:flex w-64 min-h-screen fixed left-0 top-0 z-50 flex-col overflow-hidden"
+  style={{
+    background: `
+      linear-gradient(
+        180deg,
+        #0B4EDB 0%,
+        #0A43C4 40%,
+        #0838A8 70%,
+        #072E8A 100%
+      )
+    `,
+  }}
+>
         {/* Logo Section */}
-        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
-          <img 
-            src="/Tapinac.logo.jpg" 
-            alt="TapWatch Logo" 
-            className="w-12 h-12 rounded-lg object-cover"
-          />
-          <div>
-            <div className="font-bold text-lg">Tap-Watch</div>
-            <div className="text-xs text-gray-400">Incident System</div>
-          </div>
-        </div>
+        <div className="px-5 pt-6 pb-5 border-b border-white/30">
+  <div className="flex items-center gap-3">
+    <img
+      src="/Tapinac.logo.jpg"
+      alt="Logo"
+      className="w-12 h-12 rounded-full border-2 border-white/30 object-cover"
+    />
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => {
-            const active = isActive(item.path)
-            const Icon = item.icon
-            const showBadge = item.path === '/admin-verification' && pendingCount > 0
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors relative ${
-                  active
-                    ? 'bg-blue-700 text-white'
-                    : 'text-gray-300 hover:bg-gray-800'
-                }`}
-              >
-                <Icon size={18} />
-                {item.label}
-                {showBadge && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
+    <div>
+      <h1 className="font-bold text-white text-xl">
+        Tap-Watch
+      </h1>
 
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center">
-              <span className="text-xs font-semibold text-white">
-                {(user?.name || 'A')[0].toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-50">{user?.name || 'Admin'}</div>
-              <div className="text-xs text-gray-400">Barangay Official</div>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowSignOutModal(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+      <p className="text-blue-100 text-sm">
+        Incident System
+      </p>
+    </div>
+  </div>
+</div>
+
+        <nav className="flex-1 px-4 py-5 space-y-2">
+  {navItems.map((item) => {
+    const active = isActive(item.path)
+    const Icon = item.icon
+    const showBadge =
+      item.path === '/admin-verification' &&
+      pendingCount > 0
+
+    return (
+      <button
+        key={item.path}
+        onClick={() => navigate(item.path)}
+        className={`
+          w-full flex items-center gap-3
+          px-4 py-3
+          rounded-xl
+          text-sm font-medium
+          transition-all duration-200
+          relative
+          h-11
+        `}
+        style={{
+          background: active
+            ? '#FFFFFF'
+            : 'transparent',
+          color: active
+            ? '#0B4EDB'
+            : '#FFFFFF',
+          boxShadow: active
+            ? '0 8px 25px rgba(0,0,0,0.15)'
+            : 'none',
+          lineHeight: '1.5',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        <Icon size={18} className="flex-shrink-0" />
+
+        <span className="flex-1 text-left truncate">{item.label}</span>
+
+        {showBadge && (
+          <span
+            className="
+              absolute
+              right-4
+              w-5
+              h-5
+              rounded-full
+              bg-red-500
+              text-white
+              text-[11px]
+              flex
+              items-center
+              justify-center
+              font-bold
+              flex-shrink-0
+            "
           >
-            <LogOut size={16} />
-            Sign Out
-          </button>
-        </div>
+            {pendingCount}
+          </span>
+        )}
+      </button>
+    )
+  })}
+</nav>
+
+
+        <div className="border-t border-white/10 p-5">
+  <div className="flex items-center gap-3 mb-5">
+    <div
+      className="
+        w-10 h-10
+        rounded-full
+        bg-blue-500
+        flex
+        items-center
+        justify-center
+        text-white
+        font-semibold
+      "
+    >
+      {(user?.name || 'A')[0].toUpperCase()}
+    </div>
+
+    <div>
+      <div className="text-white text-sm font-medium">
+        {user?.name || 'Admin'}
+      </div>
+
+      <div className="text-blue-100 text-xs">
+        Barangay Official
+      </div>
+    </div>
+  </div>
+
+  <button
+    onClick={() => setShowSignOutModal(true)}
+    className="
+      flex items-center gap-3
+      text-white
+      hover:text-blue-200
+      transition
+    "
+  >
+    <LogOut size={18} />
+    Sign Out
+  </button>
+</div>
       </aside>
 
       {/* Sign Out Confirmation Modal */}

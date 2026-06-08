@@ -28,21 +28,42 @@ export default function ResidentSidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex w-60 min-h-screen bg-gray-900 text-gray-50 flex-col fixed left-0 top-0 z-50">
+      <aside
+        className="hidden md:flex w-64 min-h-screen fixed left-0 top-0 z-50 flex-col overflow-hidden"
+        style={{
+          background: `
+            linear-gradient(
+              180deg,
+              #0B4EDB 0%,
+              #0A43C4 40%,
+              #0838A8 70%,
+              #072E8A 100%
+            )
+          `,
+        }}
+      >
         {/* Logo Section */}
-        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
-          <img 
-            src="/Tapinac.logo.jpg" 
-            alt="TapWatch Logo" 
-            className="w-12 h-12 rounded-lg object-cover"
-          />
-          <div>
-            <div className="font-bold text-lg">Tap-Watch</div>
-            <div className="text-xs text-gray-400">Incident System</div>
+        <div className="px-5 pt-6 pb-5 border-b border-white/20">
+          <div className="flex items-center gap-3">
+            <img
+              src="/Tapinac.logo.jpg"
+              alt="Logo"
+              className="w-12 h-12 rounded-full border-2 border-white/30 object-cover"
+            />
+
+            <div>
+              <h1 className="font-bold text-white text-xl">
+                Tap-Watch
+              </h1>
+
+              <p className="text-blue-100 text-sm">
+                Incident System
+              </p>
+            </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-4 py-5 space-y-2">
           {navItems.map((item) => {
             const active = location.pathname === item.path
             const Icon = item.icon
@@ -50,47 +71,104 @@ export default function ResidentSidebar() {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-700 text-white'
-                    : 'text-gray-300 hover:bg-gray-800'
-                }`}
+                className={`
+                  w-full flex items-center gap-3
+                  px-4 py-3
+                  rounded-xl
+                  text-sm font-medium
+                  transition-all duration-200
+                  h-11
+                `}
+                style={{
+                  background: active
+                    ? '#FFFFFF'
+                    : 'transparent',
+                  color: active
+                    ? '#0B4EDB'
+                    : '#FFFFFF',
+                  boxShadow: active
+                    ? '0 8px 25px rgba(0,0,0,0.15)'
+                    : 'none',
+                  lineHeight: '1.5',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }
+                }}
               >
-                <Icon size={18} />
-                {item.label}
+                <Icon size={18} className="flex-shrink-0" />
+                <span className="flex-1 text-left truncate">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
+        <div className="border-t border-white/10 p-5">
           <button
             onClick={() => navigate('/profile')}
-            className="flex items-center gap-3 mb-3 w-full text-left hover:bg-gray-800 rounded p-2 -mx-2 transition-colors"
+            className="flex items-center gap-3 mb-5 w-full text-left rounded-lg p-2.5 transition-colors hover:bg-blue-600/30"
           >
-            <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center overflow-hidden">
+            <div
+              className="
+                w-10 h-10
+                rounded-full
+                bg-blue-500
+                flex
+                items-center
+                justify-center
+                text-white
+                font-semibold
+                overflow-hidden
+                flex-shrink-0
+              "
+            >
               {profile?.avatar_url ? (
-                <img 
-                  src={profile.avatar_url} 
+                <img
+                  src={profile.avatar_url}
                   alt={displayName}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-xs font-semibold text-white">
+                <span className="text-xs font-semibold">
                   {initials}
                 </span>
               )}
             </div>
+
             <div>
-              <div className="text-sm font-medium text-gray-50">{displayName}</div>
-              <div className="text-xs text-gray-400">{profile?.role || 'Resident'}</div>
+              <div className="text-white text-sm font-medium">
+                {displayName}
+              </div>
+
+              <div className="text-blue-100 text-xs">
+                {profile?.role || 'Resident'}
+              </div>
             </div>
           </button>
+
           <button
             onClick={() => setShowSignOutModal(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+            className="
+              flex items-center gap-3
+              text-white
+              hover:text-blue-200
+              transition
+              w-full
+              px-4 py-2
+            "
           >
-            <LogOut size={16} />
+            <LogOut size={18} />
             Sign Out
           </button>
         </div>

@@ -19,6 +19,7 @@ import Profile from './pages/Profile'
 import EmergencyContacts from './pages/EmergencyContacts'
 import VerificationCenter from './pages/VerificationCenter'
 import AdminVerificationReview from './pages/AdminVerificationReview'
+import SystemSettings from './pages/SystemSettings'
 import OfflineIndicator from './components/OfflineIndicator'
 
 // Loading Component
@@ -110,6 +111,7 @@ function AppRoutes() {
       <Route path="/admin-contacts" element={<EmergencyContacts />} />
       <Route path="/verification" element={<VerificationCenter />} />
       <Route path="/admin-verification" element={<AdminVerificationReview />} />
+      <Route path="/admin-settings" element={<SystemSettings />} />
     </Routes>
   )
 }

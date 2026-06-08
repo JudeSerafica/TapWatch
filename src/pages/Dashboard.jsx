@@ -1240,7 +1240,16 @@ export default function Dashboard() {
 
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -ml-8 -mb-8"></div>
 
-            <div className="relative z-10">
+            {/* Background Image - Right Side */}
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 md:w-2/5 hidden md:flex items-center justify-end pr-0 overflow-hidden">
+              <img 
+                src="/greetbackground.png" 
+                alt="Shield Protection" 
+                className="h-full w-auto object-contain object-right opacity-90"
+              />
+            </div>
+
+            <div className="relative z-10 md:w-3/5">
 
               <div className="text-xs md:text-sm text-blue-100 mb-3 font-medium">
                 {today}
