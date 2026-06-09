@@ -53,10 +53,11 @@ export default function Login() {
           setError('Invalid or expired OTP. Please try again.')
         }
       } else {
-        const { error } = await signIn({ email: form.email, password: form.password })
+        const { error } = await signIn({ email: form.email.trim(), password: form.password.trim() })
         if (error) {
           setLoading(false)
-          setError(error)
+          console.error('Sign in error:', error)
+          setError(error || 'Invalid email or password')
         } else {
           setLoginSuccess(true)
         }

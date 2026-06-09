@@ -71,8 +71,8 @@ export function AuthProvider({ children }) {
         })
       } else if (credentials.email) {
         result = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password,
+          email: credentials.email.toLowerCase().trim(),
+          password: credentials.password.trim(),
         })
       }
 
@@ -80,7 +80,8 @@ export function AuthProvider({ children }) {
     
       return { user: result.data?.user, error: null }
     } catch (error) {
-      return { user: null, error: error.message }
+      console.error('SignIn error:', error)
+      return { user: null, error: error.message || 'Invalid credentials' }
     }
   }
 
@@ -106,21 +107,21 @@ export function AuthProvider({ children }) {
       
       if (credentials.phone) {
         result = await supabase.auth.signUp({
-          phone: credentials.phone,
-          password: credentials.password,
+          phone: credentials.phone.trim(),
+          password: credentials.password.trim(),
           options: {
             data: {
-              full_name: credentials.name,
+              full_name: credentials.name.trim(),
             },
           },
         })
       } else if (credentials.email) {
         result = await supabase.auth.signUp({
-          email: credentials.email,
-          password: credentials.password,
+          email: credentials.email.toLowerCase().trim(),
+          password: credentials.password.trim(),
           options: {
             data: {
-              full_name: credentials.name,
+              full_name: credentials.name.trim(),
             },
           },
         })
@@ -130,6 +131,7 @@ export function AuthProvider({ children }) {
     
       return { user: result.data?.user, error: null }
     } catch (error) {
+      console.error('SignUp error:', error)
       return { user: null, error: error.message }
     }
   }

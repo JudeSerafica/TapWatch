@@ -6,7 +6,6 @@ import { useTranslation } from '../lib/i18n'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import TopBar from '../components/TopBar'
-import DataExportPanel from '../components/DataExportPanel'
 import { getIncidentStats, getHotspots, getIncidents } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
@@ -239,11 +238,6 @@ export default function Analytics() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Data Export Panel */}
-          <div className="col-span-full">
-            <DataExportPanel incidents={incidents} />
           </div>
         </div>
       </main>

@@ -641,11 +641,64 @@ const uploadMedia = async () => {
           from { opacity: 0; transform: scale(0.92) translateY(4px); }
           to   { opacity: 1; transform: scale(1)    translateY(0);    }
         }
+        
+        /* ── RESPONSIVE: Tablet (768px to 1023px) ── */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .report-content-wrapper {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding-bottom: 100px !important;
+          }
+          .report-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .report-map-container {
+            height: 300px !important;
+          }
+          main {
+            padding: 16px 16px !important;
+          }
+          .report-header h2 {
+            font-size: 18px !important;
+          }
+        }
+        
+        /* ── RESPONSIVE: Mobile (max-width: 768px) ── */
+        @media (max-width: 767px) {
+          .report-content-wrapper {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding-bottom: 100px !important;
+          }
+          .report-grid {
+            grid-template-columns: 1fr !important;
+          }
+          main {
+            padding: 12px 12px !important;
+          }
+          .report-map-container {
+            height: 280px !important;
+          }
+          .report-header h2 {
+            font-size: 16px !important;
+          }
+          .report-header {
+            gap: 8px !important;
+          }
+          .report-header-icon {
+            width: 36px !important;
+            height: 36px !important;
+          }
+          .report-header-icon svg {
+            width: 16px !important;
+            height: 16px !important;
+          }
+        }
       `}</style>
 
       <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: "'DM Sans', sans-serif" }}>
         <ResidentSidebar />
-        <div style={{ flex: 1, marginLeft: 0, paddingBottom: 64 }} className="md:ml-60 md:pb-0">
+        <div style={{ flex: 1, marginLeft: '15rem', paddingBottom: 0 }} className="md:ml-60 md:pb-0 report-content-wrapper">
            <TopBar title="Incident Report" showNotifications={true}
             onNotificationClick={() => {
               // Handle notification click - you can open a modal or navigate
@@ -708,306 +761,287 @@ const uploadMedia = async () => {
             profile={profile}
           />
 
-          <main style={{ padding: '16px', maxWidth: 860, gap: '30px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <main style={{ 
+  padding: '24px 28px', 
+  maxWidth: 1500, 
+  margin: '0 auto', 
+  display: 'flex', 
+  flexDirection: 'column', 
+  gap: 20 
+}}>
+  
 
-            {/* Page Header */}
-            <div style={{ paddingBottom: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
-                }}>
-                  <FiAlertTriangle size={20} color="#fff" strokeWidth={2.2} />
-                </div>
-                <div>
-                  <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
-                    {t('reportIncident')}
-                  </h2>
-                  <p style={{ fontSize: 13, color: '#94a3b8', margin: '3px 0 0', fontWeight: 400 }}>
-                    {t('pinLocation')}
-                  </p>
-                </div>
+  {/* Page Header */}
+  <div style={{ paddingBottom: 0, marginBottom: -20  }} className="report-header">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div>
+      </div>
+    </div>
+  </div>
+
+  {/* Success Banner */}
+  {submitted && (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '14px 18px',
+      background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+      border: '1px solid #bbf7d0', borderRadius: 12,
+    }}>
+      <FiCheckCircle size={18} color="#16a34a" />
+      <span style={{ fontSize: 13.5, fontWeight: 600, color: '#15803d' }}>
+        Incident reported successfully! Redirecting to dashboard…
+      </span>
+    </div>
+  )}
+
+  {/* ── Two-column layout: Map LEFT | Incident Details RIGHT ── */}
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 20,
+    alignItems: 'start',   /* tops aligned */
+  }} className="report-grid">
+
+    {/* LEFT — Map Section (unchanged) */}
+    <SectionCard icon={FiMapPin} label="Pin the Location" iconColor="#2563eb">
+      <div style={{ height: '560px' }} className="report-map-container">
+        <MapContainer center={[14.835, 120.283]} zoom={16} style={{ height: '100%', width: '100%', zIndex: 1 }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapBoundsHandler />
+          <MapClickHandler onClick={handleMapClick} onBoundaryError={handleBoundaryError} />
+          {pin && <Marker position={pin} icon={pinIcon} />}
+        </MapContainer>
+      </div>
+
+      {pin && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 18px',
+          background: '#eff6ff', borderTop: '1px solid #dbeafe'
+        }}>
+          <FiMapPin size={13} color="#2563eb" />
+          <span style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 500 }}>
+            Pin placed at {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+          </span>
+        </div>
+      )}
+
+      {boundaryError && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 18px',
+          background: '#fef2f2', borderTop: '1px solid #fecaca'
+        }}>
+          <FiXCircle size={14} color="#dc2626" />
+          <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>{boundaryError}</span>
+        </div>
+      )}
+    </SectionCard>
+
+    {/* RIGHT — Incident Details */}
+    <SectionCard icon={FiFileText} label="Incident Details" iconColor="#2563eb">
+      <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+        {/* Description */}
+        <div>
+          <FieldLabel required>Description</FieldLabel>
+          <textarea
+            required rows={4}
+            value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            className="ri-textarea"
+            placeholder="Describe what happened… (e.g. May banggaan ng motor sa highway)"
+            style={{
+              ...inputStyle, resize: 'vertical', minHeight: 100,
+              lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif"
+            }}
+          />
+        </div>
+
+        {/* AI Classify row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button" onClick={classifyAI}
+            disabled={loadingAI || !form.description}
+            className="ai-btn"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '7px 14px', borderRadius: 8, border: 'none',
+              background: '#f5f3ff', color: '#7c3aed',
+              fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+              fontFamily: "'DM Sans', sans-serif",
+              opacity: (loadingAI || !form.description) ? 0.5 : 1
+            }}>
+            <RiSparklingFill size={13} />
+            {loadingAI ? 'Classifying…' : 'AI Classify'}
+          </button>
+
+          {aiType && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '5px 10px', borderRadius: 20,
+              background: typeConfig[aiType]?.bg || '#f3f4f6',
+              border: `1px solid ${typeConfig[aiType]?.color || '#e5e7eb'}22`,
+              fontSize: 12, fontWeight: 600,
+              color: typeConfig[aiType]?.color || '#374151'
+            }}>
+              {typeConfig[aiType]?.icon} AI detected: {aiType}
+            </span>
+          )}
+        </div>
+
+        {/* Incident Type */}
+        <div>
+          <FieldLabel required>Incident Type</FieldLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 4 }}>
+            {incidentTypes.map(type => {
+              const cfg = typeConfig[type]
+              const selected = form.type === type
+              return (
+                <button
+                  key={type} type="button"
+                  className="type-pill"
+                  onClick={() => setForm({ ...form, type })}
+                  style={{
+                    padding: '6px 13px', borderRadius: 20,
+                    border: selected ? `1.5px solid ${cfg.color}` : '1.5px solid #e5e7eb',
+                    background: selected ? cfg.bg : '#fff',
+                    color: selected ? cfg.color : '#6b7280',
+                    fontSize: 12.5, fontWeight: selected ? 700 : 500,
+                    cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                    boxShadow: selected ? `0 0 0 3px ${cfg.color}18` : 'none'
+                  }}>
+                  {cfg.icon} {type}
+                </button>
+              )
+            })}
+          </div>
+          {/* hidden select for form validation */}
+          <select required value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
+            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}>
+            <option value="">Select type</option>
+            {incidentTypes.map(type => <option key={type} value={type}>{type}</option>)}
+          </select>
+        </div>
+
+        {/* Attach Media — full width on right panel */}
+        <div>
+          <FieldLabel>Attach Media</FieldLabel>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            <label
+              className="media-btn"
+              style={{
+                flex: 1,
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', borderRadius: 10,
+                border: '1.5px dashed #cbd5e1', cursor: 'pointer',
+                background: '#f8fafc', transition: 'all 0.15s',
+                fontSize: 13, color: '#64748b', fontWeight: 500,
+                overflow: 'hidden', whiteSpace: 'nowrap',
+              }}>
+              <FiUpload size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {form.mediaName ? form.mediaName : 'Upload photo or video'}
+              </span>
+              <input type="file" accept="image/*,video/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            </label>
+            <CameraMenu onFileChange={handleFileChange} />
+          </div>
+
+          {form.mediaName && form.mediaUrl && (
+            <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
+              {form.mediaUrl.startsWith('data:image') ? (
+                <img src={form.mediaUrl} alt="preview" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <video src={form.mediaUrl} controls style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+              )}
+              <button type="button" onClick={clearMedia} title="Remove" style={{
+                position: 'absolute', top: 6, right: 6, width: 22, height: 22,
+                borderRadius: '50%', background: 'rgba(0,0,0,0.55)',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+              }}>
+                <FiX size={11} />
+              </button>
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: '4px 8px', background: 'rgba(0,0,0,0.45)',
+                fontSize: 10.5, color: '#fff', fontWeight: 500,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {form.mediaName}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Success Banner */}
-            {submitted && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '14px 18px',
-                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                border: '1px solid #bbf7d0', borderRadius: 12,
-              }}>
-                <FiCheckCircle size={18} color="#16a34a" />
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: '#15803d' }}>
-                  Incident reported successfully! Redirecting to dashboard…
-                </span>
-              </div>
-            )}
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid #f1f5f9', margin: '2px 0' }} />
 
-            {/* Map Section */}
-            <SectionCard icon={FiMapPin} label="Pin the Location" iconColor="#2563eb">
-              <div style={{ height: '300px' }} className="md:h-full md:min-h-500">
-                <MapContainer center={[14.835, 120.283]} zoom={16} style={{ height: '100%', width: '100%', zIndex: 1 }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <MapBoundsHandler />
-                  <MapClickHandler onClick={handleMapClick} onBoundaryError={handleBoundaryError} />
-                  {pin && <Marker position={pin} icon={pinIcon} />}
-                </MapContainer>
-              </div>
+        {/* Date/Time + Reporter info — stacked vertically on right panel */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
+          <div>
+            <FieldLabel>Date & Time</FieldLabel>
+            <div style={{ position: 'relative' }}>
+              <FiClock size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="datetime-local" value={`${form.date}T${form.time}`} readOnly
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+            </div>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Auto-filled to current time</p>
+          </div>
 
-              {pin && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '10px 18px',
-                  background: '#eff6ff', borderTop: '1px solid #dbeafe'
-                }}>
-                  <FiMapPin size={13} color="#2563eb" />
-                  <span style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 500 }}>
-                    Pin placed at {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
-                  </span>
-                </div>
-              )}
+          <div>
+            <FieldLabel>Reporter Name</FieldLabel>
+            <div style={{ position: 'relative' }}>
+              <FiUser size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="text" value={form.reporterName} readOnly
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+            </div>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
+          </div>
 
-              {boundaryError && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '10px 18px',
-                  background: '#fef2f2', borderTop: '1px solid #fecaca'
-                }}>
-                  <FiXCircle size={14} color="#dc2626" />
-                  <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>{boundaryError}</span>
-                </div>
-              )}
-            </SectionCard>
+          <div>
+            <FieldLabel>Contact Number</FieldLabel>
+            <div style={{ position: 'relative' }}>
+              <FiPhone size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="tel" value={form.contact} readOnly
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+            </div>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
+          </div>
+        </div>
 
-            {/* Incident Details */}
-            <SectionCard icon={FiFileText} label="Incident Details" iconColor="#2563eb">
-              <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* Submit */}
+        <button
+          type="submit" disabled={submitted || submitting}
+          className="submit-btn"
+          style={{
+            marginTop: 4,
+            padding: '13px 0',
+            background: submitted ? '#22c55e' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            color: '#fff', border: 'none', borderRadius: 12,
+            fontSize: 14, fontWeight: 700,
+            cursor: (submitted || submitting) ? 'not-allowed' : 'pointer',
+            fontFamily: "'DM Sans', sans-serif",
+            letterSpacing: '0.01em',
+            boxShadow: submitted ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            opacity: (submitted || submitting) ? 0.6 : 1
+          }}>
+          {submitting
+            ? 'Submitting...'
+            : submitted
+            ? <><FiCheckCircle size={16} /> Submitted!</>
+            : <><FiAlertTriangle size={15} /> Submit Report</>
+          }
+        </button>
 
-                {/* Description */}
-                <div>
-                  <FieldLabel required>Description</FieldLabel>
-                  <textarea
-                    required rows={3}
-                    value={form.description}
-                    onChange={e => setForm({ ...form, description: e.target.value })}
-                    className="ri-textarea"
-                    placeholder="Describe what happened… (e.g. May banggaan ng motor sa highway)"
-                    style={{
-                      ...inputStyle, resize: 'vertical', minHeight: 88,
-                      lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif"
-                    }}
-                  />
-                </div>
+      </form>
+    </SectionCard>
 
-                {/* AI Classify row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button
-                    type="button" onClick={classifyAI}
-                    disabled={loadingAI || !form.description}
-                    className="ai-btn"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 7,
-                      padding: '7px 14px', borderRadius: 8, border: 'none',
-                      background: '#f5f3ff', color: '#7c3aed',
-                      fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: "'DM Sans', sans-serif",
-                      opacity: (loadingAI || !form.description) ? 0.5 : 1
-                    }}>
-                    <RiSparklingFill size={13} />
-                    {loadingAI ? 'Classifying…' : 'AI Classify'}
-                  </button>
+  </div>{/* end two-column grid */}
 
-                  {aiType && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      padding: '5px 10px', borderRadius: 20,
-                      background: typeConfig[aiType]?.bg || '#f3f4f6',
-                      border: `1px solid ${typeConfig[aiType]?.color || '#e5e7eb'}22`,
-                      fontSize: 12, fontWeight: 600,
-                      color: typeConfig[aiType]?.color || '#374151'
-                    }}>
-                      {typeConfig[aiType]?.icon} AI detected: {aiType}
-                    </span>
-                  )}
-                </div>
-
-                {/* Type Pills + File Upload row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }} className="md:grid-cols-2">
-                  <div>
-                    <FieldLabel required>Incident Type</FieldLabel>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 4 }}>
-                      {incidentTypes.map(type => {
-                        const cfg = typeConfig[type]
-                        const selected = form.type === type
-                        return (
-                          <button
-                            key={type} type="button"
-                            className="type-pill"
-                            onClick={() => setForm({ ...form, type })}
-                            style={{
-                              padding: '6px 13px', borderRadius: 20,
-                              border: selected ? `1.5px solid ${cfg.color}` : '1.5px solid #e5e7eb',
-                              background: selected ? cfg.bg : '#fff',
-                              color: selected ? cfg.color : '#6b7280',
-                              fontSize: 12.5, fontWeight: selected ? 700 : 500,
-                              cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-                              boxShadow: selected ? `0 0 0 3px ${cfg.color}18` : 'none'
-                            }}>
-                            {cfg.icon} {type}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <select required value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}>
-                      <option value="">Select type</option>
-                      {incidentTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                    </select>
-                  </div>
-
-                  {/* ── Attach Media: Upload + Camera ── */}
-                  <div>
-                    <FieldLabel>Attach Media</FieldLabel>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-
-                      {/* Upload from gallery/files */}
-                      <label
-                        className="media-btn"
-                        style={{
-                          flex: 1,
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '10px 14px', borderRadius: 10,
-                          border: '1.5px dashed #cbd5e1', cursor: 'pointer',
-                          background: '#f8fafc', transition: 'all 0.15s',
-                          fontSize: 13, color: '#64748b', fontWeight: 500,
-                          overflow: 'hidden', whiteSpace: 'nowrap',
-                        }}>
-                        <FiUpload size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {form.mediaName ? form.mediaName : 'Upload photo or video'}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*,video/*"
-                          onChange={handleFileChange}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
-
-                      {/* Camera / Video capture dropdown */}
-                      <CameraMenu onFileChange={handleFileChange} />
-
-                    </div>
-
-                    {/* Media preview with remove button */}
-                    {form.mediaName && form.mediaUrl && (
-                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
-                        {form.mediaUrl.startsWith('data:image') ? (
-                          <img src={form.mediaUrl} alt="preview" style={{ width: '100%', height: 500, objectFit: 'cover', display: 'block' }} />
-                        ) : (
-                          <video src={form.mediaUrl} controls style={{ width: '100%', height: 500, objectFit: 'cover', display: 'block' }} />
-                        )}
-                        {/* Remove media button */}
-                        <button
-                          type="button"
-                          onClick={clearMedia}
-                          title="Remove"
-                          style={{
-                            position: 'absolute', top: 6, right: 6,
-                            width: 22, height: 22,
-                            borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.55)',
-                            border: 'none', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#fff',
-                          }}>
-                          <FiX size={11} />
-                        </button>
-                        {/* File name badge */}
-                        <div style={{
-                          position: 'absolute', bottom: 0, left: 0, right: 0,
-                          padding: '4px 8px',
-                          background: 'rgba(0,0,0,0.45)',
-                          fontSize: 10.5, color: '#fff', fontWeight: 500,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>
-                          {form.mediaName}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div style={{ borderTop: '1px solid #f1f5f9', margin: '2px 0' }} />
-
-                {/* Date/Time + Reporter info */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="md:grid-cols-3">
-                  <div>
-                    <FieldLabel>Date & Time</FieldLabel>
-                    <div style={{ position: 'relative' }}>
-                      <FiClock size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-                      <input type="datetime-local" value={`${form.date}T${form.time}`} readOnly
-                        style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
-                    </div>
-                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Auto-filled to current time</p>
-                  </div>
-
-                  <div>
-                    <FieldLabel>Reporter Name</FieldLabel>
-                    <div style={{ position: 'relative' }}>
-                      <FiUser size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-                      <input type="text" value={form.reporterName} readOnly
-                        style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
-                    </div>
-                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
-                  </div>
-
-                  <div>
-                    <FieldLabel>Contact Number</FieldLabel>
-                    <div style={{ position: 'relative' }}>
-                      <FiPhone size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-                      <input type="tel" value={form.contact} readOnly
-                        style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
-                    </div>
-                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <button
-                  type="submit" disabled={submitted || submitting}
-                  className="submit-btn"
-                  style={{
-                    marginTop: 4,
-                    padding: '13px 0',
-                    background: submitted
-                      ? '#22c55e'
-                      : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    color: '#fff', border: 'none', borderRadius: 12,
-                    fontSize: 14, fontWeight: 700,
-                    cursor: (submitted || submitting) ? 'not-allowed' : 'pointer',
-                    fontFamily: "'DM Sans', sans-serif",
-                    letterSpacing: '0.01em',
-                    boxShadow: submitted ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    opacity: (submitted || submitting) ? 0.6 : 1
-                  }}>
-                  {submitting
-                    ? 'Submitting...'
-                    : submitted
-                    ? <><FiCheckCircle size={16} /> Submitted!</>
-                    : <><FiAlertTriangle size={15} /> Submit Report</>
-                  }
-                </button>
-              </form>
-            </SectionCard>
-
-          </main>
+</main>
         </div>
         <MobileBottomNav />
       </div>
