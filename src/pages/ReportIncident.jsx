@@ -646,9 +646,7 @@ const uploadMedia = async () => {
       <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: "'DM Sans', sans-serif" }}>
         <ResidentSidebar />
         <div style={{ flex: 1, marginLeft: 0, paddingBottom: 64 }} className="md:ml-60 md:pb-0">
-          <TopBar 
-            title="Report Incident" 
-            showNotifications={true}
+           <TopBar title="Incident Report" showNotifications={true}
             onNotificationClick={() => {
               // Handle notification click - you can open a modal or navigate
               console.log('Notification clicked')
@@ -710,7 +708,7 @@ const uploadMedia = async () => {
             profile={profile}
           />
 
-          <main style={{ padding: '16px', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} className="md:p-7">
+          <main style={{ padding: '16px', maxWidth: 860, gap: '30px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Page Header */}
             <div style={{ paddingBottom: 4 }}>
