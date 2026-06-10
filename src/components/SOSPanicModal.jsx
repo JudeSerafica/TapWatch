@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { notifyAllAdmins } from '../lib/notificationService'
 import { useNavigate } from 'react-router-dom'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
+import { playSOSAlarm } from '../lib/alarmService'
 
 // Color mapping for incident types
 const typeColors = {
@@ -135,12 +136,19 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
     console.log('📍 Calling navigator.geolocation.getCurrentPosition()...')
     console.log('   This should trigger a permission dialog on the device')
 
+    // Detect device type for appropriate timeout
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isMobile = /android|webos|iphone|ipad|ipot|blackberry|iemobile|opera mini/i.test(userAgent)
+    const timeoutDuration = isMobile ? 90000 : 45000  // Increased timeout: 90s for mobile, 45s for desktop
+    
+    console.log(`📱 Device type: ${isMobile ? 'MOBILE' : 'DESKTOP'} - Timeout: ${timeoutDuration}ms`)
+
     // Timeout for location request
     const timeoutId = setTimeout(() => {
-      console.warn('⚠️ Location request timed out after 30 seconds')
+      console.warn(`⚠️ Location request timed out after ${timeoutDuration/1000} seconds`)
       setIsRequestingPermission(false)
       setIsActivated(true)
-    }, 30000)
+    }, timeoutDuration)
 
     // This will trigger the browser's/device's NATIVE permission dialog
     navigator.geolocation.getCurrentPosition(
@@ -150,18 +158,65 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         console.log('✅✅✅ LOCATION PERMISSION GRANTED AND CAPTURED ✅✅✅')
         console.log('Position object:', position)
         
-        const lat = position.coords.latitude
-        const lng = position.coords.longitude
+        let lat = position.coords.latitude
+        let lng = position.coords.longitude
         const accuracy = position.coords.accuracy
+        const altitude = position.coords.altitude
+        const altitudeAccuracy = position.coords.altitudeAccuracy
+        const heading = position.coords.heading
+        const speed = position.coords.speed
         
-        console.log(`📍📍 COORDINATES OBTAINED:`)
+        console.log(`📊 FULL POSITION DATA:`)
         console.log(`    Latitude:  ${lat}`)
         console.log(`    Longitude: ${lng}`)
         console.log(`    Accuracy:  ${accuracy}m`)
+        console.log(`    Altitude:  ${altitude}m`)
+        console.log(`    Heading:   ${heading}°`)
+        console.log(`    Speed:     ${speed}m/s`)
+        
+        // VALIDATION: Check if coordinates are within valid ranges
+        const isValidCoordinate = (lat, lng) => {
+          return (
+            typeof lat === 'number' && typeof lng === 'number' &&
+            !isNaN(lat) && !isNaN(lng) &&
+            lat >= -90 && lat <= 90 &&  // Valid latitude range
+            lng >= -180 && lng <= 180    // Valid longitude range
+          )
+        }
+        
+        if (!isValidCoordinate(lat, lng)) {
+          console.error('❌ INVALID COORDINATES RECEIVED')
+          console.error(`    Latitude:  ${lat} (type: ${typeof lat})`)
+          console.error(`    Longitude: ${lng} (type: ${typeof lng})`)
+          setIsRequestingPermission(false)
+          setIsActivated(true)
+          return
+        }
+        
+        // Ensure coordinates are numbers with proper precision (8 decimal places = ~1.1mm accuracy)
+        lat = parseFloat(lat.toFixed(8))
+        lng = parseFloat(lng.toFixed(8))
+        
+        console.log(`📍📍 COORDINATES VALIDATED AND FORMATTED:`)
+        console.log(`    Latitude:  ${lat}`)
+        console.log(`    Longitude: ${lng}`)
+        console.log(`    Accuracy:  ±${Math.round(accuracy)}m margin of error`)
+        
+        // Assess accuracy quality
+        if (accuracy > 100) {
+          console.warn(`⚠️ WARNING: Location accuracy is moderate (±${Math.round(accuracy)}m)`)
+        } else if (accuracy <= 20) {
+          console.log(`✅ EXCELLENT: High precision GPS location (±${Math.round(accuracy)}m)`)
+        } else if (accuracy <= 50) {
+          console.log(`✅ GOOD: Good GPS accuracy (±${Math.round(accuracy)}m)`)
+        }
         
         setLocation({
           latitude: lat,
-          longitude: lng
+          longitude: lng,
+          accuracy: accuracy,
+          altitude: altitude,
+          timestamp: new Date().toISOString()
         })
         
         setIsRequestingPermission(false)
@@ -195,9 +250,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         setIsActivated(true)
       },
       { 
-        enableHighAccuracy: true,  // Request high accuracy
-        timeout: 30000,             // Wait up to 30 seconds for user response + location
-        maximumAge: 0              // Don't use cached location
+        enableHighAccuracy: true,     // Request high accuracy GPS (will use more battery on mobile)
+        timeout: timeoutDuration,     // Wait for specified timeout
+        maximumAge: 0                 // CRITICAL: Don't use cached location - always get fresh data
       }
     )
   }
@@ -239,12 +294,40 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       // Use latest profile if available, otherwise fall back to passed profile
       const profileToUse = latestProfile || profile
 
+      // Validate coordinates if they exist
+      let validLat = null
+      let validLng = null
+      let locationString = 'Location unavailable'
+      
+      if (location?.latitude && location?.longitude) {
+        // Extra validation before saving
+        validLat = Number(location.latitude)
+        validLng = Number(location.longitude)
+        
+        const isValidCoord = (lat, lng) => {
+          return (
+            !isNaN(lat) && !isNaN(lng) &&
+            lat >= -90 && lat <= 90 &&
+            lng >= -180 && lng <= 180
+          )
+        }
+        
+        if (isValidCoord(validLat, validLng)) {
+          locationString = `Lat: ${validLat.toFixed(6)}, Lng: ${validLng.toFixed(6)}`
+          console.log('✅ Location coordinates validated successfully')
+        } else {
+          console.error('❌ Invalid coordinates detected, clearing location data')
+          validLat = null
+          validLng = null
+        }
+      }
+
       const sosIncident = {
         type: 'crime',
         description: `from ${profileToUse?.full_name || 'User'}. Immediate assistance needed!`,
-        location: location ? `Lat: ${location.latitude.toFixed(6)}, Lng: ${location.longitude.toFixed(6)}` : 'Location unavailable',
-        latitude: location?.latitude || null,
-        longitude: location?.longitude || null,
+        location: locationString,
+        latitude: validLat,
+        longitude: validLng,
         status: 'pending',
         user_id: profileToUse?.id,
         reporter_name: profileToUse?.full_name,
@@ -256,6 +339,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       console.log('📤 SOS Incident object:', sosIncident)
       console.log(`📍 Location values - Latitude: ${sosIncident.latitude}, Longitude: ${sosIncident.longitude}`)
       console.log(`📱 Contact: ${sosIncident.reporter_contact}`)
+      if (location?.accuracy) {
+        console.log(`📡 Location Accuracy: ${Math.round(location.accuracy)}m`)
+      }
 
       const { data, error } = await supabase
         .from('incidents')
@@ -271,10 +357,13 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
 
       console.log('✅ SOS Alert saved successfully:', data)
       
+      // 🔊 Play SOS alarm sound
+      playSOSAlarm()
+      
       // Notify all admins about SOS alert
       await notifyAllAdmins({
         title: '🚨 EMERGENCY SOS ALERT',
-        message: `Emergency SOS from ${profileToUse?.full_name || 'User'} (${profileToUse?.phone || 'No contact'}) at ${location ? `Lat: ${location.latitude.toFixed(4)}, Lng: ${location.longitude.toFixed(4)}` : 'Unknown location'}. IMMEDIATE ATTENTION REQUIRED!`,
+        message: `Emergency SOS from ${profileToUse?.full_name || 'User'} (${profileToUse?.phone || 'No contact'}) at ${validLat && validLng ? `Lat: ${validLat.toFixed(4)}, Lng: ${validLng.toFixed(4)}` : 'Unknown location'}. IMMEDIATE ATTENTION REQUIRED!`,
         type: 'alert',
         incidentId: data.id
       })
@@ -433,10 +522,10 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
 
           {/* SCROLLABLE BOTTOM — map + checklist + footer */}
           <div className="overflow-y-auto flex-1">
-            <div className="px-6 pt-5 pb-6 space-y-4">
+            <div className="px-4 sm:px-6 pt-5 pb-6 space-y-4">
               {/* MAP DISPLAY */}
               {location?.latitude && location?.longitude && (
-                <div className="sos-m1 relative rounded-xl border border-red-200 overflow-hidden h-64 bg-gray-100">
+                <div className="sos-m1 relative rounded-xl border border-red-200 overflow-hidden bg-gray-100" style={{ height: 'min(256px, 40vh)' }}>
                   <MapContainer
                     center={[location.latitude, location.longitude]}
                     zoom={15}
@@ -457,31 +546,34 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                           <p className="font-semibold text-sm">🚨 SOS Alert Location</p>
                           <p className="text-xs text-gray-600">Lat: {location.latitude.toFixed(6)}</p>
                           <p className="text-xs text-gray-600">Lng: {location.longitude.toFixed(6)}</p>
+                          {location?.accuracy && (
+                            <p className="text-xs text-gray-600">Accuracy: ±{Math.round(location.accuracy)}m</p>
+                          )}
                         </div>
                       </Popup>
                     </Marker>
                   </MapContainer>
                   
                   {/* Coordinates Badge */}
-                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-red-200 text-[10px] font-mono text-red-700 shadow-sm">
+                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-red-200 text-[9px] sm:text-[10px] font-mono text-red-700 shadow-sm">
                     <div>📍 {location.latitude.toFixed(6)}</div>
                     <div>📍 {location.longitude.toFixed(6)}</div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-red-50 rounded-xl p-4 space-y-2.5">
-                <div className="sos-i1 flex items-center gap-3 text-gray-800 text-sm">
+              <div className="bg-red-50 rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-2.5">
+                <div className="sos-i1 flex items-center gap-2 sm:gap-3 text-gray-800 text-xs sm:text-sm">
                   <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                  Barangay officials notified
+                  <span>Barangay officials notified</span>
                 </div>
-                <div className="sos-i2 flex items-center gap-3 text-gray-800 text-sm">
+                <div className="sos-i2 flex items-center gap-2 sm:gap-3 text-gray-800 text-xs sm:text-sm">
                   <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                  Your location has been shared
+                  <span>Your location has been shared</span>
                 </div>
-                <div className="sos-i3 flex items-center gap-3 text-gray-800 text-sm">
+                <div className="sos-i3 flex items-center gap-2 sm:gap-3 text-gray-800 text-xs sm:text-sm">
                   <span className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[11px] flex-shrink-0">✓</span>
-                  Emergency services alerted
+                  <span>Emergency services alerted</span>
                 </div>
               </div>
 
@@ -492,7 +584,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
           </div>
 
           {/* FOOTER */}
-          <div className="border-t border-red-100 bg-white p-4 shrink-0">
+          <div className="border-t border-red-100 bg-white p-3 sm:p-4 shrink-0">
             <button
               onClick={handleCloseSuccess}
               className="sos-f2 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-base transition"
@@ -516,28 +608,28 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {!isActivated ? (
           <>
-            <div className="p-8 text-center">
-              <div className="w-32 h-32 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
-                <span className="text-6xl">🚨</span>
+            <div className="p-6 sm:p-8 text-center">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
+                <span className="text-4xl sm:text-6xl">🚨</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
                 Emergency SOS
               </h2>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-xs sm:text-sm text-gray-600 mb-6">
                 This will immediately alert emergency services and share your location.
                 Use only in life-threatening situations.
               </p>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 <button
                   onClick={handleActivate}
-                  className="w-full py-4 rounded-xl font-bold text-lg transition bg-red-600 hover:bg-red-700 text-white"
+                  className="w-full py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition bg-red-600 hover:bg-red-700 text-white active:scale-95"
                 >
                   ACTIVATE SOS
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition"
+                  className="w-full py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition active:scale-95"
                 >
                   Cancel
                 </button>
@@ -546,31 +638,31 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
           </>
         ) : (
           <>
-            <div className="p-8 text-center bg-red-600 text-white">
-              <div className="w-40 h-40 mx-auto mb-6 bg-white rounded-full flex items-center justify-center">
-                <span className="text-7xl font-bold text-red-600 animate-pulse">
+            <div className="p-6 sm:p-8 text-center bg-red-600 text-white">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-4 sm:mb-6 bg-white rounded-full flex items-center justify-center">
+                <span className="text-5xl sm:text-7xl font-bold text-red-600 animate-pulse">
                   {countdown}
                 </span>
               </div>
-              <h2 className="text-2xl font-bold mb-3">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">
                 Sending SOS Alert...
               </h2>
-              <p className="text-sm opacity-90 mb-2">
-                Emergency services will be notified in {countdown} seconds
+              <p className="text-xs sm:text-sm opacity-90 mb-2">
+                Emergency services will be notified in {countdown} {countdown === 1 ? 'second' : 'seconds'}
               </p>
               {isRequestingPermission && (
-                <p className="text-xs opacity-75 mb-4">
+                <p className="text-xs opacity-75 mb-3">
                   📍 Capturing your location...
                 </p>
               )}
               {location && (
                 <p className="text-xs opacity-75 mb-4 text-green-200">
-                  ✓ Location captured
+                  ✓ Location captured ({Math.round(location.accuracy || 0)}m accuracy)
                 </p>
               )}
               <button
                 onClick={handleCancel}
-                className="w-full py-3 bg-white text-red-600 rounded-xl font-bold transition hover:bg-gray-100"
+                className="w-full py-3 bg-white text-red-600 rounded-xl font-bold transition hover:bg-gray-100 active:scale-95"
               >
                 CANCEL
               </button>

@@ -6,6 +6,7 @@ import {
   reviewVerification,
   getReputationLeaderboard,
   getVerificationDocumentUrl,
+  getVerifiedUsers,
 } from '../lib/userVerification'
 import UserVerificationBadge from '../components/UserVerificationBadge'
 import AdminSidebar from '../components/AdminSidebar'
@@ -18,6 +19,7 @@ export default function AdminVerificationReview() {
   const { profile } = useAuth()
   const [pendingVerifications, setPendingVerifications] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
+  const [verifiedUsers, setVerifiedUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(null)
   const [reviewNotes, setReviewNotes] = useState('')
@@ -39,13 +41,21 @@ export default function AdminVerificationReview() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [verificationsData, leaderboardData] = await Promise.all([
+      const [verificationsData, leaderboardData, verifiedUsersData] = await Promise.all([
         getPendingVerifications(),
         getReputationLeaderboard(10),
+        getVerifiedUsers(20),
       ])
+
+      console.log('📥 Data loaded:')
+      console.log('   Pending verifications:', verificationsData.data?.length || 0)
+      console.log('   Leaderboard users:', leaderboardData.data?.length || 0)
+      console.log('   Verified users:', verifiedUsersData.data?.length || 0)
+      console.log('   Verified users data:', verifiedUsersData.data)
 
       setPendingVerifications(verificationsData.data || [])
       setLeaderboard(leaderboardData.data || [])
+      setVerifiedUsers(verifiedUsersData.data || [])
     } catch (err) {
       console.error('Error loading data:', err)
     } finally {
@@ -466,6 +476,140 @@ export default function AdminVerificationReview() {
                         color: '#2563eb',
                       }}>
                         {user.score}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Verified Users List */}
+          <div style={{
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 16,
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          }}>
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <FiCheckCircle size={20} color="#10b981" />
+              <h2 style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#111827',
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                Verified Users
+              </h2>
+            </div>
+
+            <div style={{ padding: 24 }}>
+              {verifiedUsers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6b7280' }}>
+                  <FiCheckCircle size={48} style={{ marginBottom: 16, opacity: 0.3 }} />
+                  <p style={{ fontSize: 15, margin: 0 }}>No verified users yet</p>
+                </div>
+              ) : (
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 16 
+                }}>
+                  {verifiedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 12,
+                        padding: 16,
+                        background: '#f9fafb',
+                        transition: 'all 0.3s ease',
+                        hover: {
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          transform: 'translateY(-2px)',
+                        }
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
+                        e.currentTarget.style.transform = 'translateY(-2px)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = 'none'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                      }}
+                    >
+                      {/* User Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <div style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: '#fff',
+                        }}>
+                          ✓
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+                            {user.full_name || 'Unknown'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#10b981', marginTop: 2, fontWeight: 500 }}>
+                            Verified User
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* User Info */}
+                      <div style={{ space: '12px' }}>
+                        {user.email && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <FiMail size={14} color="#6b7280" />
+                            <span style={{ fontSize: 12, color: '#6b7280', wordBreak: 'break-all' }}>
+                              {user.email}
+                            </span>
+                          </div>
+                        )}
+                        {user.phone && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <FiPhone size={14} color="#6b7280" />
+                            <span style={{ fontSize: 12, color: '#6b7280' }}>
+                              {user.phone}
+                            </span>
+                          </div>
+                        )}
+                        {user.purok && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <FiUser size={14} color="#6b7280" />
+                            <span style={{ fontSize: 12, color: '#6b7280' }}>
+                              {user.purok}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Divider */}
+                      <div style={{ height: 1, background: '#e5e7eb', margin: '12px 0' }} />
+
+                      {/* Verification Date */}
+                      <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                        Verified on {new Date(user.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
                       </div>
                     </div>
                   ))}

@@ -3,7 +3,8 @@ import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTr
 import { useAuth } from '../context/useAuth'
 import { useState, useEffect } from 'react'
 import { getPendingVerifications } from '../lib/userVerification'
-import { MdOutlineAdminPanelSettings } from "react-icons/md";
+import { MdOutlineAdminPanelSettings } from "react-icons/md"
+import { supabase } from '../lib/supabase'
 
 const navItems = [
   { path: '/admin', label: 'Officials Dashboard', icon: LayoutDashboard },
@@ -24,9 +25,27 @@ export default function AdminSidebar() {
 
   useEffect(() => {
     loadPendingCount()
-    // Refresh count every 30 seconds
+    
+    // Subscribe to real-time updates on user_verifications table
+    const subscription = supabase
+      .channel('public:user_verifications')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_verifications' },
+        () => {
+          console.log('🔄 Verification data changed, reloading count...')
+          loadPendingCount()
+        }
+      )
+      .subscribe()
+
+    // Also refresh count every 30 seconds as fallback
     const interval = setInterval(loadPendingCount, 30000)
-    return () => clearInterval(interval)
+
+    return () => {
+      clearInterval(interval)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadPendingCount = async () => {

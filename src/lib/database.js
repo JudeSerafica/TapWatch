@@ -541,12 +541,16 @@ export const getNotifications = async (userId) => {
 }
 
 export const markNotificationRead = async (notificationId) => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
-    .update({ is_read: true })
+    .update({ 
+      is_read: true,
+      read_at: new Date().toISOString()
+    })
     .eq('id', notificationId)
+    .select()
 
-  return { error }
+  return { data, error }
 }
 
 export const subscribeToNotifications = (userId, callback) => {

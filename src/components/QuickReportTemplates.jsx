@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { reportTemplates, getTemplatesByCategory, createQuickReport } from '../lib/reportTemplates'
 import { createIncident } from '../lib/database'
 import { notifyAllAdmins } from '../lib/notificationService'
+import { playReportAlarm } from '../lib/alarmService'
 import { FiZap, FiClock, FiCheck } from 'react-icons/fi'
 
 export default function QuickReportTemplates({ profile, currentLocation, onReportSubmitted, onVerificationRequired }) {
@@ -52,6 +53,9 @@ export default function QuickReportTemplates({ profile, currentLocation, onRepor
       const { data, error } = await createIncident(quickReportData)
 
       if (error) throw error
+
+      // 🔊 Play report alarm sound for admin notification
+      playReportAlarm()
 
       // Notify admins
       await notifyAllAdmins({

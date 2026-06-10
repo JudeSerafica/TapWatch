@@ -28,6 +28,7 @@ import { useAuth } from '../context/useAuth'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { createIncident, checkDuplicateIncident } from '../lib/database'
 import { notifyAllAdmins } from '../lib/notificationService'
+import { playReportAlarm } from '../lib/alarmService'
 import { MdLocalPolice } from "react-icons/md";
 import { FaExclamationTriangle, FaFire, FaBullhorn } from "react-icons/fa";
 import { FaHouseFloodWater } from "react-icons/fa6";
@@ -550,6 +551,9 @@ const uploadMedia = async () => {
     }
 
     console.log('Report submitted:', data)
+
+    // 🔊 Play report alarm sound for admin notification
+    playReportAlarm()
 
     // Notify admins about new incident
     await notifyAllAdmins({

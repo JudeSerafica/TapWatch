@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Bell, AlertCircle, CheckCircle, Info, AlertTriangle, Clock } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
+import { markNotificationRead } from '../lib/database'
 import { useNavigate } from 'react-router-dom'
 
 export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCount }) {
@@ -15,7 +16,53 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
     if (!profile?.id || !isOpen) return
     
     fetchNotifications()
+    
+    // Mark all as read when panel opens (auto-read on view)
+    markAllAsReadOnView()
   }, [profile?.id, isOpen, filter])
+
+  const markAllAsReadOnView = async () => {
+    try {
+      // Get all unread notifications for this user
+      const { data: unreadNotifications, error: fetchError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', profile.id)
+        .eq('is_read', false)
+
+      if (fetchError) {
+        console.error('❌ Error fetching unread notifications:', fetchError)
+        return
+      }
+
+      if (!unreadNotifications || unreadNotifications.length === 0) {
+        console.log('✅ No unread notifications to mark')
+        return
+      }
+
+      const unreadIds = unreadNotifications.map(n => n.id)
+      console.log(`📝 Auto-marking ${unreadIds.length} notifications as read:`, unreadIds)
+
+      // Mark each notification individually using the database function
+      for (const notificationId of unreadIds) {
+        const { error } = await markNotificationRead(notificationId)
+        if (error) {
+          console.error(`❌ Error marking notification ${notificationId} as read:`, error)
+        } else {
+          console.log(`✅ Auto-marked notification ${notificationId} as read`)
+        }
+      }
+
+      // Dispatch event to update badge count to 0
+      window.dispatchEvent(new CustomEvent('notificationUnreadUpdate', { 
+        detail: { count: 0 } 
+      }))
+      
+      console.log(`✅ All ${unreadIds.length} notifications marked as read`)
+    } catch (err) {
+      console.error('❌ Exception in auto-marking notifications as read:', err)
+    }
+  }
 
   const fetchNotifications = async () => {
     setLoading(true)
@@ -43,7 +90,12 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
   const markAsRead = async (notificationId) => {
     // Optimistically update UI first
     const notification = notifications.find(n => n.id === notificationId)
-    if (!notification || notification.is_read) return
+    if (!notification || notification.is_read) {
+      console.log('⚠️ Notification already read or not found')
+      return
+    }
+
+    console.log(`📝 Marking notification ${notificationId} as read`)
 
     // Update local state immediately
     setNotifications(prev =>
@@ -64,14 +116,12 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       detail: { count: newUnreadCount } 
     }))
 
-    // Then update database
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('id', notificationId)
+    // Then update database using the database function
+    const { error } = await markNotificationRead(notificationId)
 
     if (error) {
-      console.error('Error marking as read:', error)
+      console.error('❌ Error marking as read in database:', error)
+      console.error('Error message:', error.message, 'Code:', error.code)
       // Revert on error
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
@@ -83,11 +133,13 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       window.dispatchEvent(new CustomEvent('notificationUnreadUpdate', { 
         detail: { count: currentUnreadCount } 
       }))
+    } else {
+      console.log(`✅ Successfully marked notification ${notificationId} as read in database`)
     }
   }
 
   const handleNotificationClick = async (notification) => {
-    // Mark as read first
+    // Mark as read first (if not already)
     if (!notification.is_read) {
       await markAsRead(notification.id)
     }
@@ -123,7 +175,12 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
   const markAllAsRead = async () => {
     const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
     
-    if (unreadIds.length === 0) return
+    if (unreadIds.length === 0) {
+      console.log('✅ No unread notifications to mark')
+      return
+    }
+
+    console.log(`📝 Marking all ${unreadIds.length} notifications as read`)
 
     // Optimistically update UI first
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
@@ -138,14 +195,18 @@ export default function NotificationCenter({ isOpen, onClose, onUpdateUnreadCoun
       detail: { count: 0 } 
     }))
 
-    // Then update database
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .in('id', unreadIds)
-
-    if (error) {
-      console.error('Error marking all as read:', error)
+    // Then update database - mark each notification individually to ensure it works
+    try {
+      for (const notificationId of unreadIds) {
+        const { error } = await markNotificationRead(notificationId)
+        if (error) {
+          console.error(`❌ Error marking notification ${notificationId} as read:`, error)
+        } else {
+          console.log(`✅ Marked notification ${notificationId} as read`)
+        }
+      }
+    } catch (err) {
+      console.error('❌ Exception in markAllAsRead:', err)
       // Revert on error
       fetchNotifications()
     }

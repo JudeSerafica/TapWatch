@@ -445,3 +445,44 @@ export const getVerificationDocumentUrl = async (filePath) => {
     return null
   }
 }
+
+// Get verified users list (admin)
+export const getVerifiedUsers = async (limit = 20) => {
+  try {
+    // First, let's get ALL users to debug
+    const { data: allProfiles, error: allError } = await supabase
+      .from('profiles')
+      .select('verification_status')
+      .limit(5)
+
+    console.log('📊 Sample profiles verification_status values:', allProfiles)
+
+    // Now fetch verified users
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        full_name,
+        email,
+        phone,
+        purok,
+        verification_status,
+        created_at
+      `)
+      .eq('verification_status', 'verified')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    console.log('✅ Verified users query result:', { data, error })
+
+    if (error) {
+      console.error('Error fetching verified users:', error)
+      return { data: [], error }
+    }
+
+    return { data: data || [], error: null }
+  } catch (err) {
+    console.error('Error in getVerifiedUsers:', err)
+    return { data: [], error: err }
+  }
+}
