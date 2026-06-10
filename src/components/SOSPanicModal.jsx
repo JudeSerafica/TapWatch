@@ -428,11 +428,12 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                 onClick={() => {
                   setShowVerificationModal(false)
                   onClose()
-                  navigate('/profile')
+                  navigate('/verification')
                 }}
                 className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold transition"
               >
-                Go to Profile & Verify
+                <span style={{ fontSize: 18 }}>🛡️</span>
+                  Get Verified Now
               </button>
               <button
                 onClick={() => {

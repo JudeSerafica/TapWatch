@@ -134,44 +134,18 @@ export default function Signup() {
             email: form.email.trim(),
             code: form.otp.trim(),
             password: form.password.trim(),
+            name: form.name.trim(),
           }),
         })
         const text = await response.text()
         const result = text ? JSON.parse(text) : {}
+        setLoading(false)
         if (!response.ok) {
-          setLoading(false)
-          setError(result.error || `Server error (${response.status}) — check your backend /api/verify route.`)
+          setError(result.error || `Server error (${response.status})`)
         } else {
-          // OTP verified — now create the user via Supabase Auth
-          // Add small delay to avoid rate limiting on rapid clicks
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          // Use exact same values that were verified
-          const signUpData = {
-            name: form.name.trim(),
-            email: form.email.trim(),
-            password: form.password.trim()
-          }
-          
-          console.log('Signing up with:', { email: signUpData.email, name: signUpData.name })
-          
-          const { error: signUpError } = await signUp(signUpData)
-          setLoading(false)
-          if (signUpError) {
-            // Handle Supabase rate limit errors
-            if (signUpError.includes('too many') || signUpError.includes('rate') || signUpError.includes('429')) {
-              setError('Too many signup attempts. Please wait a moment and try again.')
-            } else if (signUpError.includes('already')) {
-              setError('This email is already registered. Please sign in instead.')
-            } else if (signUpError.includes('Invalid')) {
-              setError('Signup failed. Please try again with different credentials.')
-            } else {
-              setError(signUpError)
-            }
-          } else {
-            setSignupSuccess(true)
-            setTimeout(() => navigate('/login'), 2500)
-          }
+          // User already created in Supabase by verify endpoint
+          setSignupSuccess(true)
+          setTimeout(() => navigate('/login'), 2500)
         }
       } catch (err) {
         setLoading(false)

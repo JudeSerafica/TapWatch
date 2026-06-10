@@ -1686,7 +1686,7 @@ export default function Dashboard() {
                     value={profileForm.address}
                     onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-                    placeholder="e.g. Purok 1, East Tapinac, Olongapo City"
+                    placeholder="e.g. East Tapinac, Olongapo City"
                     rows={3}
                     disabled={savingProfile}
                   />

@@ -4,6 +4,7 @@ import express from 'express'
 import nodemailer from 'nodemailer'
 import bcrypt from 'bcryptjs'
 import cors from 'cors'
+import { createClient } from '@supabase/supabase-js'
  
 const app = express()
 app.use(cors())
@@ -24,6 +25,12 @@ const transporter = nodemailer.createTransport({
     pass: process.env.GMAIL_APP_PASSWORD,
   },
 })
+
+// ── Supabase client (service role to bypass RLS) ──────────────────────────
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
+)
  
 // ── POST /api/signup — send OTP ────────────────────────────────────────────
 app.post('/api/signup', async (req, res) => {
@@ -87,7 +94,7 @@ app.post('/api/signup', async (req, res) => {
  
 // ── POST /api/verify — verify OTP ─────────────────────────────────────────
 app.post('/api/verify', async (req, res) => {
-  const { email, code, password } = req.body
+  const { email, code, password, name } = req.body
  
   if (!email || !code || !password)
     return res.status(400).json({ error: 'Email, code, and password are required.' })
@@ -126,11 +133,34 @@ app.post('/api/verify', async (req, res) => {
   if (record.code !== code.trim())
     return res.status(400).json({ error: 'Incorrect verification code. Please try again.' })
  
-  otpStore.delete(emailLower)
-  verifyAttempts.delete(emailLower) // Clear attempts on success
- 
-  console.log(`[VERIFY] OTP verified for: ${email}`)
-  return res.status(200).json({ message: 'OTP verified successfully.' })
+  // OTP verified — now create the user in Supabase
+  try {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: emailLower,
+      password: password.trim(),
+      user_metadata: {
+        full_name: name || emailLower.split('@')[0],
+      },
+      email_confirm: true, // Auto-confirm email since we verified via OTP
+    })
+
+    if (error) {
+      console.error('[VERIFY ERROR] Supabase user creation failed:', error)
+      return res.status(400).json({ error: error.message || 'Failed to create user account.' })
+    }
+
+    otpStore.delete(emailLower)
+    verifyAttempts.delete(emailLower)
+
+    console.log(`[VERIFY] User created in Supabase: ${emailLower}`)
+    return res.status(200).json({ 
+      message: 'Email verified successfully. Account created.', 
+      user: data.user 
+    })
+  } catch (err) {
+    console.error('[VERIFY CATCH ERROR]', err.message)
+    return res.status(500).json({ error: `Failed to verify: ${err.message}` })
+  }
 })
  
 // ── Start server ───────────────────────────────────────────────────────────
