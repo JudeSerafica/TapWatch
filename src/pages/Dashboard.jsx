@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Clock, X, AlertCircle, Shield, Phone, Mail, User, Save, MapPin } from 'lucide-react'
+import { Clock, X, AlertCircle, Shield, Phone, Mail, User, Save, MapPin, CheckCircle } from 'lucide-react'
 import { FaClipboardList, FaCheckCircle } from 'react-icons/fa'
 import { FaPersonRunning } from 'react-icons/fa6'
 import { MdPendingActions } from 'react-icons/md'
@@ -974,6 +974,7 @@ export default function Dashboard() {
     useState(false)
 
   const [showProfileSetupModal, setShowProfileSetupModal] = useState(false)
+  const [showVerifiedModal, setShowVerifiedModal] = useState(false)
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     phone: '',
@@ -997,6 +998,34 @@ export default function Dashboard() {
       })
     }
   }, [profile])
+
+  // Check if user was recently verified and show modal
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (!profile) return
+
+      const isVerified = profile.verification_status === 'verified'
+      const hasSeenModal = localStorage.getItem(`verification_modal_seen_${profile.id}`)
+
+      // Show modal if user is verified AND hasn't seen the modal yet
+      if (isVerified && !hasSeenModal) {
+        // Small delay for better UX
+        setTimeout(() => {
+          setShowVerifiedModal(true)
+        }, 1000)
+      }
+    }
+
+    checkVerificationStatus()
+  }, [profile])
+
+  const handleCloseVerifiedModal = () => {
+    // Mark as seen so it doesn't show again
+    if (profile?.id) {
+      localStorage.setItem(`verification_modal_seen_${profile.id}`, 'true')
+    }
+    setShowVerifiedModal(false)
+  }
 
   const handleCompleteProfile = async (e) => {
     e.preventDefault()
@@ -1605,6 +1634,132 @@ export default function Dashboard() {
         onClose={() => setSOSModalOpen(false)}
         profile={profile}
       />
+
+      {/* VERIFICATION APPROVED MODAL */}
+      {showVerifiedModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-fadeIn">
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes scaleIn {
+              from {
+                opacity: 0;
+                transform: scale(0.9);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            @keyframes bounceIn {
+              0% {
+                opacity: 0;
+                transform: scale(0.3);
+              }
+              50% {
+                opacity: 1;
+                transform: scale(1.05);
+              }
+              70% {
+                transform: scale(0.9);
+              }
+              100% {
+                transform: scale(1);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.3s ease-out;
+            }
+            .animate-scaleIn {
+              animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+            .animate-bounceIn {
+              animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            }
+          `}</style>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scaleIn">
+            {/* Celebration Banner */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-8 text-center relative overflow-hidden">
+              {/* Decorative elements */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 left-0 w-20 h-20 bg-white rounded-full -translate-x-10 -translate-y-10"></div>
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full translate-x-16 translate-y-16"></div>
+              </div>
+              
+              <div className="relative z-10">
+                {/* Animated checkmark */}
+                <div className="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center animate-bounceIn">
+                  <CheckCircle size={48} className="text-green-500" />
+                </div>
+                
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  🎉 Account Verified!
+                </h3>
+                <p className="text-white text-opacity-90 text-sm">
+                  Congratulations! Your identity has been successfully verified.
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="space-y-4 mb-6">
+                <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Shield size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Verified Badge</h4>
+                    <p className="text-xs text-gray-600">
+                      Your profile now shows a verified badge, building trust with barangay officials and community members.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <AlertCircle size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Emergency SOS Access</h4>
+                    <p className="text-xs text-gray-600">
+                      You now have access to the emergency SOS panic button for critical situations.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Increased Credibility</h4>
+                    <p className="text-xs text-gray-600">
+                      Your reports will be prioritized and carry more weight in community safety discussions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-xs text-gray-700 text-center">
+                  <strong>Thank you</strong> for taking the time to verify your identity. 
+                  Together, we're building a safer community! 🏘️
+                </p>
+              </div>
+
+              <button
+                onClick={handleCloseVerifiedModal}
+                className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg text-sm font-semibold hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl"
+              >
+                Got it, Thanks!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PROFILE COMPLETION MODAL (REQUIRED) */}
 

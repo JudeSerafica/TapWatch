@@ -7,6 +7,11 @@ import {
 } from 'lucide-react'
 import AdminSidebar from '../components/AdminSidebar'
 import TopBar from '../components/TopBar'
+import { supabase } from '../lib/supabase'
+ 
+// ── Constants for Supabase tables ─────────────────────────────────
+const SETTINGS_TABLE = 'system_settings'
+const USERS_TABLE = 'system_users'
  
 // ── localStorage helpers ──────────────────────────────────────────
 const STORAGE_KEY = 'tapwatch_settings'
@@ -58,6 +63,103 @@ function loadSettings() {
 function persistSettings(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
+
+// ── Supabase helper functions ─────────────────────────────────────
+async function loadSettingsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from(SETTINGS_TABLE)
+      .select('*')
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    if (data && data.settings) {
+      return { ...defaultSettings, ...data.settings }
+    }
+  } catch (err) {
+    console.error('Failed to load settings from Supabase:', err)
+  }
+  // Fallback to localStorage
+  return loadSettings()
+}
+
+async function persistSettingsToSupabase(data) {
+  try {
+    const { error: upsertError } = await supabase
+      .from(SETTINGS_TABLE)
+      .upsert({ id: 1, settings: data }, { onConflict: 'id' })
+    
+    if (upsertError) throw upsertError
+    persistSettings(data)
+    return true
+  } catch (err) {
+    console.error('Failed to persist settings to Supabase:', err)
+    persistSettings(data)
+    return false
+  }
+}
+
+async function fetchUsersFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from(USERS_TABLE)
+      .select('*')
+    
+    if (error) throw error
+    return data || []
+  } catch (err) {
+    console.error('Failed to fetch users from Supabase:', err)
+    try {
+      return JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
+    } catch {
+      return []
+    }
+  }
+}
+
+async function createUserInSupabase(userData) {
+  try {
+    // Sign up with Supabase Auth
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+    })
+    
+    if (signUpError) throw signUpError
+    
+    // Store user in system_users table
+    const { error: insertError } = await supabase
+      .from(USERS_TABLE)
+      .insert({
+        id: authData.user?.id,
+        full_name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        created_at: new Date().toISOString(),
+      })
+    
+    if (insertError) throw insertError
+    return { success: true, user: authData.user }
+  } catch (err) {
+    console.error('Failed to create user in Supabase:', err)
+    throw err
+  }
+}
+
+async function deleteUserFromSupabase(userId) {
+  try {
+    const { error } = await supabase
+      .from(USERS_TABLE)
+      .delete()
+      .eq('id', userId)
+    
+    if (error) throw error
+    return true
+  } catch (err) {
+    console.error('Failed to delete user from Supabase:', err)
+    throw err
+  }
+}
  
 // ── Toggle ────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }) {
@@ -108,19 +210,38 @@ const inp = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gra
  
 // ─────────────────────────────────────────────────────────────────
 export default function SystemSettings() {
-  const [settings, setSettings] = useState(loadSettings)
+  const [settings, setSettings] = useState(defaultSettings)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [activePanel, setActivePanel] = useState(null)
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [newCategory, setNewCategory] = useState('')
-  const [users, setUsers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]') } catch { return [] }
-  })
+  const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Staff', password: '' })
   const [userError, setUserError] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [lastBackup, setLastBackup] = useState(() => localStorage.getItem(BACKUP_KEY) || 'June 7, 2026 10:30 PM')
+
+  // Load settings and users from Supabase on mount
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        const loadedSettings = await loadSettingsFromSupabase()
+        setSettings(loadedSettings)
+        setSettingsLoaded(true)
+        
+        const loadedUsers = await fetchUsersFromSupabase()
+        setUsers(loadedUsers)
+      } catch (err) {
+        console.error('Failed to initialize data:', err)
+        setSettingsLoaded(true)
+      }
+    }
+    
+    initializeData()
+  }, [])
  
   function showToast(msg, type = 'success') {
     setToast({ msg, type })
@@ -141,14 +262,19 @@ export default function SystemSettings() {
  
   function handleSave(section) {
     setSaving(true)
-    setTimeout(() => {
-      const updated = { ...settings, [section]: draft }
+    const updated = { ...settings, [section]: draft }
+    
+    // Persist to Supabase
+    persistSettingsToSupabase(updated).then(() => {
       setSettings(updated)
-      persistSettings(updated)
       setSaving(false)
       closePanel()
       showToast('Settings saved successfully!')
-    }, 500)
+    }).catch(err => {
+      console.error('Error saving settings:', err)
+      setSaving(false)
+      showToast('Failed to save settings.', 'error')
+    })
   }
  
   function handleBackup() {
@@ -179,20 +305,53 @@ export default function SystemSettings() {
     e.target.value = ''
   }
  
-  function handleAddUser() {
+  async function handleAddUser() {
     setUserError('')
-    if (!newUser.name.trim() || !newUser.email.trim() || !newUser.password.trim()) return setUserError('All fields are required.')
-    if (users.find(u => u.email === newUser.email)) return setUserError('Email already exists.')
-    const updated = [...users, { ...newUser, id: Date.now() }]
-    setUsers(updated); localStorage.setItem(USERS_KEY, JSON.stringify(updated))
-    setNewUser({ name: '', email: '', role: 'Staff', password: '' })
-    showToast('User added!')
+    if (!newUser.name.trim() || !newUser.email.trim() || !newUser.password.trim()) {
+      return setUserError('All fields are required.')
+    }
+    if (users.find(u => u.email === newUser.email)) {
+      return setUserError('Email already exists.')
+    }
+
+    try {
+      setUsersLoading(true)
+      const result = await createUserInSupabase(newUser)
+      
+      if (result.error) {
+        throw result.error
+      }
+
+      // Reload users from Supabase
+      const loadedUsers = await fetchUsersFromSupabase()
+      setUsers(loadedUsers)
+      setNewUser({ name: '', email: '', role: 'Staff', password: '' })
+      showToast('User added successfully!')
+    } catch (err) {
+      console.error('Error adding user:', err)
+      setUserError(err.message || 'Failed to add user.')
+    } finally {
+      setUsersLoading(false)
+    }
   }
  
-  function handleDeleteUser(id) {
-    const updated = users.filter(u => u.id !== id)
-    setUsers(updated); localStorage.setItem(USERS_KEY, JSON.stringify(updated))
-    showToast('User removed.')
+  async function handleDeleteUser(id) {
+    if (!confirm('Are you sure you want to delete this user?')) return
+
+    try {
+      setUsersLoading(true)
+      await deleteUserFromSupabase(id)
+      
+      // Reload users from Supabase
+      const loadedUsers = await fetchUsersFromSupabase()
+      setUsers(loadedUsers)
+      showToast('User removed successfully.')
+    } catch (err) {
+      console.error('Error deleting user:', err)
+      showToast('Failed to delete user.', 'error')
+    } finally {
+      setUsersLoading(false)
+    }
   }
  
   const cats = [
@@ -406,23 +565,32 @@ export default function SystemSettings() {
                 </div>
               </div>
               {userError && <p className="text-xs text-red-500 mb-2 flex items-center gap-1"><AlertTriangle size={12}/>{userError}</p>}
-              <button onClick={handleAddUser} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 mb-6">
-                <Plus size={15}/>Add User
+              <button 
+                onClick={handleAddUser} 
+                disabled={usersLoading}
+                className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus size={15}/>{usersLoading ? 'Adding...' : 'Add User'}
               </button>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Users ({users.length})</p>
-              {users.length === 0
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">System Users ({users.length})</p>
+              {usersLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-xs text-gray-500 mt-2">Loading users...</p>
+                </div>
+              ) : users.length === 0
                 ? <p className="text-sm text-gray-400 text-center py-8">No users added yet.</p>
                 : users.map(u => (
                   <div key={u.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100">
                     <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-bold text-purple-700">{u.name[0]?.toUpperCase()}</span>
+                      <span className="text-xs font-bold text-purple-700">{(u.full_name || u.email)?.[0]?.toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{u.name}</p>
+                      <p className="text-sm font-semibold text-gray-800 truncate">{u.full_name || u.email}</p>
                       <p className="text-xs text-gray-500 truncate">{u.email}</p>
                     </div>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex-shrink-0">{u.role}</span>
-                    <button onClick={()=>handleDeleteUser(u.id)} className="p-1 hover:text-red-500 text-gray-400 transition flex-shrink-0"><Trash2 size={14}/></button>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex-shrink-0 capitalize">{u.role}</span>
+                    <button onClick={()=>handleDeleteUser(u.id)} disabled={usersLoading} className="p-1 hover:text-red-500 text-gray-400 transition flex-shrink-0 disabled:opacity-50"><Trash2 size={14}/></button>
                   </div>
                 ))
               }

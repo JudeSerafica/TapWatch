@@ -719,7 +719,7 @@ export default function AllReports() {
       setSelectedIncident(null)
 
       // Show success toast
-      showToast('✅ Incident report deleted successfully!', 'success', 3000)
+      showToast(`🗑️ ${selectedIncident.type} report deleted successfully`, 'success', 4000)
     } catch (err) {
       console.error('❌ Error deleting incident:', err)
       showToast('Error: ' + err.message, 'error')
