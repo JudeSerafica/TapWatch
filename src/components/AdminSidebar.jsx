@@ -13,7 +13,6 @@ const navItems = [
   { path: '/admin-verification', label: 'Verification Review', icon: Shield },
   { path: '/admin-contacts', label: 'Emergency Contacts', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/admin-settings', label: 'System Settings', icon: MdOutlineAdminPanelSettings},
 ]
 
 export default function AdminSidebar() {
@@ -201,6 +200,35 @@ export default function AdminSidebar() {
     </div>
   </div>
 
+  {/* System Settings Button */}
+  <button
+    onClick={() => navigate('/admin-settings')}
+    className={`
+      w-full flex items-center gap-3
+      px-4 py-3
+      rounded-xl
+      text-sm font-medium
+      transition-all duration-200
+      mb-3
+      h-11
+    `}
+    style={{
+      background: isActive('/admin-settings')
+        ? '#FFFFFF'
+        : 'transparent',
+      color: isActive('/admin-settings')
+        ? '#0B4EDB'
+        : '#FFFFFF',
+      boxShadow: isActive('/admin-settings')
+        ? '0 8px 25px rgba(0,0,0,0.15)'
+        : 'none',
+    }}
+  >
+    <MdOutlineAdminPanelSettings size={18} className="flex-shrink-0" />
+    <span className="flex-1 text-left truncate">System Settings</span>
+  </button>
+
+  {/* Sign Out Button */}
   <button
     onClick={() => setShowSignOutModal(true)}
     className="
@@ -208,6 +236,8 @@ export default function AdminSidebar() {
       text-white
       hover:text-blue-200
       transition
+      w-full
+      px-4 py-3
     "
   >
     <LogOut size={18} />

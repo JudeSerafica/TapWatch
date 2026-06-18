@@ -17,6 +17,7 @@ import TopBar from '../components/TopBar'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
+import { playSOSAlarm, playReportAlarm } from '../lib/alarmService'
 
 const typeColors = {
   crime: '#9333ea',
@@ -123,6 +124,15 @@ export default function IncidentMap() {
     const subscription = subscribeToIncidents((payload) => {
       if (payload.eventType === 'INSERT') {
         setIncidents((prev) => [payload.new, ...prev])
+        
+        // 🔔 Play alarm sound when new incident arrives on map
+        if (payload.new.is_sos && payload.new.status === 'pending') {
+          console.log('🚨 [AdminMap] New SOS emergency alert on map!')
+          playSOSAlarm()
+        } else {
+          console.log('🔔 [AdminMap] New incident on map')
+          playReportAlarm()
+        }
       } else if (payload.eventType === 'UPDATE') {
         setIncidents((prev) =>
           prev.map((i) => (i.id === payload.new.id ? payload.new : i))

@@ -24,11 +24,13 @@ import ResidentSidebar from '../components/ResidentSidebar'
 import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
 import SOSPanicModal from '../components/SOSPanicModal'
+// ImageAuthenticityModal removed - only used by admins now
 import { useAuth } from '../context/useAuth'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { createIncident, checkDuplicateIncident } from '../lib/database'
 import { notifyAllAdmins } from '../lib/notificationService'
 import { playReportAlarm } from '../lib/alarmService'
+import { analyzeIncident, isEmergency, getRecommendedActions, checkImageAuthenticity } from '../lib/aiService'
 import { MdLocalPolice } from "react-icons/md";
 import { FaExclamationTriangle, FaFire, FaBullhorn } from "react-icons/fa";
 import { FaHouseFloodWater } from "react-icons/fa6";
@@ -348,8 +350,13 @@ export default function ReportIncident() {
   const { profile } = useAuth()
   const [pin, setPin] = useState(null)
   const [aiType, setAiType] = useState('')
+  const [aiAnalysis, setAiAnalysis] = useState(null) // Store full AI analysis
+  const [aiRecommendations, setAiRecommendations] = useState([]) // Store recommendations
+  const [imageAuthenticity, setImageAuthenticity] = useState(null) // Store for database, admin reviews
+  // showAuthenticityModal removed - only admins see this modal
   const [loadingAI, setLoadingAI] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const aiDebounceTimer = useRef(null) // For debouncing auto-classification
   const [submitting, setSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [sosModalOpen, setSOSModalOpen] = useState(false)
@@ -389,21 +396,147 @@ const handleFileChange = (e) => {
   }))
 
   const reader = new FileReader()
-  reader.onload = (event) =>
-    setForm(f => ({ ...f, mediaUrl: event.target?.result }))
+  reader.onload = async (event) => {
+    const dataUrl = event.target?.result
+    
+    // Update form state first
+    setForm(f => ({ ...f, mediaUrl: dataUrl }))
+    
+    // 🤖 AUTO-ANALYZE IMAGE immediately when uploaded
+    if (file.type.startsWith('image/')) {
+      console.log('📸 Image uploaded, auto-analyzing...')
+      showNotification('🤖 AI analyzing image...', 'success')
+      
+      // Analyze with the dataUrl directly (don't wait for state update)
+      setTimeout(async () => {
+        await analyzeImageDirectly(dataUrl)
+      }, 800)
+    }
+  }
 
   reader.readAsDataURL(file)
   e.target.value = ''
 }
 
+// 🆕 Analyze image directly with dataUrl (for immediate analysis after upload)
+const analyzeImageDirectly = async (imageDataUrl) => {
+  setLoadingAI(true)
+  
+  try {
+    console.log('🤖 Analyzing uploaded image for incident type...')
+
+    // Analyze the image with current description (INCIDENT TYPE ONLY, not authenticity)
+    const analysis = await analyzeIncident(
+      form.description || '',
+      imageDataUrl
+    )
+
+    console.log('✅ Image Analysis Result:', analysis)
+
+    // Update state with AI results (INCIDENT TYPE CLASSIFICATION ONLY)
+    setAiType(analysis.combined.type)
+    setAiAnalysis(analysis.combined)
+    setForm(f => ({ ...f, type: analysis.combined.type }))
+
+    // Get recommended actions
+    const recommendations = getRecommendedActions(analysis.combined)
+    setAiRecommendations(recommendations)
+
+    // 📝 Store authenticity data in state (for admin review later, but DON'T show modal to user)
+    if (analysis.image) {
+      const authenticityCheck = checkImageAuthenticity(analysis.image)
+      console.log('🔍 Authenticity data stored (admin will review):', authenticityCheck)
+      setImageAuthenticity(authenticityCheck)
+      
+      // ❌ NO MODAL for users! Only admins see authenticity check in their dashboard
+    }
+
+    // Show notification based on urgency (INCIDENT TYPE ONLY)
+    if (analysis.combined.urgency === 'critical') {
+      showNotification(`🚨 AI: ${analysis.combined.type} detected - CRITICAL!`, 'error')
+    } else if (analysis.combined.urgency === 'high') {
+      showNotification(`⚠️ AI: ${analysis.combined.type} - High Priority`, 'success')
+    } else {
+      showNotification(`✅ AI classified as ${analysis.combined.type}`, 'success')
+    }
+
+  } catch (error) {
+    console.error('❌ Image Analysis error:', error)
+    showNotification('Image analysis failed', 'error')
+  } finally {
+    setLoadingAI(false)
+  }
+}
 
 
-  const clearMedia = () => setForm(f => ({ ...f, mediaUrl: null, mediaName: '' }))
 
-  const classifyAI = () => {
+  const clearMedia = () => {
+    setForm(f => ({ ...f, mediaUrl: null, mediaName: '' }))
+    // Clear AI analysis when media is removed
+    setAiAnalysis(null)
+    setAiRecommendations([])
+    setImageAuthenticity(null) // Clear authenticity check
+  }
+
+  // 🤖 AUTOMATIC AI Classification (no button click needed!)
+  const classifyAI = async (silent = false) => {
+    // Minimum requirements for analysis
+    const hasEnoughData = (form.description && form.description.trim().length > 10) || form.mediaUrl
+    
+    if (!hasEnoughData) {
+      return // Not enough data to analyze yet
+    }
+
     setLoadingAI(true)
-    setTimeout(() => {
-      const text = form.description.toLowerCase()
+    
+    try {
+      console.log('🤖 Auto-analyzing incident...')
+      console.log('- Description:', form.description?.substring(0, 50) + '...')
+      console.log('- Has Image:', !!form.mediaUrl)
+
+      // Analyze both text and image
+      const analysis = await analyzeIncident(
+        form.description,
+        form.mediaUrl // Pass image if available
+      )
+
+      console.log('✅ AI Analysis Result:', analysis)
+
+      // Update state with AI results
+      setAiType(analysis.combined.type)
+      setAiAnalysis(analysis.combined)
+      setForm(f => ({ ...f, type: analysis.combined.type }))
+
+      // Get recommended actions
+      const recommendations = getRecommendedActions(analysis.combined)
+      setAiRecommendations(recommendations)
+
+      // 🔍 Store image authenticity if image was analyzed (no modal for users)
+      if (analysis.image && form.mediaUrl) {
+        const authenticityCheck = checkImageAuthenticity(analysis.image)
+        setImageAuthenticity(authenticityCheck)
+        
+        console.log('🔍 Image Authenticity stored (admin will review):', authenticityCheck)
+        
+        // ❌ NO MODAL for users - only admins see this in All Reports page
+      }
+
+      // Show notification based on urgency (unless silent)
+      if (!silent) {
+        if (analysis.combined.urgency === 'critical') {
+          showNotification(`🚨 AI: ${analysis.combined.type} detected - CRITICAL!`, 'error')
+        } else if (analysis.combined.urgency === 'high') {
+          showNotification(`⚠️ AI: ${analysis.combined.type} - High Priority`, 'success')
+        } else {
+          showNotification(`✅ AI classified as ${analysis.combined.type}`, 'success')
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ AI Classification error:', error)
+      
+      // Fallback to simple keyword matching (silent fallback)
+      const text = (form.description || '').toLowerCase()
       let t = ''
       if (text.includes('sunog') || text.includes('fire') || text.includes('apoy')) t = 'Fire'
       else if (text.includes('baha') || text.includes('tubig') || text.includes('flood')) t = 'Flood'
@@ -411,9 +544,39 @@ const handleFileChange = (e) => {
       else if (text.includes('nakaw') || text.includes('theft') || text.includes('robbery') || text.includes('crime')) t = 'Crime'
       else if (text.includes('ingay') || text.includes('away') || text.includes('disturbance')) t = 'Disturbance'
       else t = 'Accident'
-      setAiType(t); setForm(f => ({ ...f, type: t })); setLoadingAI(false)
-    }, 800)
+      
+      if (t) {
+        setAiType(t)
+        setForm(f => ({ ...f, type: t }))
+      }
+    } finally {
+      setLoadingAI(false)
+    }
   }
+
+  // 🎯 AUTO-CLASSIFY when description changes (with debounce)
+  useEffect(() => {
+    // Clear previous timer
+    if (aiDebounceTimer.current) {
+      clearTimeout(aiDebounceTimer.current)
+    }
+
+    // Only auto-classify if description is long enough
+    if (form.description && form.description.trim().length > 15) {
+      // Wait 2 seconds after user stops typing before analyzing
+      aiDebounceTimer.current = setTimeout(() => {
+        console.log('🤖 Auto-classifying from description...')
+        classifyAI(true) // silent = true (no notification spam)
+      }, 2000)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (aiDebounceTimer.current) {
+        clearTimeout(aiDebounceTimer.current)
+      }
+    }
+  }, [form.description]) // Run when description changes
 
   const notifyAdmin = (incident) => {
     console.log('ADMIN NOTIFICATION: New incident reported:', incident)
@@ -525,9 +688,23 @@ const uploadMedia = async () => {
       media_url: mediaUrl,
       media_name: form.mediaName,
 
-      ai_classification: aiType || form.type,
-      ai_confidence: aiType ? 0.85 : 0.5,
-      urgency_level: 'medium',
+      // 🤖 AI Analysis Data - COMMENTED OUT until database columns are added
+      // These fields need to be added to the database schema first
+      // ai_classification: aiAnalysis?.type || aiType || form.type || null,
+      // ai_confidence: aiAnalysis?.confidence ? Number(aiAnalysis.confidence) : (aiType ? 0.85 : null),
+      // urgency_level: aiAnalysis?.urgency || null,
+      // ai_detected_objects: aiAnalysis?.detected?.length > 0 ? aiAnalysis.detected.join(', ') : null,
+      // ai_reasoning: aiAnalysis?.reasoning || null,
+      // ai_source: aiAnalysis?.source || null,
+      
+      // 🔍 Image Authenticity Data - COMMENTED OUT until database columns are added
+      // Uncomment after running the SQL migration in AUTHENTICITY_DATABASE_SETUP.md
+      // image_is_authentic: imageAuthenticity?.isAuthentic !== false,
+      // image_authenticity_confidence: imageAuthenticity?.confidence || null,
+      // image_source_type: imageAuthenticity?.imageSource || null,
+      // manipulation_detected: imageAuthenticity?.manipulationDetected || false,
+      // fakeness_indicators: imageAuthenticity?.indicators?.join(', ') || null,
+      // requires_manual_review: imageAuthenticity && !imageAuthenticity.isAuthentic,
 
       reporter_name:
         form.reporterName || profile?.full_name || 'Anonymous',
@@ -537,6 +714,30 @@ const uploadMedia = async () => {
     }
 
     console.log('Incident data:', incidentData)
+    
+    // 📝 Log AI Classification data separately (not saved to DB yet - awaiting schema update)
+    if (aiAnalysis || aiType) {
+      console.log('🤖 AI Classification (not saved to DB - awaiting schema update):', {
+        type: aiAnalysis?.type || aiType || form.type,
+        confidence: aiAnalysis?.confidence || (aiType ? 0.85 : 0),
+        urgency: aiAnalysis?.urgency || 'medium',
+        detected: aiAnalysis?.detected || [],
+        reasoning: aiAnalysis?.reasoning || 'Manual classification',
+        source: aiAnalysis?.source || 'manual'
+      })
+    }
+    
+    // 📝 Log authenticity data separately (not saved to DB yet - awaiting schema update)
+    if (imageAuthenticity) {
+      console.log('🔍 Image Authenticity (not saved to DB - awaiting schema update):', {
+        isAuthentic: imageAuthenticity.isAuthentic,
+        confidence: imageAuthenticity.confidence,
+        imageSource: imageAuthenticity.imageSource,
+        manipulationDetected: imageAuthenticity.manipulationDetected,
+        indicators: imageAuthenticity.indicators,
+        requiresReview: !imageAuthenticity.isAuthentic
+      })
+    }
 
     const { data, error } = await createIncident(incidentData)
 
@@ -644,6 +845,10 @@ const uploadMedia = async () => {
         @keyframes popIn {
           from { opacity: 0; transform: scale(0.92) translateY(4px); }
           to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         
         /* ── RESPONSIVE: Tablet (768px to 1023px) ── */
@@ -765,6 +970,8 @@ const uploadMedia = async () => {
             profile={profile}
           />
 
+          {/* Image Authenticity Modal removed from user page - only for admins */}
+
           <main style={{ 
   padding: '24px 28px', 
   maxWidth: 1500, 
@@ -797,6 +1004,67 @@ const uploadMedia = async () => {
       </span>
     </div>
   )}
+
+  {/* AI Auto-Classification Status Banner */}
+  {loadingAI && (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 18px',
+      background: 'linear-gradient(135deg, #ede9fe 0%, #f3e8ff 100%)',
+      border: '1px solid #d8b4fe', borderRadius: 12,
+      animation: 'pulse 2s ease-in-out infinite'
+    }}>
+      <RiSparklingFill size={18} color="#7c3aed" className="animate-spin" />
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#6d28d9' }}>
+        🤖 AI analyzing incident automatically...
+      </span>
+    </div>
+  )}
+
+  {/* AI Classification Result Banner */}
+  {aiAnalysis && !loadingAI && (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '12px 18px',
+      background: aiAnalysis.urgency === 'critical' 
+        ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'
+        : aiAnalysis.urgency === 'high'
+        ? 'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)'
+        : 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+      border: aiAnalysis.urgency === 'critical'
+        ? '1px solid #fca5a5'
+        : aiAnalysis.urgency === 'high'
+        ? '1px solid #fb923c'
+        : '1px solid #93c5fd',
+      borderRadius: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <RiSparklingFill size={18} color={
+          aiAnalysis.urgency === 'critical' ? '#dc2626' :
+          aiAnalysis.urgency === 'high' ? '#ea580c' : '#2563eb'
+        } />
+        <div>
+          <span style={{ 
+            fontSize: 13, 
+            fontWeight: 600, 
+            color: aiAnalysis.urgency === 'critical' ? '#991b1b' :
+                   aiAnalysis.urgency === 'high' ? '#9a3412' : '#1e40af'
+          }}>
+            ✅ AI Classified: {aiAnalysis.type}
+          </span>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+            Confidence: {Math.round(aiAnalysis.confidence * 100)}% • 
+            Urgency: {aiAnalysis.urgency.toUpperCase()}
+            {aiAnalysis.source && ` • Source: ${aiAnalysis.source}`}
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Image Authenticity Warning Banner - REMOVED (admin only feature) */}
+
+  {/* Image Authenticity Success Banner - REMOVED (admin only feature) */}
 
   {/* ── Two-column layout: Map LEFT | Incident Details RIGHT ── */}
   <div style={{

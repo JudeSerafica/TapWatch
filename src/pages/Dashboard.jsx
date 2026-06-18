@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Clock, X, AlertCircle, Shield, Phone, Mail, User, Save, MapPin, CheckCircle } from 'lucide-react'
-import { FaClipboardList, FaCheckCircle } from 'react-icons/fa'
+import { FaClipboardList, FaRegCheckCircle } from 'react-icons/fa'
 import { FaPersonRunning } from 'react-icons/fa6'
 import { MdPendingActions } from 'react-icons/md'
 import { useState, useEffect, useRef } from 'react'
@@ -1005,14 +1005,28 @@ export default function Dashboard() {
       if (!profile) return
 
       const isVerified = profile.verification_status === 'verified'
-      const hasSeenModal = localStorage.getItem(`verification_modal_seen_${profile.id}`)
+      const storageKey = `verification_modal_seen_${profile.id}`
+      const hasSeenModal = localStorage.getItem(storageKey) === 'true'
 
-      // Show modal if user is verified AND hasn't seen the modal yet
+      console.log('🔍 Verification Modal Check:', {
+        userId: profile.id,
+        isVerified,
+        hasSeenModal: localStorage.getItem(storageKey),
+        hasSeenModalBoolean: hasSeenModal,
+        storageKey
+      })
+
+      // Show modal ONLY if user is verified AND hasn't seen the modal yet
       if (isVerified && !hasSeenModal) {
+        console.log('✅ Showing verification modal for FIRST TIME')
         // Small delay for better UX
         setTimeout(() => {
           setShowVerifiedModal(true)
         }, 1000)
+      } else if (isVerified && hasSeenModal) {
+        console.log('⏭️ Skipping modal - user ALREADY SAW IT (hasSeenModal = true)')
+      } else if (!isVerified) {
+        console.log('❌ User not verified yet')
       }
     }
 
@@ -1022,9 +1036,13 @@ export default function Dashboard() {
   const handleCloseVerifiedModal = () => {
     // Mark as seen so it doesn't show again
     if (profile?.id) {
-      localStorage.setItem(`verification_modal_seen_${profile.id}`, 'true')
+      const storageKey = `verification_modal_seen_${profile.id}`
+      localStorage.setItem(storageKey, 'true')
+      console.log('💾 SAVED TO localStorage:', storageKey, '= true')
+      console.log('📦 Confirming localStorage value:', localStorage.getItem(storageKey))
     }
     setShowVerifiedModal(false)
+    console.log('✅ Modal closed and marked as seen')
   }
 
   const handleCompleteProfile = async (e) => {
@@ -1431,7 +1449,7 @@ export default function Dashboard() {
                   {loading ? '...' : myReports.resolved}
                 </div>
                 <div className="text-xs text-green-700 mt-2 font-medium flex items-center justify-center gap-1">
-                  <FaCheckCircle className="text-sm" /> Resolved
+                  <FaRegCheckCircle className="text-sm" /> Resolved
                 </div>
               </button>
 

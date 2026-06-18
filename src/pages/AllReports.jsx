@@ -24,6 +24,18 @@ import {
 import L from 'leaflet'
 import * as XLSX from 'xlsx'
 import { useTranslation } from '../lib/i18n'
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { arrayMove, SortableContext } from '@dnd-kit/sortable'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
@@ -32,11 +44,12 @@ import StatusBadge from '../components/StatusBadge'
 import IncidentIcon from '../components/IncidentIcon'
 import TopBar from '../components/TopBar'
 import Toast, { useToast } from '../components/Toast'
-import { FaDownload } from 'react-icons/fa6'
+import { FaDownload, FaPersonRunning } from 'react-icons/fa6'
+import { FaRegCheckCircle } from 'react-icons/fa'
+import { MdDelete, MdPendingActions } from "react-icons/md"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
-import { MdDelete } from "react-icons/md"
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 
 import {
@@ -46,6 +59,9 @@ import {
   subscribeToIncidents,
   deleteIncident as deleteIncidentDB,
 } from '../lib/database'
+import { playSOSAlarm, playReportAlarm } from '../lib/alarmService'
+import { analyzeIncident, checkImageAuthenticity } from '../lib/aiService'
+import ImageAuthenticityModal from '../components/ImageAuthenticityModal'
 
 // Emergency fix will be imported dynamically when needed
 
@@ -271,18 +287,28 @@ const exportToPDF = (data, typeFilter) => {
       ? 'All Incidents Report'
       : `${typeFilter} Incidents Report`
 
+    // Center-aligned title
     doc.setFontSize(18)
-    doc.text(title, 14, 20)
+    doc.setFont('helvetica', 'bold')
+    const titleWidth = doc.getTextWidth(title)
+    const titleX = (doc.internal.pageSize.width - titleWidth) / 2
+    doc.text(title, titleX, 20)
 
+    // Metadata
     doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
     doc.text(`Total Records: ${data.length}`, 14, 34)
 
     const tableData = data.map((incident) => [
       (incident.type || 'N/A').toUpperCase(),
-      (incident.description || 'N/A').substring(0, 40),
-      (incident.location || 'N/A').substring(0, 25),
-      new Date(incident.created_at).toLocaleDateString(),
+      (incident.description || 'N/A').substring(0, 35),
+      (incident.location || 'N/A').substring(0, 20),
+      new Date(incident.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
       (incident.status || 'N/A').toUpperCase(),
       incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
       incident.reporter_contact || 'N/A',
@@ -298,25 +324,38 @@ const exportToPDF = (data, typeFilter) => {
         textColor: 255,
         fontStyle: 'bold',
         fontSize: 9,
+        halign: 'center',
+        valign: 'middle',
       },
       bodyStyles: {
         fontSize: 8,
         cellPadding: 3,
+        valign: 'middle',
       },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 28 },
-        6: { cellWidth: 25 },
+        0: { cellWidth: 22, halign: 'center' },  // Type - centered
+        1: { cellWidth: 50, halign: 'left' },    // Description - left
+        2: { cellWidth: 30, halign: 'left' },    // Location - left
+        3: { cellWidth: 24, halign: 'center' },  // Date - centered
+        4: { cellWidth: 24, halign: 'center' },  // Status - centered
+        5: { cellWidth: 30, halign: 'left' },    // Reporter - left
+        6: { cellWidth: 25, halign: 'center' },  // Contact - centered
       },
-      margin: { top: 40, left: 14, right: 14 },
+      // Center the table on the page
+      margin: { 
+        top: 40, 
+        left: (doc.internal.pageSize.width - 205) / 2,  // Center horizontally
+        right: (doc.internal.pageSize.width - 205) / 2
+      },
       styles: {
         overflow: 'linebreak',
-        cellPadding: 2,
+        cellPadding: 3,
         fontSize: 8,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.5,
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
       },
     })
 
@@ -339,7 +378,7 @@ const exportToWord = (data, typeFilter) => {
   ]).then(([docxModule, fileSaverModule]) => {
     const {
       Document, Paragraph, Table, TableCell, TableRow,
-      WidthType, AlignmentType, TextRun, ShadingType, Packer
+      WidthType, AlignmentType, TextRun, ShadingType, Packer, BorderStyle
     } = docxModule
     const { saveAs } = fileSaverModule
 
@@ -349,7 +388,7 @@ const exportToWord = (data, typeFilter) => {
 
     const headerLabels = ['Type', 'Description', 'Location', 'Date', 'Status', 'Reporter', 'Contact']
 
-    // Header row — blue background, white bold text
+    // Header row — blue background, white bold text, centered
     const headerRow = new TableRow({
       tableHeader: true,
       children: headerLabels.map((label) =>
@@ -359,6 +398,7 @@ const exportToWord = (data, typeFilter) => {
             color: '3B82F6', // blue-500
             fill: '3B82F6',
           },
+          verticalAlign: 'center',
           children: [
             new Paragraph({
               children: [
@@ -366,26 +406,73 @@ const exportToWord = (data, typeFilter) => {
                   text: label,
                   bold: true,
                   color: 'FFFFFF',
-                  size: 18,
+                  size: 20,
                 }),
               ],
+              alignment: AlignmentType.CENTER,
             }),
           ],
         })
       ),
     })
 
-    // Data rows
+    // Data rows with centered alignment
     const dataRows = data.map((incident, index) =>
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph(incident.type?.toUpperCase() || 'N/A')] }),
-          new TableCell({ children: [new Paragraph(incident.description || 'N/A')] }),
-          new TableCell({ children: [new Paragraph(incident.location || 'N/A')] }),
-          new TableCell({ children: [new Paragraph(new Date(incident.created_at).toLocaleDateString())] }),
-          new TableCell({ children: [new Paragraph(incident.status?.toUpperCase() || 'N/A')] }),
-          new TableCell({ children: [new Paragraph(incident.reporter_name || incident.profiles?.full_name || 'Anonymous')] }),
-          new TableCell({ children: [new Paragraph(incident.reporter_contact || 'N/A')] }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.type?.toUpperCase() || 'N/A',
+              alignment: AlignmentType.CENTER
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.description || 'N/A',
+              alignment: AlignmentType.LEFT
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.location || 'N/A',
+              alignment: AlignmentType.LEFT
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: new Date(incident.created_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              }),
+              alignment: AlignmentType.CENTER
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.status?.toUpperCase() || 'N/A',
+              alignment: AlignmentType.CENTER
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
+              alignment: AlignmentType.LEFT
+            })] 
+          }),
+          new TableCell({ 
+            verticalAlign: 'center',
+            children: [new Paragraph({
+              text: incident.reporter_contact || 'N/A',
+              alignment: AlignmentType.CENTER
+            })] 
+          }),
         ],
       })
     )
@@ -400,15 +487,19 @@ const exportToWord = (data, typeFilter) => {
           }),
           new Paragraph({
             children: [new TextRun({ text: `Generated: ${new Date().toLocaleString()}`, size: 18, color: '6B7280' })],
+            alignment: AlignmentType.LEFT,
             spacing: { after: 100 },
           }),
           new Paragraph({
             children: [new TextRun({ text: `Total Records: ${data.length}`, size: 18, color: '6B7280' })],
+            alignment: AlignmentType.LEFT,
             spacing: { after: 300 },
           }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
+            alignment: AlignmentType.CENTER,
             rows: [headerRow, ...dataRows],
+            columnWidths: [1000, 2500, 1500, 1200, 1200, 1500, 1200], // DXA units (twips/20)
           }),
         ],
       }],
@@ -422,6 +513,134 @@ const exportToWord = (data, typeFilter) => {
       saveAs(blob, filename)
     })
   })
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════
+// STATUS COLUMN COMPONENT (for grouped status view)
+// ═══════════════════════════════════════════════════════════
+
+function StatusColumn({ status, label, icon, count, incidents, colorClasses, onViewDetails }) {
+  return (
+    <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      {/* Column Header */}
+      <div className={`${colorClasses.headerBg} px-4 md:px-5 py-3 md:py-4 border-b border-gray-100`}>
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className={`w-9 h-9 md:w-10 md:h-10 rounded-lg ${colorClasses.iconBg} flex items-center justify-center flex-shrink-0`}>
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-bold text-sm md:text-base ${colorClasses.text} truncate`}>
+              {label}
+            </h3>
+          </div>
+          <div className={`px-2 md:px-3 py-1 rounded-full ${colorClasses.badgeBg} ${colorClasses.badgeText} text-xs font-bold flex-shrink-0`}>
+            {count}
+          </div>
+        </div>
+      </div>
+
+      {/* Incident Cards Container */}
+      <div 
+        className="flex-1 overflow-y-auto bg-gray-50/30 custom-scrollbar" 
+        style={{ maxHeight: '70vh' }}
+      >
+        {incidents.length === 0 ? (
+          // Empty State
+          <div className="flex flex-col items-center justify-center py-12 md:py-20 px-4 md:px-6">
+            <div className={`w-20 md:w-24 h-20 md:h-24 rounded-2xl ${colorClasses.emptyBg} flex items-center justify-center mb-4 md:mb-6`}>
+              <svg className={`w-10 md:w-12 h-10 md:h-12 ${colorClasses.emptyIcon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <p className="text-xs md:text-sm font-semibold text-gray-600 mb-1.5 text-center">
+              No incidents are currently<br className="hidden md:inline" />being {status}.
+            </p>
+          </div>
+        ) : (
+          // Incident Cards
+          <div className="p-3 md:p-4 space-y-2 md:space-y-3">
+            {incidents.map((incident, index) => (
+              <div
+                key={incident.id}
+                className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 hover:shadow-md hover:border-gray-300 transition-all"
+              >
+                {/* Card Header */}
+                <div className="flex items-start justify-between mb-2 md:mb-3">
+                  <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
+                    <div className={`w-10 h-10 md:w-11 md:h-11 rounded-lg ${colorClasses.cardIconBg} flex items-center justify-center flex-shrink-0`}>
+                      <IncidentIcon type={incident.type} size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-xs md:text-sm text-gray-900 mb-1 leading-snug line-clamp-2">
+                        {incident.description || 'No description'}
+                      </h4>
+                    </div>
+                  </div>
+                  <span className={`px-2 md:px-2.5 py-1 rounded-md text-[9px] md:text-[10px] font-bold uppercase tracking-wide flex-shrink-0 ml-2 ${colorClasses.statusBg} ${colorClasses.statusText}`}>
+                    {status}
+                  </span>
+                </div>
+
+                {/* Location & Coordinates */}
+                <div className="flex items-start gap-1.5 md:gap-2 mb-1.5 md:mb-2 text-xs text-gray-600">
+                  <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                  <span className="font-medium text-[11px] md:text-xs line-clamp-1">
+                    {incident.latitude && incident.longitude 
+                      ? `${incident.latitude.toFixed(6)}, ${incident.longitude.toFixed(6)}`
+                      : incident.location || 'Unknown'}
+                  </span>
+                </div>
+
+                {/* Purok */}
+                {incident.purok && (
+                  <div className="mb-1.5 md:mb-2 text-[11px] md:text-xs text-gray-500">
+                    {incident.purok}
+                  </div>
+                )}
+
+                {/* Date & Time and View Details - Bottom Row */}
+                <div className="flex items-center justify-between mt-2 md:mt-3 gap-2">
+                  <div className="flex items-center gap-1.5 md:gap-2 text-[11px] md:text-xs text-gray-500 min-w-0">
+                    <Calendar size={12} className="text-gray-400 flex-shrink-0" />
+                    <span className="truncate">
+                      {new Date(incident.created_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric'
+                      })} • {new Date(incident.created_at).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+
+                  {/* View Details Link - Bottom Right */}
+                  <button 
+                    onClick={() => onViewDetails(incident)}
+                    className="text-[11px] md:text-xs text-gray-600 hover:text-blue-600 font-semibold flex items-center gap-1 group whitespace-nowrap flex-shrink-0"
+                  >
+                    <span className="hidden sm:inline">View Details</span>
+                    <span className="sm:hidden">View</span>
+                    <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+            
+            {/* Footer Count */}
+            <div className="text-center py-2 md:py-3 text-[11px] md:text-xs text-gray-500 font-medium">
+              Showing {incidents.length} of {count} {status} incident{count !== 1 ? 's' : ''}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -453,6 +672,14 @@ export default function AllReports() {
   const [selectedMedia, setSelectedMedia] = useState(null)
   const [mediaPreviewOpen, setMediaPreviewOpen] = useState(false)
 
+  // 🔍 Image Authenticity Scanning (Admin only)
+  const [imageAuthenticity, setImageAuthenticity] = useState(null)
+  const [showAuthenticityModal, setShowAuthenticityModal] = useState(false)
+  const [scanningImage, setScanningImage] = useState(false)
+
+  // 📊 View Mode Toggle (Card vs Table)
+  const [viewMode, setViewMode] = useState('card') // 'card' or 'table'
+
   const [exportOpen, setExportOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   // LOAD INCIDENTS
@@ -475,6 +702,17 @@ export default function AllReports() {
     const subscription = subscribeToIncidents((payload) => {
       if (payload.eventType === 'INSERT') {
         setIncidents((prev) => [payload.new, ...prev])
+        
+        // 🔔 Play alarm sound when new incident arrives
+        if (payload.new.is_sos && payload.new.status === 'pending') {
+          // 🚨 SOS Emergency - play urgent alarm
+          console.log('🚨 [Admin] New SOS emergency alert received!')
+          playSOSAlarm()
+        } else {
+          // 📢 Regular incident - play standard notification
+          console.log('🔔 [Admin] New incident report received')
+          playReportAlarm()
+        }
       } else if (payload.eventType === 'UPDATE') {
         setIncidents((prev) =>
           prev.map((i) =>
@@ -618,6 +856,121 @@ export default function AllReports() {
       console.error('❌ Error creating notification:', notifErr)
       showToast('✅ Notes saved! (notification pending)', 'success', 2000)
     }
+  }
+
+  // 🔍 SCAN IMAGE FOR AUTHENTICITY (Admin only) - NOW SUPPORTS VIDEOS!
+  const scanImageAuthenticity = async () => {
+    if (!selectedIncident?.media_url) {
+      showToast('No media to scan', 'warning')
+      return
+    }
+
+    const isVideo = isVideoFile(selectedIncident.media_url, selectedIncident.media_name)
+
+    setScanningImage(true)
+    
+    try {
+      console.log(`🔍 Admin scanning ${isVideo ? 'video' : 'image'} for authenticity...`)
+      
+      let imageToAnalyze = selectedIncident.media_url
+
+      // If it's a video, extract first frame
+      if (isVideo) {
+        console.log('📹 Video detected, extracting first frame...')
+        showToast('📹 Extracting video frame...', 'success')
+        
+        imageToAnalyze = await extractVideoFrame(selectedIncident.media_url)
+        
+        if (!imageToAnalyze) {
+          showToast('Failed to extract video frame', 'error')
+          setScanningImage(false)
+          return
+        }
+        
+        console.log('✅ Video frame extracted successfully')
+      }
+
+      // Analyze the image (or video frame)
+      const analysis = await analyzeIncident(
+        selectedIncident.description || '',
+        imageToAnalyze
+      )
+
+      if (analysis.image) {
+        // Check authenticity
+        const authenticityCheck = checkImageAuthenticity(analysis.image)
+        console.log('✅ Authenticity scan result:', authenticityCheck)
+        
+        setImageAuthenticity(authenticityCheck)
+        
+        // Show modal after small delay
+        setTimeout(() => {
+          setShowAuthenticityModal(true)
+        }, 300)
+        
+        showToast(`✅ ${isVideo ? 'Video frame' : 'Image'} scan complete`, 'success')
+      } else {
+        showToast('Failed to analyze media', 'error')
+      }
+
+    } catch (error) {
+      console.error('❌ Media scan error:', error)
+      showToast('Media scan failed: ' + error.message, 'error')
+    } finally {
+      setScanningImage(false)
+    }
+  }
+
+  // 🎬 Extract first frame from video as base64 image
+  const extractVideoFrame = (videoUrl) => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.src = videoUrl
+      video.muted = true
+      video.playsInline = true
+      
+      video.onloadeddata = () => {
+        try {
+          // Seek to 1 second into the video (or first frame if shorter)
+          video.currentTime = Math.min(1, video.duration || 0)
+        } catch (err) {
+          console.error('Error seeking video:', err)
+          reject(err)
+        }
+      }
+
+      video.onseeked = () => {
+        try {
+          // Create canvas and draw video frame
+          const canvas = document.createElement('canvas')
+          canvas.width = video.videoWidth || 640
+          canvas.height = video.videoHeight || 480
+          
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+          
+          // Convert to base64 image
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+          
+          console.log('✅ Video frame extracted:', canvas.width, 'x', canvas.height)
+          resolve(dataUrl)
+        } catch (err) {
+          console.error('Error extracting frame:', err)
+          reject(err)
+        }
+      }
+
+      video.onerror = (err) => {
+        console.error('Video loading error:', err)
+        reject(new Error('Failed to load video'))
+      }
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        reject(new Error('Video frame extraction timeout'))
+      }, 10000)
+    })
   }
 
   // SEND NOTES TO USER
@@ -790,6 +1143,13 @@ export default function AllReports() {
   const summary = generateIncidentSummary(filtered)
   const narrative = generateNarrativeReport(summary)
 
+  // 📊 GROUP INCIDENTS BY STATUS (for grouped view)
+  const groupedIncidents = {
+    pending: filtered.filter(i => i.status === 'pending'),
+    responding: filtered.filter(i => i.status === 'responding'),
+    resolved: filtered.filter(i => i.status === 'resolved')
+  }
+
   // LOADING
   if (loading) {
     return (
@@ -843,178 +1203,6 @@ export default function AllReports() {
             </span>
           </div>
 
-          {/* FILTERS - ADVANCED SEARCH */}
-          <div className="space-y-3">
-            {/* Search Bar Row */}
-            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-              <div className="relative flex-1">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Search incidents by description, location..."
-                />
-              </div>
-
-              <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="px-4 py-2 border border-gray-200 rounded-lg font-medium hover:bg-gray-50 transition flex items-center justify-center gap-2 text-xs md:text-sm"
-              >
-                <Filter size={16} />
-                Filters
-                {(advancedFilters.startDate || advancedFilters.endDate || advancedFilters.hasEvidence || advancedFilters.sosOnly) && (
-                  <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs">
-                    {[advancedFilters.startDate, advancedFilters.endDate, advancedFilters.hasEvidence, advancedFilters.sosOnly].filter(Boolean).length}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Advanced Filters Panel */}
-            {showAdvancedFilters && (
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Filter size={14} />
-                    Filters
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setAdvancedFilters({
-                        startDate: '',
-                        endDate: '',
-                        hasEvidence: false,
-                        sosOnly: false,
-                      })
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Clear All
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                      Incident Type
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
-                        className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
-                      >
-                        <option>All Types</option>
-                        <option>Crime</option>
-                        <option>Accident</option>
-                        <option>Fire</option>
-                        <option>Flood</option>
-                        <option>Disturbance</option>
-                      </select>
-                      <ChevronDown
-                        size={14}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                      Status
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 focus:outline-none"
-                      >
-                        <option>All Status</option>
-                        <option>Pending</option>
-                        <option>Responding</option>
-                        <option>Resolved</option>
-                      </select>
-                      <ChevronDown
-                        size={14}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={advancedFilters.startDate}
-                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={advancedFilters.endDate}
-                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, endDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="hasEvidence"
-                      checked={advancedFilters.hasEvidence}
-                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, hasEvidence: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="hasEvidence" className="text-xs text-gray-700">
-                      Has Evidence
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="sosOnly"
-                      checked={advancedFilters.sosOnly}
-                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, sosOnly: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="sosOnly" className="text-xs text-gray-700">
-                      SOS Only
-                    </label>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
-                  <button
-                    onClick={() => setShowAdvancedFilters(false)}
-                    className="px-4 py-2 text-xs text-gray-600 hover:text-gray-800 font-medium"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => setShowAdvancedFilters(false)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition"
-                  >
-                    Apply Filters
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* SUMMARY */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-white border rounded-xl p-4">
@@ -1058,9 +1246,10 @@ export default function AllReports() {
             </div>
           </div>
 
-          {/* EXPORT */}
-<div className="bg-white rounded-xl border p-4">
-  <div className="flex items-center justify-between">
+          {/* EXPORT & VIEW TOGGLE - RESPONSIVE */}
+<div className="bg-white rounded-xl border p-3 md:p-4 space-y-3 md:space-y-4">
+  {/* Export Section */}
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
     <div>
       <h3 className="text-sm font-semibold text-gray-700">
         Download Reports
@@ -1079,10 +1268,10 @@ export default function AllReports() {
     <div className="relative">
       <button
         onClick={() => setExportOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition w-full sm:w-auto justify-center"
       >
         <FaDownload size={14} />
-        Export
+        <span>Export</span>
       </button>
 
       {exportOpen && (
@@ -1123,96 +1312,396 @@ export default function AllReports() {
       )}
     </div>
   </div>
+
+  {/* Filters and View Toggle - RESPONSIVE */}
+  <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
+    {/* Row 1: Search Bar (Full Width on Mobile) */}
+    <div className="relative w-full">
+      <Search
+        size={16}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+      />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Search incidents..."
+      />
+    </div>
+
+    {/* Row 2: Filters and View Toggle */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      {/* Type Filter */}
+      <div className="relative flex-1 sm:flex-initial">
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="appearance-none w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 font-medium hover:bg-gray-50 transition focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        >
+          <option>All Types</option>
+          <option>Crime</option>
+          <option>Accident</option>
+          <option>Fire</option>
+          <option>Flood</option>
+          <option>Disturbance</option>
+        </select>
+        <ChevronDown
+          size={16}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
+      </div>
+
+      {/* Status Filter */}
+      <div className="relative flex-1 sm:flex-initial">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="appearance-none w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 font-medium hover:bg-gray-50 transition focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        >
+          <option>All Status</option>
+          <option>Pending</option>
+          <option>Responding</option>
+          <option>Resolved</option>
+        </select>
+        <ChevronDown
+          size={16}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
+      </div>
+
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 bg-gray-50 w-full sm:w-auto">
+        <button
+          onClick={() => setViewMode('card')}
+          className={`flex-1 sm:flex-initial px-3 py-2 rounded-md text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+            viewMode === 'card'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-600 hover:bg-gray-50'
+          }`}
+          title="All Incidents"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>All</span>
+        </button>
+        <button
+          onClick={() => setViewMode('grouped')}
+          className={`flex-1 sm:flex-initial px-3 py-2 rounded-md text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+            viewMode === 'grouped'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-gray-600 hover:bg-gray-50'
+          }`}
+          title="Group by Status"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <rect x="3" y="3" width="6" height="18" rx="1"/>
+            <rect x="12" y="3" width="9" height="18" rx="1"/>
+          </svg>
+          <span>Status</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
-          {/* TABLE */}
-          <div className="bg-white rounded-xl border overflow-hidden">
-            <table className="w-full text-xs table-fixed">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b bg-gray-50">
-                  <th className="px-1.5 py-2.5 w-8">
-                    Type
-                  </th>
+          {/* INCIDENTS DISPLAY - VIEW MODE CONDITIONAL - RESPONSIVE */}
+          {viewMode === 'card' ? (
+            /* ═══ TABLE VIEW (ALL INCIDENTS) - RESPONSIVE ═══ */
+            <div className="bg-white rounded-xl border border-gray-900 overflow-hidden shadow-sm">
+              {/* Desktop Table View - Hidden on Mobile */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-gray-600 border-b border-gray-200 bg-gray-50/50">
+                      <th className="px-6 py-4 font-semibold">
+                        Type
+                      </th>
 
-                  <th className="px-1.5 py-2.5 w-[30%]">
-                    Description
-                  </th>
+                      <th className="px-6 py-4 font-semibold">
+                        Description
+                      </th>
 
-                  <th className="px-1.5 py-2.5 w-[22%]">
-                    Location
-                  </th>
+                      <th className="px-6 py-4 font-semibold">
+                        Location
+                      </th>
 
-                  <th className="px-1.5 py-2.5 w-[18%]">
-                    Date
-                  </th>
+                      <th className="px-6 py-4 font-semibold">
+                        Date & Time
+                      </th>
 
-                  <th className="px-1.5 py-2.5 w-[10%]">
-                    Status
-                  </th>
+                      <th className="px-6 py-4 font-semibold">
+                        Status
+                      </th>
 
-                  <th className="px-1.5 py-2.5 w-[12%] text-right">
-                    Action
-                  </th>
-                </tr>
-              </thead>
+                      <th className="px-6 py-4 font-semibold text-center">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
 
-              <tbody>
-                {filtered.map((i) => (
-                  <tr
+                  <tbody>
+                    {filtered.map((i, index) => (
+                      <tr
+                        key={i.id}
+                        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                        }`}
+                      >
+                        {/* Type Column with Icon */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+                              <IncidentIcon type={i.type} size={20} />
+                            </div>
+                            {i.is_sos && (
+                              <span className="text-sm">🚨</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Description Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            {i.is_sos && (
+                              <span className="px-2.5 py-1 bg-red-600 text-white rounded-md text-[10px] font-bold w-fit animate-pulse">
+                                🚨 SOS EMERGENCY
+                              </span>
+                            )}
+                            <p className="font-semibold text-gray-900 text-sm leading-relaxed">
+                              {i.description}
+                            </p>
+                            <p className="text-xs text-orange-600 font-medium capitalize">
+                              {i.type}
+                            </p>
+                          </div>
+                        </td>
+
+                        {/* Location Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-start gap-2">
+                            <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm text-gray-900 font-medium">
+                                {i.location || 'Unknown'}
+                              </p>
+                              {i.purok && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {i.purok}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Date & Time Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-start gap-2">
+                            <Calendar size={14} className="text-gray-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm text-gray-900 font-medium">
+                                {new Date(i.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {new Date(i.created_at).toLocaleTimeString('en-US', {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status Column */}
+                        <td className="px-6 py-4">
+                          <StatusBadge status={i.status} />
+                        </td>
+
+                        {/* Action Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => openModal(i)}
+                              className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all"
+                            >
+                              Manage
+                            </button>
+                            <button
+                              className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                              onClick={() => openModal(i)}
+                            >
+                              <span className="text-gray-400 text-lg">⋮</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View - Visible only on Mobile */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {filtered.map((i, index) => (
+                  <div
                     key={i.id}
-                    className="border-b hover:bg-gray-50"
+                    className={`p-4 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
                   >
-                    <td className="px-1.5 py-2.5">
-                      <div className="flex items-center gap-1">
-                        <IncidentIcon type={i.type} />
-                        {i.is_sos && (
-                          <span className="text-xs">🚨</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-1.5 py-2.5">
-                      <div className="flex flex-col gap-1">
-                        {i.is_sos && (
-                          <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold w-fit animate-pulse">
-                            🚨 SOS EMERGENCY
-                          </span>
-                        )}
-                        <span className="block truncate text-gray-800">
-                          {i.description}
+                    {/* SOS Badge */}
+                    {i.is_sos && (
+                      <div className="mb-2">
+                        <span className="px-2.5 py-1 bg-red-600 text-white rounded-md text-[10px] font-bold inline-block animate-pulse">
+                          🚨 SOS EMERGENCY
                         </span>
                       </div>
-                    </td>
+                    )}
 
-                    <td className="px-1.5 py-2.5">
-                      <span className="block truncate text-gray-500">
-                        {i.location}
-                      </span>
-                    </td>
-
-                    <td className="px-1.5 py-2.5 text-gray-500">
-                      {new Date(
-                        i.created_at
-                      ).toLocaleDateString()}
-                    </td>
-
-                    <td className="px-1.5 py-2.5">
+                    {/* Header Row - Icon, Type, Status */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center flex-shrink-0">
+                          <IncidentIcon type={i.type} size={20} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-orange-600 font-medium capitalize">
+                            {i.type}
+                          </p>
+                        </div>
+                      </div>
                       <StatusBadge status={i.status} />
-                    </td>
+                    </div>
 
-                    <td className="px-1.5 py-2.5 text-right">
-                      <button
-                        onClick={() => openModal(i)}
-                        className="px-2 py-1 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 w-full"
-                      >
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
+                    {/* Description */}
+                    <p className="font-semibold text-gray-900 text-sm leading-relaxed mb-3">
+                      {i.description}
+                    </p>
+
+                    {/* Location */}
+                    <div className="flex items-start gap-2 mb-2 text-xs">
+                      <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-gray-900 font-medium">
+                          {i.location || 'Unknown'}
+                        </p>
+                        {i.purok && (
+                          <p className="text-gray-500 mt-0.5">
+                            {i.purok}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Date & Time */}
+                    <div className="flex items-start gap-2 mb-3 text-xs">
+                      <Calendar size={14} className="text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-gray-900 font-medium">
+                          {new Date(i.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-gray-500 mt-0.5">
+                          {new Date(i.created_at).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => openModal(i)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all"
+                    >
+                      Manage Incident
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          ) : (
+            /* ═══ GROUPED STATUS VIEW - RESPONSIVE ═══ */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              {/* Pending Column */}
+              <StatusColumn
+                status="pending"
+                label="Pending"
+                icon={<MdPendingActions className="text-amber-600" size={24} />}
+                count={groupedIncidents.pending.length}
+                incidents={groupedIncidents.pending}
+                colorClasses={{
+                  headerBg: 'bg-amber-50',
+                  iconBg: 'bg-amber-100',
+                  text: 'text-amber-800',
+                  badgeBg: 'bg-amber-100',
+                  badgeText: 'text-amber-700',
+                  cardIconBg: 'bg-orange-50',
+                  statusBg: 'bg-amber-50',
+                  statusText: 'text-amber-700',
+                  emptyBg: 'bg-amber-50',
+                  emptyIcon: 'text-amber-400'
+                }}
+                onViewDetails={openModal}
+              />
+              
+              {/* Responding Column */}
+              <StatusColumn
+                status="responding"
+                label="Responding"
+                icon={<FaPersonRunning className="text-blue-600" size={24} />}
+                count={groupedIncidents.responding.length}
+                incidents={groupedIncidents.responding}
+                colorClasses={{
+                  headerBg: 'bg-blue-50',
+                  iconBg: 'bg-blue-100',
+                  text: 'text-blue-800',
+                  badgeBg: 'bg-blue-100',
+                  badgeText: 'text-blue-700',
+                  cardIconBg: 'bg-blue-50',
+                  statusBg: 'bg-blue-50',
+                  statusText: 'text-blue-700',
+                  emptyBg: 'bg-blue-50',
+                  emptyIcon: 'text-blue-400'
+                }}
+                onViewDetails={openModal}
+              />
+              
+              {/* Resolved Column */}
+              <StatusColumn
+                status="resolved"
+                label="Resolved"
+                icon={<FaRegCheckCircle className="text-green-600" size={24} />}
+                count={groupedIncidents.resolved.length}
+                incidents={groupedIncidents.resolved}
+                colorClasses={{
+                  headerBg: 'bg-green-50',
+                  iconBg: 'bg-green-100',
+                  text: 'text-green-800',
+                  badgeBg: 'bg-green-100',
+                  badgeText: 'text-green-700',
+                  cardIconBg: 'bg-green-50',
+                  statusBg: 'bg-green-50',
+                  statusText: 'text-green-700',
+                  emptyBg: 'bg-green-50',
+                  emptyIcon: 'text-green-400'
+                }}
+                onViewDetails={openModal}
+              />
+            </div>
+          )}
 
           {/* INCIDENT MODAL */}
 {isModalOpen && selectedIncident && (
@@ -1435,11 +1924,11 @@ export default function AllReports() {
 
                 <div className="text-left min-w-0">
                   <p className="text-xs font-medium text-gray-800 truncate">
-                    View Media
+                    View & Scan Media
                   </p>
 
                   <p className="text-[10px] text-gray-500">
-                    Preview
+                    Click to preview & analyze
                   </p>
                 </div>
 
@@ -1542,44 +2031,224 @@ export default function AllReports() {
   </div>
 )}
 
-          {/* MEDIA PREVIEW */}
-          {mediaPreviewOpen &&
-            selectedMedia && (
-              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
-                <div className="bg-white rounded-lg w-full max-w-6xl max-h-[100vh]">
-                  <div className="p-3 border-b flex justify-between">
-                    <span>{selectedMedia.name}</span>
+          {/* 🔍 IMAGE AUTHENTICITY MODAL (Admin only) */}
+          <ImageAuthenticityModal
+            isOpen={showAuthenticityModal}
+            onClose={() => setShowAuthenticityModal(false)}
+            authenticity={imageAuthenticity}
+          />
 
-                    <button
-                      onClick={() =>
-                        setMediaPreviewOpen(false)
-                      }
-                    >
-                      <X />
-                    </button>
+          {/* MEDIA PREVIEW MODAL with SCAN BUTTON */}
+          {mediaPreviewOpen && selectedMedia && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-0" style={{ minHeight: '100vh', height: '100%' }}>
+              <div className="bg-white rounded-2xl w-full h-full md:w-[90vw] md:h-[95vh] md:rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+                
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      {isVideoFile(selectedMedia.url, selectedMedia.name) ? (
+                        <Play size={18} className="text-blue-600" />
+                      ) : (
+                        <ImageIcon size={18} className="text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">Media Preview</h3>
+                      <p className="text-xs text-gray-500 truncate max-w-md">{selectedMedia.name}</p>
+                    </div>
                   </div>
 
-                  <div className="p-4 flex justify-center bg-gray-50">
-                    {isVideoFile(
-                      selectedMedia.url,
-                      selectedMedia.name
-                    ) ? (
-                      <video
-                        src={selectedMedia.url}
-                        controls
-                        className="max-h-[80vh] w-full rounded bg-black"
-                      />
+                  <button
+                    onClick={() => setMediaPreviewOpen(false)}
+                    className="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <X size={20} className="text-gray-600" />
+                  </button>
+                </div>
+
+                {/* Image/Video Display with Scan Animation Overlay - LARGER */}
+                <div className="flex-1 p-8 flex flex-col items-center justify-center bg-gray-900 relative overflow-hidden">
+                  
+                  {/* Media Content - LARGER SIZE */}
+                  {isVideoFile(selectedMedia.url, selectedMedia.name) ? (
+                    <video
+                      src={selectedMedia.url}
+                      controls
+                      className="max-h-[80vh] max-w-full rounded-lg shadow-2xl"
+                      style={{ objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <img
+                      src={selectedMedia.url}
+                      alt="preview"
+                      className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl"
+                    />
+                  )}
+
+                  {/* 🔍 Scanning Animation Overlay - CORNER SCANNER STYLE */}
+                  {scanningImage && (
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
+                      
+                      {/* Scanner Frame with Corner Brackets */}
+                      <div className="relative w-[80%] h-[70%] max-w-4xl">
+                        
+                        {/* Top Left Corner */}
+                        <div className="absolute top-0 left-0 w-20 h-20 border-l-4 border-t-4 border-cyan-400 animate-pulse" 
+                             style={{ 
+                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
+                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))'
+                             }}>
+                        </div>
+                        
+                        {/* Top Right Corner */}
+                        <div className="absolute top-0 right-0 w-20 h-20 border-r-4 border-t-4 border-cyan-400 animate-pulse" 
+                             style={{ 
+                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
+                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
+                               animationDelay: '0.2s'
+                             }}>
+                        </div>
+                        
+                        {/* Bottom Left Corner */}
+                        <div className="absolute bottom-0 left-0 w-20 h-20 border-l-4 border-b-4 border-cyan-400 animate-pulse" 
+                             style={{ 
+                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
+                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
+                               animationDelay: '0.4s'
+                             }}>
+                        </div>
+                        
+                        {/* Bottom Right Corner */}
+                        <div className="absolute bottom-0 right-0 w-20 h-20 border-r-4 border-b-4 border-cyan-400 animate-pulse" 
+                             style={{ 
+                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
+                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
+                               animationDelay: '0.6s'
+                             }}>
+                        </div>
+
+                        {/* Horizontal Scanning Line - Moving from Top to Bottom */}
+                        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan-vertical"
+                             style={{ 
+                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), 0 0 40px rgba(34, 211, 238, 0.5)',
+                               filter: 'blur(1px)'
+                             }}>
+                        </div>
+
+                        {/* Grid Overlay Effect */}
+                        <div className="absolute inset-0 opacity-20"
+                             style={{
+                               backgroundImage: `
+                                 linear-gradient(0deg, transparent 24%, rgba(34, 211, 238, 0.3) 25%, rgba(34, 211, 238, 0.3) 26%, transparent 27%, transparent 74%, rgba(34, 211, 238, 0.3) 75%, rgba(34, 211, 238, 0.3) 76%, transparent 77%, transparent),
+                                 linear-gradient(90deg, transparent 24%, rgba(34, 211, 238, 0.3) 25%, rgba(34, 211, 238, 0.3) 26%, transparent 27%, transparent 74%, rgba(34, 211, 238, 0.3) 75%, rgba(34, 211, 238, 0.3) 76%, transparent 77%, transparent)
+                               `,
+                               backgroundSize: '50px 50px'
+                             }}>
+                        </div>
+                      </div>
+
+                      {/* Center Status Text */}
+                      <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+                        <div className="bg-black/60 backdrop-blur-md rounded-xl px-8 py-4 border-2 border-cyan-400/50"
+                             style={{ boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)' }}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse"
+                                 style={{ boxShadow: '0 0 10px rgba(34, 211, 238, 0.8)' }}>
+                            </div>
+                            <p className="text-cyan-400 font-bold text-lg tracking-wider">SCANNING IMAGE</p>
+                          </div>
+                          <p className="text-cyan-300 text-sm mt-2 text-center font-mono">
+                            Analyzing authenticity & detecting manipulation...
+                          </p>
+                          <div className="flex items-center justify-center gap-1 mt-3">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer with Scan Button */}
+                <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
+                  
+                  {/* Info */}
+                  <div className="text-xs text-gray-500">
+                    {isVideoFile(selectedMedia.url, selectedMedia.name) ? (
+                      <span>📹 Video frame will be extracted and scanned</span>
                     ) : (
-                      <img
-                        src={selectedMedia.url}
-                        alt="preview"
-                        className="max-h-[80vh] object-contain rounded"
-                      />
+                      <span>🔍 Click "Scan Media" to check authenticity</span>
                     )}
                   </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    
+                    {/* Close Button */}
+                    <button
+                      onClick={() => setMediaPreviewOpen(false)}
+                      className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
+                    >
+                      Close
+                    </button>
+
+                    {/* Scan Button (NOW WORKS FOR BOTH IMAGES AND VIDEOS!) */}
+                    <button
+                      onClick={scanImageAuthenticity}
+                      disabled={scanningImage}
+                      className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {scanningImage ? (
+                        <>
+                          <span className="animate-spin">⏳</span>
+                          Scanning...
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-base">🔍</span>
+                          Scan {isVideoFile(selectedMedia.url, selectedMedia.name) ? 'Video' : 'Image'} for Fake/AI
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Scan Animation Styles */}
+          <style>{`
+            @keyframes spin-slow {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(-360deg); }
+            }
+            .animate-spin-slow {
+              animation: spin-slow 3s linear infinite;
+            }
+            @keyframes scan-vertical {
+              0% {
+                top: 0%;
+                opacity: 0;
+              }
+              10% {
+                opacity: 1;
+              }
+              90% {
+                opacity: 1;
+              }
+              100% {
+                top: 100%;
+                opacity: 0;
+              }
+            }
+            .animate-scan-vertical {
+              animation: scan-vertical 2s ease-in-out infinite;
+            }
+          `}</style>
         </main>
       </div>
 
@@ -1654,6 +2323,22 @@ export default function AllReports() {
         }
         .animate-scale-in {
           animation: scale-in 0.2s ease-out forwards;
+        }
+        
+        /* Custom scrollbar for status columns */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
       `}</style>
 

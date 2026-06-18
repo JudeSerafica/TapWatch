@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Plus, MapPin, User } from 'lucide-react'
+import { Home, Plus, MapPin, User, ShieldCheck } from 'lucide-react'
 
 const navItems = [
   { path: '/dashboard', label: 'Home', icon: Home },
   { path: '/report', label: 'Report', icon: Plus },
   { path: '/resident-map', label: 'Map', icon: MapPin },
+  { path: '/verification', label: 'Verify', icon: ShieldCheck },
   { path: '/profile', label: 'Profile', icon: User },
 ]
 
@@ -21,14 +22,14 @@ export default function MobileBottomNav() {
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className={`flex flex-col items-center justify-center w-1/4 h-full transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
               active
                 ? 'text-blue-600'
                 : 'text-gray-500'
             }`}
           >
-            <Icon size={24} />
-            <span className="text-xs mt-0.5">{item.label}</span>
+            <Icon size={22} />
+            <span className="text-[10px] mt-0.5">{item.label}</span>
           </button>
         )
       })}

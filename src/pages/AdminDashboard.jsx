@@ -15,6 +15,7 @@ import MediaPreview from '../components/MediaPreview'
 import { getIncidents, getIncidentStats, getHotspots, subscribeToIncidents } from '../lib/database'
 import { supabase } from '../lib/supabase'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
+import { playSOSAlarm, playReportAlarm } from '../lib/alarmService'
 
 /* ---------------------------------------------
    FIX LEAFLET DEFAULT ICON ISSUE
@@ -330,8 +331,15 @@ export default function AdminDashboard() {
           setSOSAlerts(prev => [payload.new, ...prev])
           setShowSOSBanner(true)
           
-          // Play alert sound
+          // 🚨 Play SOS alarm sound (urgent emergency alert)
           playSOSSound()
+        } else {
+          // 🔔 Play regular report alarm for non-SOS incidents
+          playReportAlarm()
+        }
+        
+        // Continue with existing SOS-specific logic
+        if (payload.new.is_sos && payload.new.status === 'pending') {
           
           // Show browser notification
           if (Notification.permission === 'granted') {
@@ -422,48 +430,10 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Play SOS alert sound
+  // Play SOS alert sound - using enhanced alarm service
   const playSOSSound = () => {
-    // Create audio context for alert sound
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-    
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
-    
-    oscillator.frequency.value = 800
-    oscillator.type = 'sine'
-    
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-    
-    oscillator.start(audioContext.currentTime)
-    oscillator.stop(audioContext.currentTime + 0.2)
-    
-    // Play 3 beeps
-    setTimeout(() => {
-      const osc2 = audioContext.createOscillator()
-      const gain2 = audioContext.createGain()
-      osc2.connect(gain2)
-      gain2.connect(audioContext.destination)
-      osc2.frequency.value = 800
-      osc2.type = 'sine'
-      gain2.gain.setValueAtTime(0.3, audioContext.currentTime)
-      osc2.start(audioContext.currentTime)
-      osc2.stop(audioContext.currentTime + 0.2)
-    }, 300)
-    
-    setTimeout(() => {
-      const osc3 = audioContext.createOscillator()
-      const gain3 = audioContext.createGain()
-      osc3.connect(gain3)
-      gain3.connect(audioContext.destination)
-      osc3.frequency.value = 800
-      osc3.type = 'sine'
-      gain3.gain.setValueAtTime(0.3, audioContext.currentTime)
-      osc3.start(audioContext.currentTime)
-      osc3.stop(audioContext.currentTime + 0.2)
-    }, 600)
+    console.log('🚨 Playing SOS alarm for admin...')
+    playSOSAlarm()
   }
 
   // Send SMS notification (simulated)

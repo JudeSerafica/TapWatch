@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User, X, AlertTriangle, ChevronDown } from 'lucide-react'
+import { LogOut, User, X, AlertTriangle, ChevronDown, Settings } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import NotificationButton from './NotificationButton'
 import LanguageSwitch from './LanguageSwitch'
@@ -74,6 +74,19 @@ export default function TopBar({ title, children, showUserMenu = false, showNoti
 
                     {/* Menu Items */}
                     <div className="py-2">
+                      {/* System Settings Button */}
+                      <button
+                        onClick={() => {
+                          setShowMenu(false)
+                          navigate('/admin-settings')
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        <Settings size={18} />
+                        <span>System Settings</span>
+                      </button>
+
+                      {/* Sign Out Button */}
                       <button
                         onClick={() => {
                           setShowMenu(false)

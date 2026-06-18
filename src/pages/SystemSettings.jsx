@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Settings, Bell, Shield, Users, Lock, Database,
   CheckCircle, Clock, HardDrive, X, Save, Plus,
   Trash2, Eye, EyeOff, RefreshCw, Download, Upload,
-  ChevronRight, AlertTriangle
+  ChevronRight, AlertTriangle, ArrowLeft
 } from 'lucide-react'
 import AdminSidebar from '../components/AdminSidebar'
 import TopBar from '../components/TopBar'
@@ -362,20 +363,31 @@ export default function SystemSettings() {
     { id: 'security',      title: 'Security Settings',   description: 'Configure security preferences, authentication and session settings.',       icon: Lock,     bgColor: '#FEF0F0', iconColor: '#EF4444' },
     { id: 'backup',        title: 'Backup & Restore',    description: 'Backup system data and restore from previous backups.',                      icon: Database, bgColor: '#EAF4FB', iconColor: '#3B82F6' },
   ]
+
+  const navigate = useNavigate()
  
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
       <div className="flex-1 md:ml-60">
         <TopBar />
-        <main className="p-6 md:p-8 w-full">
+        <main className="p-4 md:p-6 lg:p-8 w-full">
  
+          {/* Back Button - Mobile & Desktop */}
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors group"
+          >
+            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+
           {/* Hero Banner */}
-          <div className="relative mb-8 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #dce8f8 0%, #e6eef8 50%, #edf2fb 100%)', minHeight: '180px' }}>
+          <div className="relative mb-6 md:mb-8 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #dce8f8 0%, #e6eef8 50%, #edf2fb 100%)', minHeight: '160px' }}>
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `linear-gradient(rgba(59,130,246,0.3) 1px, transparent 1px),linear-gradient(90deg, rgba(59,130,246,0.3) 1px, transparent 1px)`, backgroundSize: '32px 32px' }} />
-            <div className="relative flex items-center justify-between px-10 py-8">
+            <div className="relative flex items-center justify-between px-6 md:px-10 py-6 md:py-8">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">System Settings</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">System Settings</h1>
                 <p className="text-gray-600 text-sm max-w-xs leading-relaxed">Manage and configure your Tap-Watch system settings and preferences.</p>
               </div>
               <div className="hidden sm:block" style={{ width: 200, height: 180 }}>
