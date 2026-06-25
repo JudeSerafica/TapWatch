@@ -2090,61 +2090,102 @@ export default function AllReports() {
                   {scanningImage && (
                     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
                       
-                      {/* Scanner Frame with Corner Brackets */}
+                      {/* Scanner Frame with Clean Corner Brackets */}
                       <div className="relative w-[80%] h-[70%] max-w-4xl">
                         
-                        {/* Top Left Corner */}
-                        <div className="absolute top-0 left-0 w-20 h-20 border-l-4 border-t-4 border-cyan-400 animate-pulse" 
-                             style={{ 
-                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
-                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))'
-                             }}>
+                        {/* Top Left Corner Bracket */}
+                        <div className="absolute top-0 left-0">
+                          {/* Horizontal line */}
+                          <div className="absolute top-0 left-0 h-1 w-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
+                          {/* Vertical line */}
+                          <div className="absolute top-0 left-0 w-1 h-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
                         </div>
                         
-                        {/* Top Right Corner */}
-                        <div className="absolute top-0 right-0 w-20 h-20 border-r-4 border-t-4 border-cyan-400 animate-pulse" 
-                             style={{ 
-                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
-                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
-                               animationDelay: '0.2s'
-                             }}>
+                        {/* Top Right Corner Bracket */}
+                        <div className="absolute top-0 right-0">
+                          {/* Horizontal line */}
+                          <div className="absolute top-0 right-0 h-1 w-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
+                          {/* Vertical line */}
+                          <div className="absolute top-0 right-0 w-1 h-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
                         </div>
                         
-                        {/* Bottom Left Corner */}
-                        <div className="absolute bottom-0 left-0 w-20 h-20 border-l-4 border-b-4 border-cyan-400 animate-pulse" 
-                             style={{ 
-                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
-                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
-                               animationDelay: '0.4s'
-                             }}>
+                        {/* Bottom Left Corner Bracket */}
+                        <div className="absolute bottom-0 left-0">
+                          {/* Horizontal line */}
+                          <div className="absolute bottom-0 left-0 h-1 w-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
+                          {/* Vertical line */}
+                          <div className="absolute bottom-0 left-0 w-1 h-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
                         </div>
                         
-                        {/* Bottom Right Corner */}
-                        <div className="absolute bottom-0 right-0 w-20 h-20 border-r-4 border-b-4 border-cyan-400 animate-pulse" 
-                             style={{ 
-                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(34, 211, 238, 0.3)',
-                               filter: 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))',
-                               animationDelay: '0.6s'
-                             }}>
+                        {/* Bottom Right Corner Bracket */}
+                        <div className="absolute bottom-0 right-0">
+                          {/* Horizontal line */}
+                          <div className="absolute bottom-0 right-0 h-1 w-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
+                          {/* Vertical line */}
+                          <div className="absolute bottom-0 right-0 w-1 h-40 bg-[#0B4EDB]"
+                               style={{ 
+                                 boxShadow: '0 0 15px rgba(11, 78, 219, 1), 0 0 30px rgba(11, 78, 219, 0.6)',
+                               }}>
+                          </div>
                         </div>
 
-                        {/* Horizontal Scanning Line - Moving from Top to Bottom */}
-                        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan-vertical"
+                        {/* Animated Horizontal Scanning Line (moves up and down) */}
+                        <div className="absolute left-0 right-0 h-1 bg-[#0B4EDB] animate-scan-vertical"
                              style={{ 
-                               boxShadow: '0 0 20px rgba(34, 211, 238, 0.8), 0 0 40px rgba(34, 211, 238, 0.5)',
-                               filter: 'blur(1px)'
+                               boxShadow: '0 0 20px rgba(11, 78, 219, 1), 0 0 40px rgba(11, 78, 219, 0.8)',
                              }}>
                         </div>
+                      </div>
 
-                        {/* Grid Overlay Effect */}
-                        <div className="absolute inset-0 opacity-20"
-                             style={{
-                               backgroundImage: `
-                                 linear-gradient(0deg, transparent 24%, rgba(34, 211, 238, 0.3) 25%, rgba(34, 211, 238, 0.3) 26%, transparent 27%, transparent 74%, rgba(34, 211, 238, 0.3) 75%, rgba(34, 211, 238, 0.3) 76%, transparent 77%, transparent),
-                                 linear-gradient(90deg, transparent 24%, rgba(34, 211, 238, 0.3) 25%, rgba(34, 211, 238, 0.3) 26%, transparent 27%, transparent 74%, rgba(34, 211, 238, 0.3) 75%, rgba(34, 211, 238, 0.3) 76%, transparent 77%, transparent)
-                               `,
-                               backgroundSize: '50px 50px'
+                      {/* Center Status Text */}
+                      <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+                        <div className="bg-black/80 backdrop-blur-md rounded-xl px-8 py-4 border-2"
+                             style={{ 
+                               borderColor: 'rgba(11, 78, 219, 0.5)',
+                               boxShadow: '0 0 30px rgba(11, 78, 219, 0.5)' 
                              }}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 bg-[#0B4EDB] rounded-full animate-pulse"
+                                 style={{ boxShadow: '0 0 10px rgba(11, 78, 219, 0.8)' }}>
+                            </div>
+                            <p className="font-bold text-lg tracking-wider" style={{ color: '#0B4EDB' }}>SCANNING IMAGE</p>
+                          </div>
+                          <p className="text-sm mt-2 text-center font-mono" style={{ color: '#6B9EFF' }}>
+                            Analyzing authenticity & detecting manipulation...
+                          </p>
+                          <div className="flex items-center justify-center gap-1 mt-3">
+                            <div className="w-2 h-2 bg-[#0B4EDB] rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                            <div className="w-2 h-2 bg-[#0B4EDB] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-[#0B4EDB] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
                         </div>
                       </div>
 

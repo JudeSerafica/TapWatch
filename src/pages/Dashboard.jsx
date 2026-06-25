@@ -39,6 +39,10 @@ import {
 import { MdWavingHand } from 'react-icons/md'
 import { BsFillTelephoneFill } from 'react-icons/bs'
 
+// Calling System Integration
+import { useCallManager } from '../hooks/useCallManager'
+import CallModal from '../components/CallModal'
+
 /* ─────────────────────────────────────────────
    FIX LEAFLET DEFAULT ICON ISSUE
 ───────────────────────────────────────────── */
@@ -974,6 +978,17 @@ export default function Dashboard() {
     useState(false)
 
   const [showProfileSetupModal, setShowProfileSetupModal] = useState(false)
+
+  // Calling System Integration
+  const {
+    incomingCall,
+    activeCall,
+    localStream,
+    remoteStream,
+    answerCall,
+    declineCall,
+    endCall
+  } = useCallManager()
   const [showVerifiedModal, setShowVerifiedModal] = useState(false)
   const [profileForm, setProfileForm] = useState({
     fullName: '',
@@ -1892,6 +1907,33 @@ export default function Dashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <CallModal
+          isOpen={true}
+          onClose={() => {}}
+          callData={incomingCall}
+          isIncoming={true}
+          onAnswer={answerCall}
+          onDecline={declineCall}
+          localStream={localStream}
+          remoteStream={remoteStream}
+        />
+      )}
+
+      {/* Active Call Modal */}
+      {activeCall && (
+        <CallModal
+          isOpen={true}
+          onClose={() => {}}
+          callData={activeCall}
+          isIncoming={false}
+          onEnd={endCall}
+          localStream={localStream}
+          remoteStream={remoteStream}
+        />
       )}
     </div>
   )

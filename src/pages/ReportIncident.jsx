@@ -126,15 +126,15 @@ function SectionCard({ icon: Icon, label, iconColor = '#2563eb', children }) {
         padding: '14px 20px',
         borderBottom: '1px solid #e5e7eb',
         background: '#fafafa'
-      }}>
+      }} className="section-card-header">
         <div style={{
           width: 30, height: 30, borderRadius: 8,
           background: `${iconColor}14`,
           display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
+        }} className="section-card-icon">
           <Icon size={15} color={iconColor} strokeWidth={2.2} />
         </div>
-        <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: '#111827' }}>
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: '#111827' }} className="section-card-label">
           {label}
         </span>
       </div>
@@ -364,6 +364,8 @@ export default function ReportIncident() {
   const [boundaryError, setBoundaryError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
+  const [showInvalidImageModal, setShowInvalidImageModal] = useState(false)
+  const [invalidImageData, setInvalidImageData] = useState(null)
 
   const [form, setForm] = useState({
     type: '', description: '', date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5),
@@ -402,15 +404,25 @@ const handleFileChange = (e) => {
     // Update form state first
     setForm(f => ({ ...f, mediaUrl: dataUrl }))
     
-    // 🤖 AUTO-ANALYZE IMAGE immediately when uploaded
+    // 🤖 AUTO-ANALYZE when BOTH description AND image are ready
     if (file.type.startsWith('image/')) {
-      console.log('📸 Image uploaded, auto-analyzing...')
-      showNotification('🤖 AI analyzing image...', 'success')
+      console.log('📸 Image uploaded')
       
-      // Analyze with the dataUrl directly (don't wait for state update)
-      setTimeout(async () => {
-        await analyzeImageDirectly(dataUrl)
-      }, 800)
+      // Wait a bit for state to update, then check if we have description too
+      setTimeout(() => {
+        const hasDescription = form.description && form.description.trim().length > 10
+        
+        if (hasDescription) {
+          // Both ready - analyze together!
+          console.log('🤖 Both description and image ready - analyzing together...')
+          showNotification('🤖 AI analyzing description + image...', 'success')
+          analyzeImageDirectly(dataUrl)
+        } else {
+          // No description yet - just notify
+          console.log('⏳ Image uploaded, waiting for description...')
+          showNotification('✅ Image uploaded. Add description to analyze.', 'success')
+        }
+      }, 500)
     }
   }
 
@@ -418,22 +430,90 @@ const handleFileChange = (e) => {
   e.target.value = ''
 }
 
-// 🆕 Analyze image directly with dataUrl (for immediate analysis after upload)
+// 🆕 Analyze image + description together (only when BOTH are ready!)
 const analyzeImageDirectly = async (imageDataUrl) => {
   setLoadingAI(true)
   
   try {
-    console.log('🤖 Analyzing uploaded image for incident type...')
+    console.log('🤖 Analyzing BOTH description + image together...')
+    console.log('📝 Description:', form.description?.substring(0, 50) + '...')
+    console.log('📸 Image: Present')
 
-    // Analyze the image with current description (INCIDENT TYPE ONLY, not authenticity)
+    // Analyze BOTH description AND image together
     const analysis = await analyzeIncident(
       form.description || '',
       imageDataUrl
     )
 
-    console.log('✅ Image Analysis Result:', analysis)
+    console.log('✅ Combined Analysis Result:', analysis)
 
-    // Update state with AI results (INCIDENT TYPE CLASSIFICATION ONLY)
+    // 🚫 CHECK IF IMAGE IS INCIDENT-RELATED
+    const detectedType = analysis.combined.type
+    const confidence = analysis.combined.confidence
+    const detected = analysis.image?.detected || []
+    const isIncidentRelated = analysis.image?.isIncidentRelated !== false // Use AI's determination
+    const nonIncidentReason = analysis.image?.nonIncidentReason || ''
+    
+    // Additional fallback check: Look for non-incident keywords in detected objects
+    const nonIncidentKeywords = ['selfie', 'face', 'portrait', 'food', 'meal', 'restaurant', 'party', 'celebration', 'vacation', 'travel', 'pet', 'animal', 'toy', 'game', 'person smiling', 'group photo']
+    const hasNonIncidentContent = detected.some(item => 
+      nonIncidentKeywords.some(keyword => item.toLowerCase().includes(keyword))
+    )
+    
+    // 🔍 CHECK FOR MISMATCH between description and photo
+    const textType = analysis.text?.type || 'Unknown'
+    const imageType = analysis.image?.type || 'Unknown'
+    const hasMismatch = textType !== 'Unknown' && imageType !== 'Unknown' && textType !== imageType
+    
+    // 🚫 BLOCK INAPPROPRIATE IMAGES
+    if (!isIncidentRelated || hasNonIncidentContent || (detectedType === 'Unknown' && confidence < 0.4)) {
+      console.warn('⚠️ Non-incident image detected!')
+      
+      const reason = nonIncidentReason || 
+                     (hasNonIncidentContent ? detected.filter(item => 
+                       nonIncidentKeywords.some(keyword => item.toLowerCase().includes(keyword))
+                     ).join(', ') : 'Not an emergency/incident')
+      
+      showNotification('❌ This image does not appear to be incident-related', 'error')
+      
+      // Show modal instead of alert
+      setInvalidImageData({
+        reason: reason,
+        detected: detected.slice(0, 5),
+        mismatch: false
+      })
+      setShowInvalidImageModal(true)
+      
+      // Clear the invalid media
+      clearMedia()
+      setLoadingAI(false)
+      return
+    }
+
+    // ⚠️ WARN ABOUT MISMATCH between description and photo
+    if (hasMismatch && confidence > 0.6) {
+      console.warn('⚠️ Mismatch detected between description and photo!')
+      
+      showNotification('⚠️ Description and photo do not match', 'error')
+      
+      // Show mismatch modal
+      setInvalidImageData({
+        reason: `Description says "${textType}" but photo shows "${imageType}"`,
+        detected: detected.slice(0, 5),
+        mismatch: true,
+        textType: textType,
+        imageType: imageType,
+        textAnalysis: analysis.text,
+        imageAnalysis: analysis.image
+      })
+      setShowInvalidImageModal(true)
+      
+      // Don't clear media - let user decide
+      setLoadingAI(false)
+      return
+    }
+
+    // ✅ IMAGE IS VALID - Continue with normal processing
     setAiType(analysis.combined.type)
     setAiAnalysis(analysis.combined)
     setForm(f => ({ ...f, type: analysis.combined.type }))
@@ -442,16 +522,14 @@ const analyzeImageDirectly = async (imageDataUrl) => {
     const recommendations = getRecommendedActions(analysis.combined)
     setAiRecommendations(recommendations)
 
-    // 📝 Store authenticity data in state (for admin review later, but DON'T show modal to user)
+    // 📝 Store authenticity data in state (for admin review later)
     if (analysis.image) {
       const authenticityCheck = checkImageAuthenticity(analysis.image)
       console.log('🔍 Authenticity data stored (admin will review):', authenticityCheck)
       setImageAuthenticity(authenticityCheck)
-      
-      // ❌ NO MODAL for users! Only admins see authenticity check in their dashboard
     }
 
-    // Show notification based on urgency (INCIDENT TYPE ONLY)
+    // Show notification based on urgency
     if (analysis.combined.urgency === 'critical') {
       showNotification(`🚨 AI: ${analysis.combined.type} detected - CRITICAL!`, 'error')
     } else if (analysis.combined.urgency === 'high') {
@@ -554,20 +632,27 @@ const analyzeImageDirectly = async (imageDataUrl) => {
     }
   }
 
-  // 🎯 AUTO-CLASSIFY when description changes (with debounce)
+  // 🎯 AUTO-CLASSIFY when BOTH description AND image are ready (no more separate triggers!)
   useEffect(() => {
     // Clear previous timer
     if (aiDebounceTimer.current) {
       clearTimeout(aiDebounceTimer.current)
     }
 
-    // Only auto-classify if description is long enough
-    if (form.description && form.description.trim().length > 15) {
-      // Wait 2 seconds after user stops typing before analyzing
+    // Only auto-classify if BOTH description AND image are present
+    const hasDescription = form.description && form.description.trim().length > 15
+    const hasImage = form.mediaUrl
+    
+    if (hasDescription && hasImage && !loadingAI) {
+      // Wait 1.5 seconds after user stops typing before analyzing TOGETHER
       aiDebounceTimer.current = setTimeout(() => {
-        console.log('🤖 Auto-classifying from description...')
-        classifyAI(true) // silent = true (no notification spam)
-      }, 2000)
+        console.log('🤖 Both description and image ready - analyzing together...')
+        showNotification('🤖 AI analyzing description + image...', 'success')
+        analyzeImageDirectly(form.mediaUrl)
+      }, 1500)
+    } else if (hasDescription && !hasImage) {
+      // Has description but no image yet - just show message
+      console.log('⏳ Description ready, waiting for image...')
     }
 
     // Cleanup on unmount
@@ -576,7 +661,7 @@ const analyzeImageDirectly = async (imageDataUrl) => {
         clearTimeout(aiDebounceTimer.current)
       }
     }
-  }, [form.description]) // Run when description changes
+  }, [form.description, form.mediaUrl]) // Run when EITHER changes
 
   const notifyAdmin = (incident) => {
     console.log('ADMIN NOTIFICATION: New incident reported:', incident)
@@ -631,8 +716,23 @@ const uploadMedia = async () => {
     return
   }
 
+  // ✅ REQUIRED FIELDS VALIDATION
   if (!form.type || !form.description) {
     showNotification('Please fill in required fields.', 'error')
+    return
+  }
+
+  // 🗺️ REQUIRED: Map pin location
+  if (!pin) {
+    showNotification('📍 Please pin the incident location on the map', 'error')
+    setBoundaryError('Please place a pin on the map to mark the incident location')
+    setTimeout(() => setBoundaryError(''), 3000)
+    return
+  }
+
+  // 📸 REQUIRED: Photo evidence
+  if (!form.mediaFile && !form.mediaUrl) {
+    showNotification('📸 Photo evidence is required', 'error')
     return
   }
 
@@ -870,6 +970,20 @@ const uploadMedia = async () => {
           .report-header h2 {
             font-size: 18px !important;
           }
+          /* Desktop/Tablet: Single line for reporter info */
+          .reporter-info-grid {
+            grid-template-columns: 1fr 1fr 1fr !important;
+            gap: 12px !important;
+          }
+        }
+        
+        /* ── RESPONSIVE: Desktop (min-width: 1024px) ── */
+        @media (min-width: 1024px) {
+          /* Desktop: Single line for reporter info */
+          .reporter-info-grid {
+            grid-template-columns: 1fr 1fr 1fr !important;
+            gap: 12px !important;
+          }
         }
         
         /* ── RESPONSIVE: Mobile (max-width: 768px) ── */
@@ -901,6 +1015,85 @@ const uploadMedia = async () => {
           .report-header-icon svg {
             width: 16px !important;
             height: 16px !important;
+          }
+          /* Mobile: Keep stacked layout (default single column) */
+          .reporter-info-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          /* Mobile: Keep incident type buttons in single line, allow horizontal scroll */
+          .incident-type-grid {
+            grid-template-columns: repeat(5, 1fr) !important;
+            gap: 4px !important;
+          }
+          .type-pill {
+            font-size: 10.5px !important;
+            padding: 6px 6px !important;
+            gap: 3px !important;
+          }
+          /* Mobile: Smaller section card headers */
+          .section-card-header {
+            padding: 10px 14px !important;
+            gap: 8px !important;
+          }
+          .section-card-icon {
+            width: 24px !important;
+            height: 24px !important;
+          }
+          .section-card-icon svg {
+            width: 12px !important;
+            height: 12px !important;
+          }
+          .section-card-label {
+            font-size: 11px !important;
+          }
+          /* Mobile: Smaller text inside Incident Details container */
+          .ri-textarea {
+            font-size: 12px !important;
+            padding: 8px 12px !important;
+            min-height: 80px !important;
+          }
+          .ri-input {
+            font-size: 12px !important;
+            padding: 8px 12px !important;
+          }
+          label {
+            font-size: 10px !important;
+            margin-bottom: 4px !important;
+          }
+          input[type="text"],
+          input[type="tel"],
+          input[type="datetime-local"],
+          textarea {
+            font-size: 11px !important;
+            padding: 8px 10px !important;
+          }
+          /* Fix icon overlap - ensure proper spacing for inputs with icons */
+          .input-with-icon {
+            padding-left: 30px !important;
+            font-size: 11px !important;
+          }
+          /* Make icons slightly smaller on mobile */
+          .input-icon {
+            left: 10px !important;
+          }
+          .input-icon svg {
+            width: 11px !important;
+            height: 11px !important;
+          }
+          input[type="text"] + p,
+          input[type="tel"] + p,
+          input[type="datetime-local"] + p {
+            font-size: 9px !important;
+            margin-top: 2px !important;
+          }
+          .media-btn {
+            font-size: 11px !important;
+            padding: 8px 12px !important;
+          }
+          button[type="submit"] {
+            font-size: 12px !important;
+            padding: 11px 0 !important;
           }
         }
       `}</style>
@@ -1006,6 +1199,40 @@ const uploadMedia = async () => {
   )}
 
   {/* AI Auto-Classification Status Banner */}
+  {/* AI WAITING Indicator - Both description and photo needed */}
+  {!loadingAI && !aiAnalysis && form.description && form.description.trim().length > 10 && !form.mediaUrl && (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 18px',
+      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+      border: '1px solid #fbbf24',
+      borderRadius: 12,
+      marginBottom: 8
+    }}>
+      <FiCamera size={18} color="#d97706" />
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#92400e' }}>
+        📸 Add photo evidence to begin AI analysis...
+      </span>
+    </div>
+  )}
+
+  {!loadingAI && !aiAnalysis && form.mediaUrl && (!form.description || form.description.trim().length < 10) && (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 18px',
+      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+      border: '1px solid #fbbf24',
+      borderRadius: 12,
+      marginBottom: 8
+    }}>
+      <FiFileText size={18} color="#d97706" />
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#92400e' }}>
+        📝 Add description (10+ chars) to begin AI analysis...
+      </span>
+    </div>
+  )}
+
+  {/* AI ANALYZING Indicator */}
   {loadingAI && (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -1016,7 +1243,7 @@ const uploadMedia = async () => {
     }}>
       <RiSparklingFill size={18} color="#7c3aed" className="animate-spin" />
       <span style={{ fontSize: 13, fontWeight: 600, color: '#6d28d9' }}>
-        🤖 AI analyzing incident automatically...
+        🤖 AI analyzing description + image together...
       </span>
     </div>
   )}
@@ -1124,48 +1351,21 @@ const uploadMedia = async () => {
             className="ri-textarea"
             placeholder="Describe what happened… (e.g. May banggaan ng motor sa highway)"
             style={{
-              ...inputStyle, resize: 'vertical', minHeight: 100,
-              lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif"
+              ...inputStyle, resize: 'vertical', minHeight: 80,
+              lineHeight: 1.0, fontFamily: "'DM Sans', sans-serif"
             }}
           />
-        </div>
-
-        {/* AI Classify row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button" onClick={classifyAI}
-            disabled={loadingAI || !form.description}
-            className="ai-btn"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              padding: '7px 14px', borderRadius: 8, border: 'none',
-              background: '#f5f3ff', color: '#7c3aed',
-              fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-              fontFamily: "'DM Sans', sans-serif",
-              opacity: (loadingAI || !form.description) ? 0.5 : 1
-            }}>
-            <RiSparklingFill size={13} />
-            {loadingAI ? 'Classifying…' : 'AI Classify'}
-          </button>
-
-          {aiType && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '5px 10px', borderRadius: 20,
-              background: typeConfig[aiType]?.bg || '#f3f4f6',
-              border: `1px solid ${typeConfig[aiType]?.color || '#e5e7eb'}22`,
-              fontSize: 12, fontWeight: 600,
-              color: typeConfig[aiType]?.color || '#374151'
-            }}>
-              {typeConfig[aiType]?.icon} AI detected: {aiType}
-            </span>
-          )}
         </div>
 
         {/* Incident Type */}
         <div>
           <FieldLabel required>Incident Type</FieldLabel>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 4 }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(5, 1fr)', 
+            gap: 8, 
+            marginTop: 4 
+          }} className="incident-type-grid">
             {incidentTypes.map(type => {
               const cfg = typeConfig[type]
               const selected = form.type === type
@@ -1175,13 +1375,21 @@ const uploadMedia = async () => {
                   className="type-pill"
                   onClick={() => setForm({ ...form, type })}
                   style={{
-                    padding: '6px 13px', borderRadius: 20,
+                    padding: '8px 10px', 
+                    borderRadius: 20,
                     border: selected ? `1.5px solid ${cfg.color}` : '1.5px solid #e5e7eb',
                     background: selected ? cfg.bg : '#fff',
                     color: selected ? cfg.color : '#6b7280',
-                    fontSize: 12.5, fontWeight: selected ? 700 : 500,
-                    cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-                    boxShadow: selected ? `0 0 0 3px ${cfg.color}18` : 'none'
+                    fontSize: 12.5, 
+                    fontWeight: selected ? 700 : 500,
+                    cursor: 'pointer', 
+                    fontFamily: "'DM Sans', sans-serif",
+                    boxShadow: selected ? `0 0 0 3px ${cfg.color}18` : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    whiteSpace: 'nowrap'
                   }}>
                   {cfg.icon} {type}
                 </button>
@@ -1250,14 +1458,14 @@ const uploadMedia = async () => {
         {/* Divider */}
         <div style={{ borderTop: '1px solid #f1f5f9', margin: '2px 0' }} />
 
-        {/* Date/Time + Reporter info — stacked vertically on right panel */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
+        {/* Date/Time + Reporter info — single line on desktop/tablet, stacked on mobile */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="reporter-info-grid">
           <div>
             <FieldLabel>Date & Time</FieldLabel>
             <div style={{ position: 'relative' }}>
-              <FiClock size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <FiClock size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
               <input type="datetime-local" value={`${form.date}T${form.time}`} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Auto-filled to current time</p>
           </div>
@@ -1265,9 +1473,9 @@ const uploadMedia = async () => {
           <div>
             <FieldLabel>Reporter Name</FieldLabel>
             <div style={{ position: 'relative' }}>
-              <FiUser size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <FiUser size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
               <input type="text" value={form.reporterName} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
           </div>
@@ -1275,9 +1483,9 @@ const uploadMedia = async () => {
           <div>
             <FieldLabel>Contact Number</FieldLabel>
             <div style={{ position: 'relative' }}>
-              <FiPhone size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <FiPhone size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
               <input type="tel" value={form.contact} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} />
+                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
           </div>
@@ -1285,28 +1493,62 @@ const uploadMedia = async () => {
 
         {/* Submit */}
         <button
-          type="submit" disabled={submitted || submitting}
+          type="submit" 
+          disabled={submitted || submitting || !pin || !form.mediaUrl}
           className="submit-btn"
           style={{
             marginTop: 4,
             padding: '13px 0',
-            background: submitted ? '#22c55e' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            background: submitted ? '#22c55e' : 
+                       (!pin || !form.mediaUrl) ? '#9ca3af' :
+                       'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
             color: '#fff', border: 'none', borderRadius: 12,
             fontSize: 14, fontWeight: 700,
-            cursor: (submitted || submitting) ? 'not-allowed' : 'pointer',
+            cursor: (submitted || submitting || !pin || !form.mediaUrl) ? 'not-allowed' : 'pointer',
             fontFamily: "'DM Sans', sans-serif",
             letterSpacing: '0.01em',
-            boxShadow: submitted ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
+            boxShadow: submitted ? 'none' : (!pin || !form.mediaUrl) ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            opacity: (submitted || submitting) ? 0.6 : 1
+            opacity: (submitted || submitting || !pin || !form.mediaUrl) ? 0.6 : 1
           }}>
           {submitting
             ? 'Submitting...'
             : submitted
             ? <><FiCheckCircle size={16} /> Submitted!</>
+            : (!pin || !form.mediaUrl)
+            ? <><FiXCircle size={15} /> {!pin && !form.mediaUrl ? 'Pin Location & Add Photo Required' : !pin ? 'Pin Location Required' : 'Photo Required'}</>
             : <><FiAlertTriangle size={15} /> Submit Report</>
           }
         </button>
+
+        {/* Requirements Helper Text */}
+        {(!pin || !form.mediaUrl) && !submitted && (
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs font-semibold text-amber-800 mb-2">📋 Required before submitting:</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                {pin ? (
+                  <FiCheckCircle size={14} className="text-green-600" />
+                ) : (
+                  <FiXCircle size={14} className="text-red-600" />
+                )}
+                <span className={`text-xs ${pin ? 'text-green-700' : 'text-red-700'}`}>
+                  Pin incident location on map
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {form.mediaUrl ? (
+                  <FiCheckCircle size={14} className="text-green-600" />
+                ) : (
+                  <FiXCircle size={14} className="text-red-600" />
+                )}
+                <span className={`text-xs ${form.mediaUrl ? 'text-green-700' : 'text-red-700'}`}>
+                  Upload photo evidence
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
       </form>
     </SectionCard>
@@ -1643,6 +1885,217 @@ const uploadMedia = async () => {
         onClose={() => setSOSModalOpen(false)}
         profile={profile}
       />
+
+      {/* INVALID IMAGE MODAL - NOT INCIDENT-RELATED OR MISMATCH */}
+      {showInvalidImageModal && invalidImageData && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => {
+            setShowInvalidImageModal(false)
+            // Only clear media if it's not a mismatch (user might want to fix description instead)
+            if (!invalidImageData.mismatch) {
+              clearMedia()
+            }
+          }}
+        >
+          <div 
+            className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border-2"
+            style={{ 
+              borderColor: invalidImageData.mismatch ? '#f59e0b' : '#ef4444',
+              animation: 'scaleIn 0.3s ease' 
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div 
+              className="px-6 py-5 flex items-center gap-4"
+              style={{
+                background: invalidImageData.mismatch 
+                  ? 'linear-gradient(to right, #f59e0b, #d97706)'
+                  : 'linear-gradient(to right, #ef4444, #dc2626)'
+              }}
+            >
+              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                {invalidImageData.mismatch ? (
+                  <FiAlertTriangle size={32} className="text-white" />
+                ) : (
+                  <FiXCircle size={32} className="text-white" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-bold text-xl">
+                  {invalidImageData.mismatch ? 'DESCRIPTION & PHOTO MISMATCH' : 'NOT INCIDENT-RELATED'}
+                </h3>
+                <p className="text-white/90 text-sm">
+                  {invalidImageData.mismatch 
+                    ? 'Description and photo do not match' 
+                    : 'This image cannot be used for reporting'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowInvalidImageModal(false)
+                  if (!invalidImageData.mismatch) {
+                    clearMedia()
+                  }
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition"
+              >
+                <FiX size={20} className="text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              
+              {/* MISMATCH DETAILS */}
+              {invalidImageData.mismatch && (
+                <div className="space-y-4">
+                  {/* Comparison Box */}
+                  <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-amber-400 mb-3">
+                      What we detected:
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {/* Description Analysis */}
+                      <div className="bg-gray-800 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FiFileText size={14} className="text-blue-400" />
+                          <span className="text-xs font-semibold text-gray-400">YOUR DESCRIPTION SAYS:</span>
+                        </div>
+                        <p className="text-white font-bold text-base">{invalidImageData.textType}</p>
+                        {invalidImageData.textAnalysis?.keywords && (
+                          <p className="text-gray-400 text-xs mt-1">
+                            Keywords: {invalidImageData.textAnalysis.keywords.join(', ')}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Photo Analysis */}
+                      <div className="bg-gray-800 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FiCamera size={14} className="text-purple-400" />
+                          <span className="text-xs font-semibold text-gray-400">YOUR PHOTO SHOWS:</span>
+                        </div>
+                        <p className="text-white font-bold text-base">{invalidImageData.imageType}</p>
+                        {invalidImageData.detected.length > 0 && (
+                          <p className="text-gray-400 text-xs mt-1">
+                            Detected: {invalidImageData.detected.slice(0, 3).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Required */}
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <p className="text-white font-semibold text-sm mb-3">
+                      ⚠️ Please fix one of the following:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-400 mt-0.5">1.</span>
+                        <span className="text-gray-300 text-sm">
+                          Update your description to match the photo (shows {invalidImageData.imageType})
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-400 mt-0.5">2.</span>
+                        <span className="text-gray-300 text-sm">
+                          Upload a different photo that matches your description ({invalidImageData.textType})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* NON-INCIDENT DETAILS */}
+              {!invalidImageData.mismatch && (
+                <>
+                  {/* Reason Box */}
+                  <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-red-400 mb-2">
+                      Reason:
+                    </p>
+                    <p className="text-white text-sm leading-relaxed">
+                      {invalidImageData.reason}
+                    </p>
+                  </div>
+
+                  {/* Detected Content */}
+                  {invalidImageData.detected.length > 0 && (
+                    <div className="bg-gray-800 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-gray-300 mb-3">
+                        Detected content:
+                      </p>
+                      <ul className="space-y-2">
+                        {invalidImageData.detected.map((item, idx) => (
+                          <li key={idx} className="text-gray-400 text-sm flex items-start gap-2">
+                            <span className="text-red-400 mt-1">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Instructions */}
+                  <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+                    <p className="text-white font-semibold text-sm">
+                      Please upload a photo of the actual incident:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <FiCheckCircle size={16} className="text-green-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-300 text-sm">Fire, Flood, Crime scene, Accident, or Disturbance</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <FiXCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-300 text-sm">No selfies, food pics, party photos, or random images</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-800/50 border-t border-gray-700">
+              <button
+                onClick={() => {
+                  setShowInvalidImageModal(false)
+                  if (!invalidImageData.mismatch) {
+                    clearMedia()
+                  }
+                }}
+                className="w-full py-3 text-white font-bold rounded-xl transition-all shadow-lg"
+                style={{
+                  background: invalidImageData.mismatch
+                    ? 'linear-gradient(to right, #f59e0b, #d97706)'
+                    : 'linear-gradient(to right, #ef4444, #dc2626)'
+                }}
+              >
+                {invalidImageData.mismatch ? 'I Will Fix This' : 'I Understand'}
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes scaleIn {
+              from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </>
   )
 }

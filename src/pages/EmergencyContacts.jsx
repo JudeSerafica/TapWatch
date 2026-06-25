@@ -4,6 +4,9 @@ import AdminSidebar from '../components/AdminSidebar'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import TopBar from '../components/TopBar'
 import { supabase } from '../lib/supabase'
+import { useCallManager } from '../hooks/useCallManager'
+import CallOptionsModal from '../components/CallOptionsModal'
+import CallModal from '../components/CallModal'
 
 export default function EmergencyContacts() {
   const [contacts, setContacts] = useState([])
@@ -23,6 +26,21 @@ export default function EmergencyContacts() {
     photo_url: '',
     is_active: true
   })
+
+  // Calling System Integration
+  const [showCallOptions, setShowCallOptions] = useState(false)
+  const [selectedContact, setSelectedContact] = useState(null)
+  
+  const {
+    activeCall,
+    incomingCall,
+    localStream,
+    remoteStream,
+    initiateCall,
+    answerCall,
+    declineCall,
+    endCall
+  } = useCallManager()
 
   useEffect(() => {
     fetchContacts()
@@ -216,6 +234,29 @@ export default function EmergencyContacts() {
       photo_url: '',
       is_active: true
     })
+  }
+
+  // Handle Call Button Click
+  const handleCallClick = (contact) => {
+    setSelectedContact({
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+    })
+    setShowCallOptions(true)
+  }
+
+  // Handle Call Type Selection
+  const handleCallTypeSelected = async (callType, isVideo) => {
+    if (!selectedContact) return
+
+    await initiateCall(
+      selectedContact.id,
+      selectedContact.name,
+      selectedContact.phone,
+      callType,
+      isVideo
+    )
   }
 
   return (
@@ -556,6 +597,15 @@ export default function EmergencyContacts() {
                       )}
                     </div>
 
+                    {/* Call Button - NEW */}
+                    <button
+                      onClick={() => handleCallClick(contact)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition mb-3"
+                    >
+                      <Phone size={18} />
+                      Call Now
+                    </button>
+
                     {/* Action Buttons */}
                     <div className="flex gap-2 pt-4 border-t border-gray-100">
                       <button
@@ -581,6 +631,41 @@ export default function EmergencyContacts() {
         </main>
       </div>
       <AdminMobileBottomNav />
+
+      {/* Call Options Modal */}
+      <CallOptionsModal
+        isOpen={showCallOptions}
+        onClose={() => setShowCallOptions(false)}
+        recipient={selectedContact}
+        onSelectOption={handleCallTypeSelected}
+      />
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <CallModal
+          isOpen={true}
+          onClose={() => {}}
+          callData={incomingCall}
+          isIncoming={true}
+          onAnswer={answerCall}
+          onDecline={declineCall}
+          localStream={localStream}
+          remoteStream={remoteStream}
+        />
+      )}
+
+      {/* Active Call Modal */}
+      {activeCall && (
+        <CallModal
+          isOpen={true}
+          onClose={() => {}}
+          callData={activeCall}
+          isIncoming={false}
+          onEnd={endCall}
+          localStream={localStream}
+          remoteStream={remoteStream}
+        />
+      )}
     </div>
   )
 }

@@ -107,7 +107,11 @@ First, check if this image is REAL or FAKE:
 4. Screenshot from video/game
 5. Metadata analysis (if available)
 
-Then, detect incident details:
+IMPORTANT: Also check if image is INCIDENT-RELATED:
+- Is this an actual emergency/incident photo?
+- Or is it a selfie, food photo, party pic, random personal photo, meme, or screenshot?
+
+Incident types:
 1. Incident type (Crime, Fire, Flood, Accident, Disturbance, or Unknown)
 2. Severity and urgency level
 3. Specific objects and situations visible
@@ -121,7 +125,7 @@ Respond ONLY with valid JSON:
   "manipulationDetected": false,
   "fakeness_indicators": ["list of signs if fake/AI-generated"],
   "authenticity_reasoning": "detailed explanation of why real or fake",
-  "image_source": "real_photo|ai_generated|screenshot|stock_photo|manipulated",
+  "image_source": "real_photo|ai_generated|screenshot|stock_photo|manipulated|selfie|non_incident",
   "type": "Crime|Fire|Flood|Accident|Disturbance|Unknown",
   "confidence": 0.92,
   "urgency": "low|medium|high|critical",
@@ -129,7 +133,9 @@ Respond ONLY with valid JSON:
   "hasVictims": true,
   "environmentalHazards": ["hazard1", "hazard2"],
   "recommendedAction": "immediate action needed",
-  "reasoning": "what you see in the image in 1-2 sentences"
+  "reasoning": "what you see in the image in 1-2 sentences",
+  "isIncidentRelated": true/false,
+  "nonIncidentReason": "if not incident: explain why (e.g., 'selfie photo', 'food picture', 'party photo')"
 }`
 
     const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
@@ -146,7 +152,7 @@ Respond ONLY with valid JSON:
             content: [
               {
                 type: 'text',
-                text: 'Analyze this image for AUTHENTICITY (real vs AI-generated/fake) AND emergency incident classification. Check for AI generation artifacts, photo manipulation, or stock photo indicators. Respond with JSON only.'
+                text: 'Analyze this image for:\n1. AUTHENTICITY (real vs AI-generated/fake)\n2. INCIDENT RELEVANCE (is this an actual incident/emergency photo, or a selfie/food/random photo?)\n3. Emergency incident classification if relevant.\n\nCheck for AI generation artifacts, photo manipulation, stock photo indicators, AND non-incident content (selfies, food, parties, memes, etc.).\n\nRespond with JSON only.'
               },
               {
                 type: 'image_url',

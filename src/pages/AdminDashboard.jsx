@@ -16,6 +16,9 @@ import { getIncidents, getIncidentStats, getHotspots, subscribeToIncidents } fro
 import { supabase } from '../lib/supabase'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { playSOSAlarm, playReportAlarm } from '../lib/alarmService'
+import { useCallManager } from '../hooks/useCallManager'
+import CallOptionsModal from '../components/CallOptionsModal'
+import CallModal from '../components/CallModal'
 
 /* ---------------------------------------------
    FIX LEAFLET DEFAULT ICON ISSUE
@@ -285,6 +288,21 @@ export default function AdminDashboard() {
   const [showSOSBanner, setShowSOSBanner] = useState(false)
   const audioRef = useRef(null)
 
+  // Calling System Integration
+  const [showCallOptions, setShowCallOptions] = useState(false)
+  const [selectedReporter, setSelectedReporter] = useState(null)
+  
+  const {
+    activeCall,
+    incomingCall,
+    localStream,
+    remoteStream,
+    initiateCall,
+    answerCall,
+    declineCall,
+    endCall
+  } = useCallManager()
+
   useEffect(() => {
     const loaddata = async () => {
       // Parallel data fetching for faster loading
@@ -464,6 +482,46 @@ export default function AdminDashboard() {
     setShowSOSBanner(false)
   }
 
+  // Handle Call Button Click for SOS Alerts
+  const handleCallReporter = async (alert) => {
+    if (!alert.user_id) {
+      // Fallback to phone dialer if no user_id
+      if (alert.reporter_contact) {
+        window.location.href = `tel:${alert.reporter_contact}`
+      }
+      return
+    }
+
+    // Fetch reporter details
+    const { data: reporterData } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .eq('id', alert.user_id)
+      .single()
+
+    if (reporterData) {
+      setSelectedReporter({
+        id: reporterData.id,
+        name: reporterData.full_name || alert.reporter_name || 'Reporter',
+        phone: reporterData.phone || alert.reporter_contact,
+      })
+      setShowCallOptions(true)
+    }
+  }
+
+  // Handle Call Type Selection
+  const handleCallTypeSelected = async (callType, isVideo) => {
+    if (!selectedReporter) return
+
+    await initiateCall(
+      selectedReporter.id,
+      selectedReporter.name,
+      selectedReporter.phone,
+      callType,
+      isVideo
+    )
+  }
+
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
   const pendingCount = incidents.filter(i => i.status === 'pending').length
   const respondingCount = incidents.filter(i => i.status === 'responding').length
@@ -541,13 +599,13 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               {alert.reporter_contact && (
-                                <a
-                                  href={`tel:${alert.reporter_contact}`}
+                                <button
+                                  onClick={() => handleCallReporter(alert)}
                                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition flex items-center gap-2"
                                 >
                                   <Phone size={16} />
                                   Call Now
-                                </a>
+                                </button>
                               )}
                               <button
                                 onClick={() => viewSOSAlert(alert)}
@@ -728,6 +786,41 @@ export default function AdminDashboard() {
           <IncidentMapModal
             incident={selectedIncident}
             onClose={() => setSelectedIncident(null)}
+          />
+        )}
+
+        {/* Call Options Modal */}
+        <CallOptionsModal
+          isOpen={showCallOptions}
+          onClose={() => setShowCallOptions(false)}
+          recipient={selectedReporter}
+          onSelectOption={handleCallTypeSelected}
+        />
+
+        {/* Incoming Call Modal */}
+        {incomingCall && (
+          <CallModal
+            isOpen={true}
+            onClose={() => {}}
+            callData={incomingCall}
+            isIncoming={true}
+            onAnswer={answerCall}
+            onDecline={declineCall}
+            localStream={localStream}
+            remoteStream={remoteStream}
+          />
+        )}
+
+        {/* Active Call Modal */}
+        {activeCall && (
+          <CallModal
+            isOpen={true}
+            onClose={() => {}}
+            callData={activeCall}
+            isIncoming={false}
+            onEnd={endCall}
+            localStream={localStream}
+            remoteStream={remoteStream}
           />
         )}
       </div>
