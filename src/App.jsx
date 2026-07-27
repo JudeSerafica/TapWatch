@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { SidebarProvider } from './context/SidebarContext'
 import { useAuth } from './context/useAuth'
 import { OrbitProgress } from 'react-loading-indicators'
 import SplashScreen from './components/SplashScreen'
+import AdminLayout from './components/AdminLayout'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -104,14 +106,16 @@ function AppRoutes() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/report" element={<ReportIncident />} />
       <Route path="/resident-map" element={<IncidentMap />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin-map" element={<AdminMap />} />
-      <Route path="/admin-reports" element={<AllReports />} />
-      <Route path="/admin-analytics" element={<Analytics />} />
-      <Route path="/admin-contacts" element={<EmergencyContacts />} />
       <Route path="/verification" element={<VerificationCenter />} />
-      <Route path="/admin-verification" element={<AdminVerificationReview />} />
-      <Route path="/admin-settings" element={<SystemSettings />} />
+      
+      {/* Admin routes with AdminLayout */}
+      <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+      <Route path="/admin-map" element={<AdminLayout><AdminMap /></AdminLayout>} />
+      <Route path="/admin-reports" element={<AdminLayout><AllReports /></AdminLayout>} />
+      <Route path="/admin-analytics" element={<AdminLayout><Analytics /></AdminLayout>} />
+      <Route path="/admin-contacts" element={<AdminLayout><EmergencyContacts /></AdminLayout>} />
+      <Route path="/admin-verification" element={<AdminLayout><AdminVerificationReview /></AdminLayout>} />
+      <Route path="/admin-settings" element={<AdminLayout><SystemSettings /></AdminLayout>} />
     </Routes>
   )
 }
@@ -120,8 +124,10 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
-        <OfflineIndicator />
+        <SidebarProvider>
+          <AppRoutes />
+          <OfflineIndicator />
+        </SidebarProvider>
       </BrowserRouter>
     </AuthProvider>
   )

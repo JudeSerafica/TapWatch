@@ -26,6 +26,7 @@ import TopBar from '../components/TopBar'
 import SOSPanicModal from '../components/SOSPanicModal'
 // ImageAuthenticityModal removed - only used by admins now
 import { useAuth } from '../context/useAuth'
+import { useSidebar } from '../context/SidebarContext'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { createIncident, checkDuplicateIncident } from '../lib/database'
 import { notifyAllAdmins } from '../lib/notificationService'
@@ -348,6 +349,7 @@ export default function ReportIncident() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { profile } = useAuth()
+  const { isCollapsed } = useSidebar()
   const [pin, setPin] = useState(null)
   const [aiType, setAiType] = useState('')
   const [aiAnalysis, setAiAnalysis] = useState(null) // Store full AI analysis
@@ -1100,7 +1102,10 @@ const uploadMedia = async () => {
 
       <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: "'DM Sans', sans-serif" }}>
         <ResidentSidebar />
-        <div style={{ flex: 1, marginLeft: '15rem', paddingBottom: 0 }} className="md:ml-60 md:pb-0 report-content-wrapper">
+        <div className={`
+          report-content-wrapper transition-all duration-300
+          ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+        `} style={{ flex: 1, paddingBottom: 0 }}>
            <TopBar title="Incident Report" showNotifications={true}
             onNotificationClick={() => {
               // Handle notification click - you can open a modal or navigate

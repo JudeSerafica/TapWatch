@@ -19,6 +19,7 @@ import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
 import SOSPanicModal from '../components/SOSPanicModal'
 import { useAuth } from '../context/useAuth'
+import { useSidebar } from '../context/SidebarContext'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
 import IncidentIcon from '../components/IncidentIcon'
@@ -134,6 +135,7 @@ function FocusOnIncident({ incident }) {
 export default function IncidentMap() {
   const { isAdmin, profile } = useAuth()
   const { t } = useTranslation()
+  const { isCollapsed } = useSidebar()
   const [searchParams] = useSearchParams()
   const focusIncidentId = searchParams.get('incident')
 
@@ -209,7 +211,10 @@ export default function IncidentMap() {
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
 
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+        <div className={`
+          flex-1 pb-16 md:pb-0 transition-all duration-300
+          ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+        `}>
           <TopBar title="Incident Map" />
 
           <div className="p-4 md:p-6 flex items-center justify-center">
@@ -225,7 +230,10 @@ export default function IncidentMap() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
 
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className={`
+        flex-1 pb-16 md:pb-0 transition-all duration-300
+        ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+      `}>
         <TopBar 
           title={t('incidentMap')}
           showNotifications={true}

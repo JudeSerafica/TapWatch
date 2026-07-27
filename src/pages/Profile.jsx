@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Mail, Phone, MapPin, Shield, Edit3, LogOut, X, Save, Camera } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
+import { useSidebar } from '../context/SidebarContext'
 import { supabase } from '../lib/supabase'
 import ResidentSidebar from '../components/ResidentSidebar'
 import MobileBottomNav from '../components/MobileBottomNav'
@@ -10,6 +11,7 @@ import TopBar from '../components/TopBar'
 export default function Profile() {
   const navigate = useNavigate()
   const { user, profile, signOut, saveProfile } = useAuth()
+  const { isCollapsed } = useSidebar()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -197,7 +199,10 @@ export default function Profile() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <ResidentSidebar />
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className={`
+        flex-1 pb-16 md:pb-0 transition-all duration-300
+        ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+      `}>
         <TopBar title="My Profile" showNotifications={true} />
         <main className="p-4 md:p-6 max-w-2xl mx-auto">
           <div className="bg-white rounded-xl shadow-sm border border-black overflow-hidden">

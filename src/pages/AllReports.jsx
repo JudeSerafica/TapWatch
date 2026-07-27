@@ -37,7 +37,6 @@ import { arrayMove, SortableContext } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import StatusBadge from '../components/StatusBadge'
@@ -1153,22 +1152,18 @@ export default function AllReports() {
   // LOADING
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <AdminSidebar />
+      <div className="pb-16 md:pb-0">
+        <TopBar 
+          title="All Reports" 
+          showNotifications={true}
+          showUserMenu={true}
+        >
+          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+        </TopBar>
 
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-          <TopBar 
-            title="All Reports" 
-            showNotifications={true}
-            showUserMenu={true}
-          >
-            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-          </TopBar>
-
-          <div className="p-4 md:p-6 flex items-center justify-center">
-            <div className="text-gray-500">
-              Loading incidents...
-            </div>
+        <div className="p-4 md:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-gray-500">
+            Loading incidents...
           </div>
         </div>
 
@@ -1178,20 +1173,17 @@ export default function AllReports() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
+    <div className="pb-16 md:pb-0">
+      <TopBar 
+        title="All Reports" 
+        showNotifications={true}
+        showUserMenu={true}
+      >
+        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+      </TopBar>
+      <AdminNavTabs />
 
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar 
-          title="All Reports" 
-          showNotifications={true}
-          showUserMenu={true}
-        >
-          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-        </TopBar>
-        <AdminNavTabs />
-
-        <main className="p-4 md:p-6 space-y-4 md:space-y-5">
+      <main className="p-4 md:p-6 space-y-4 md:space-y-5">
           {/* HEADER */}
           <div className="flex flex-row flex-wrap items-center gap-2">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900">
@@ -2291,7 +2283,6 @@ export default function AllReports() {
             }
           `}</style>
         </main>
-      </div>
 
       {/* DELETE CONFIRMATION MODAL */}
       {showDeleteConfirm && (
@@ -2301,8 +2292,7 @@ export default function AllReports() {
             <div className="bg-red-50 p-6 border-b border-red-200">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <span className="text-2xl"><MdDelete /> 
-</span>
+                  <span className="text-2xl"><MdDelete /></span>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Delete Report</h3>

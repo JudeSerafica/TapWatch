@@ -26,6 +26,7 @@ import IncidentIcon from '../components/IncidentIcon'
 import SOSPanicModal from '../components/SOSPanicModal'
 
 import { useAuth } from '../context/useAuth'
+import { useSidebar } from '../context/SidebarContext'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
 import { supabase } from '../lib/supabase'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
@@ -952,6 +953,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { profile } = useAuth()
+  const { isCollapsed } = useSidebar()
 
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1233,7 +1235,10 @@ export default function Dashboard() {
 
       <ResidentSidebar />
 
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className={`
+        flex-1 pb-16 md:pb-0 transition-all duration-300
+        ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+      `}>
 
         <TopBar 
           title="Dashboard"

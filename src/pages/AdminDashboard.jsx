@@ -5,7 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-l
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useTranslation } from '../lib/i18n'
-import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import StatusBadge from '../components/StatusBadge'
@@ -275,6 +274,8 @@ function IncidentMapModal({ incident, onClose }) {
 }
 
 export default function AdminDashboard() {
+  console.log('AdminDashboard: Component starting to render')
+  
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [incidents, setIncidents] = useState([])
@@ -287,6 +288,8 @@ export default function AdminDashboard() {
   const [sosAlerts, setSOSAlerts] = useState([])
   const [showSOSBanner, setShowSOSBanner] = useState(false)
   const audioRef = useRef(null)
+
+  console.log('AdminDashboard: State initialized')
 
   // Calling System Integration
   const [showCallOptions, setShowCallOptions] = useState(false)
@@ -305,37 +308,52 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const loaddata = async () => {
-      // Parallel data fetching for faster loading
-      const [incidentsResult, statsResult, hotspotsResult] = await Promise.all([
-        getIncidents(),
-        getIncidentStats('7d'),
-        getHotspots()
-      ])
-      
-      if (incidentsResult.data) {
-        setIncidents(incidentsResult.data.slice(0, 4))
+      try {
+        console.log('AdminDashboard: Starting to load data...')
         
-        // Check for active SOS alerts
-        const activeSOS = incidentsResult.data.filter(
-          inc => inc.is_sos && inc.status === 'pending'
-        )
-        setSOSAlerts(activeSOS)
-        if (activeSOS.length > 0) {
-          setShowSOSBanner(true)
+        // Parallel data fetching for faster loading
+        const [incidentsResult, statsResult, hotspotsResult] = await Promise.all([
+          getIncidents(),
+          getIncidentStats('7d'),
+          getHotspots()
+        ])
+        
+        console.log('AdminDashboard: Data loaded:', {
+          incidents: incidentsResult.data?.length || 0,
+          stats: statsResult.data ? 'loaded' : 'empty',
+          hotspots: hotspotsResult.data ? 'loaded' : 'empty'
+        })
+        
+        if (incidentsResult.data) {
+          setIncidents(incidentsResult.data.slice(0, 4))
+          
+          // Check for active SOS alerts
+          const activeSOS = incidentsResult.data.filter(
+            inc => inc.is_sos && inc.status === 'pending'
+          )
+          setSOSAlerts(activeSOS)
+          if (activeSOS.length > 0) {
+            setShowSOSBanner(true)
+          }
         }
+        
+        if (statsResult.data && statsResult.data.byType) {
+          setTypeStats(Object.entries(statsResult.data.byType).map(([type, count]) => ({ type, count })))
+        }
+        
+        if (hotspotsResult.data) {
+          setHotspots(Object.entries(hotspotsResult.data)
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 3)
+            .map(([location, data]) => ({ location, count: data.count })))
+        }
+        
+        console.log('AdminDashboard: Finished loading data')
+        setLoading(false)
+      } catch (error) {
+        console.error('AdminDashboard: Error loading data:', error)
+        setLoading(false)
       }
-      
-      if (statsResult.data && statsResult.data.byType) {
-        setTypeStats(Object.entries(statsResult.data.byType).map(([type, count]) => ({ type, count })))
-      }
-      
-      if (hotspotsResult.data) {
-        setHotspots(Object.entries(hotspotsResult.data)
-          .sort((a, b) => b[1].count - a[1].count)
-          .slice(0, 3)
-          .map(([location, data]) => ({ location, count: data.count })))
-      }
-      setLoading(false)
     }
     
     loaddata()
@@ -527,25 +545,24 @@ export default function AdminDashboard() {
   const respondingCount = incidents.filter(i => i.status === 'responding').length
   const resolvedCount = incidents.filter(i => i.status === 'resolved').length
 
+  console.log('AdminDashboard: About to render, loading:', loading)
+
   if (loading) {
+  console.log('AdminDashboard: Rendering loading state')
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
+    <div className="pb-16 md:pb-0">
+      <TopBar
+        title="Officials Dashboard"
+        showNotifications={true}
+        showUserMenu={true}
+      >
+        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">
+          Official
+        </span>
+      </TopBar>
 
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar
-          title="Officials Dashboard"
-          showNotifications={true}
-          showUserMenu={true}
-        >
-          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">
-            Official
-          </span>
-        </TopBar>
-
-        <div className="p-4 md:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
-          <div className="text-gray-500">Loading dashboard...</div>
-        </div>
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
+        <div className="text-gray-500">Loading dashboard...</div>
       </div>
 
       <AdminMobileBottomNav />
@@ -553,15 +570,14 @@ export default function AdminDashboard() {
   )
 }
 
+  console.log('AdminDashboard: Rendering main content')
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-        <TopBar title="Officials Dashboard" showUserMenu={true} showNotifications={true}>
-          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-        </TopBar>
-        <AdminNavTabs />
-        <AdminMobileBottomNav />
+    <div className="pb-16 md:pb-0">
+      <TopBar title="Officials Dashboard" showUserMenu={true} showNotifications={true}>
+        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+      </TopBar>
+      <AdminNavTabs />
 
         <main className="p-4 md:p-6 space-y-4 md:space-y-6">
           {/* SOS PRIORITY ALERT BANNER */}
@@ -823,7 +839,7 @@ export default function AdminDashboard() {
             remoteStream={remoteStream}
           />
         )}
-      </div>
+      
       <AdminMobileBottomNav />
     </div>
   )

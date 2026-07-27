@@ -9,7 +9,6 @@ import {
   getVerifiedUsers,
 } from '../lib/userVerification'
 import UserVerificationBadge from '../components/UserVerificationBadge'
-import AdminSidebar from '../components/AdminSidebar'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
 import TopBar from '../components/TopBar'
 import { FiShield, FiCheckCircle, FiXCircle, FiUser, FiMail, FiPhone, FiAward, FiX } from 'react-icons/fi'
@@ -115,8 +114,7 @@ export default function AdminVerificationReview() {
   if (loading) {
     return (
       <div className="flex min-h-screen bg-gray-50">
-        <AdminSidebar />
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+        <div className="flex-1 pb-16 md:pb-0">
           <TopBar title="Verification Review" showNotifications={true} />
           <main className="p-4 md:p-6 max-w-6xl mx-auto">
             <div className="text-center py-12">
@@ -132,8 +130,7 @@ export default function AdminVerificationReview() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className="flex-1 pb-16 md:pb-0">
         <TopBar title="Verification Review" showNotifications={true} />
 
         <main className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">

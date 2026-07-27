@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useSidebar } from '../context/SidebarContext'
 import {
   getUserVerificationStatus,
   submitIDVerification,
@@ -18,6 +19,7 @@ import { FiShield, FiUpload, FiCheckCircle, FiClock, FiXCircle, FiCamera, FiUser
 export default function VerificationCenter() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const { isCollapsed } = useSidebar()
   const [verificationStatus, setVerificationStatus] = useState(null)
   const [reputation, setReputation] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -114,7 +116,10 @@ export default function VerificationCenter() {
     return (
       <div className="flex min-h-screen bg-gray-50">
         <ResidentSidebar />
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+        <div className={`
+          flex-1 pb-16 md:pb-0 transition-all duration-300
+          ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+        `}>
           <TopBar title="Verification Center" showNotifications={true} />
           <main className="p-4 md:p-6 max-w-4xl mx-auto">
             <div className="text-center py-12">
@@ -160,7 +165,10 @@ export default function VerificationCenter() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <ResidentSidebar />
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className={`
+        flex-1 pb-16 md:pb-0 transition-all duration-300
+        ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
+      `}>
         <TopBar title="Verification Center" showNotifications={true} />
         
         <main className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">

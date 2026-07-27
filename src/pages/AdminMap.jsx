@@ -10,9 +10,9 @@ import {
 import { ChevronDown } from 'lucide-react'
 import L from 'leaflet'
 
-import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import AdminMobileBottomNav from '../components/AdminMobileBottomNav'
+import AdminSidebar from '../components/AdminSidebar'
 import TopBar from '../components/TopBar'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
 import { getIncidents, subscribeToIncidents } from '../lib/database'
@@ -101,7 +101,7 @@ function MapBoundsHandler() {
   )
 }
 
-export default function IncidentMap() {
+export default function AdminMap() {
 
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -163,36 +163,11 @@ export default function IncidentMap() {
     return true
   })
 
-  const Sidebar = AdminSidebar
+  const Sidebar = () => null // Remove sidebar since we're using AdminLayout
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-          <TopBar 
-            title="Incident Map" 
-            showNotifications={true}
-            showUserMenu={true}
-          >
-            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-          </TopBar>
-
-          <div className="p-4 md:p-6 flex items-center justify-center">
-            <div className="text-gray-500">Loading map...</div>
-          </div>
-        </div>
-        <AdminMobileBottomNav />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-
-      <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+      <div className="pb-16 md:pb-0">
         <TopBar 
           title="Incident Map" 
           showNotifications={true}
@@ -201,9 +176,28 @@ export default function IncidentMap() {
           <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
         </TopBar>
 
-        <AdminNavTabs />
+        <div className="p-4 md:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-gray-500">Loading map...</div>
+        </div>
 
-        <main className="p-4 md:p-6 space-y-4">
+        <AdminMobileBottomNav />
+      </div>
+    )
+  }
+
+  return (
+    <div className="pb-16 md:pb-0">
+      <TopBar 
+        title="Incident Map" 
+        showNotifications={true}
+        showUserMenu={true}
+      >
+        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+      </TopBar>
+
+      <AdminNavTabs />
+
+      <main className="p-4 md:p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="hidden md:flex items-center gap-3 mt-2">
@@ -337,8 +331,8 @@ export default function IncidentMap() {
             Showing {filtered.length} of {incidents.length} incidents.
           </p>
         </main>
+        
+        <AdminMobileBottomNav />
       </div>
-      <AdminMobileBottomNav />
-    </div>
-  )
-}
+    )
+  }

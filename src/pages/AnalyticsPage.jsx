@@ -3,7 +3,6 @@ import { Line, Doughnut, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 import { useState, useEffect } from 'react'
 import { useTranslation } from '../lib/i18n'
-import AdminSidebar from '../components/AdminSidebar'
 import AdminNavTabs from '../components/AdminNavTabs'
 import TopBar from '../components/TopBar'
 import { getIncidentStats, getHotspots, getIncidents } from '../lib/database'
@@ -112,28 +111,24 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <AdminSidebar />
-        <div className="flex-1 md:ml-60 pb-16 md:pb-0">
-          <TopBar 
-            title="Analytics" 
-            showNotifications={true}
-            showUserMenu={true}
-          >
-            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
-          </TopBar>
-          <div className="p-4 md:p-6 flex items-center justify-center">
-            <div className="text-gray-500">Loading analytics...</div>
-          </div>
+      <div className="pb-16 md:pb-0">
+        <TopBar 
+          title="Analytics" 
+          showNotifications={true}
+          showUserMenu={true}
+        >
+          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">Official</span>
+        </TopBar>
+        <div className="p-4 md:p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-gray-500">Loading analytics...</div>
         </div>
+        <AdminMobileBottomNav />
       </div>
     )
   }
 
   return (
-  <div className="flex min-h-screen bg-gray-50">
-    <AdminSidebar />
-    <div className="flex-1 md:ml-60 pb-16 md:pb-0">
+    <div className="pb-16 md:pb-0">
       <TopBar 
         title="Analytics" 
         showNotifications={true}
@@ -188,7 +183,6 @@ export default function Analytics() {
                 ))}
               </div>
             </div>
-            {/* Progress bars with incident type colors */}
             <div className="mt-4 space-y-1.5">
               {Object.entries(T).map(([k,v],i) => {
                 const maxCount = Math.max(...(stats?.tc||[0]), 1)
@@ -241,8 +235,8 @@ export default function Analytics() {
           </div>
         </div>
       </main>
+      
+      <AdminMobileBottomNav />
     </div>
-    <AdminMobileBottomNav />
-  </div>
-)
+  )
 }
