@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TapWatch SOS Location Tester</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+        }
+        .status {
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status.info { background: #eff6ff; color: #1e40af; border: 2px solid #3b82f6; }
+        .status.success { background: #f0fdf4; color: #166534; border: 2px solid #22c55e; }
+        .status.warning { background: #fffbeb; color: #92400e; border: 2px solid #f59e0b; }
+        .status.error { background: #fef2f2; color: #991b1b; border: 2px solid #ef4444; }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #991b1b;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(220, 38, 38, 0.3);
+        }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .coords {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .coords div {
+            margin: 5px 0;
+        }
+        .coords strong {
+            color: #dc2626;
+        }
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 3px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #374151;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .emoji {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-error { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 SOS Location Tester</h1>
+            <p>Test GPS accuracy for TapWatch Emergency Alert</p>
+        </div>
+        
+        <div class="content">
+            <div id="status" class="status info">
+                <span class="emoji">ℹ️</span>
+                <strong>Ready to test</strong><br>
+                Click the button below to test GPS location capture
+            </div>
+
+            <button id="testBtn" class="btn btn-primary" onclick="testLocation()">
+                📍 TEST GPS LOCATION
+            </button>
+
+            <button class="btn btn-secondary" onclick="clearLog()">
+                🗑️ Clear Log
+            </button>
+
+            <div id="coords" style="display:none;"></div>
+            
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const EAST_TAPINAC_LAT = 14.835;
+        const EAST_TAPINAC_LNG = 120.283;
+        let logEntries = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = { timestamp, message, type };
+            logEntries.push(entry);
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = logEntries.map(entry => {
+                const icon = entry.type === 'success' ? '✅' : 
+                           entry.type === 'error' ? '❌' : 
+                           entry.type === 'warning' ? '⚠️' : 'ℹ️';
+                return `<div class="log-entry">[${entry.timestamp}] ${icon} ${entry.message}</div>`;
+            }).join('');
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            logEntries = [];
+            updateLogDisplay();
+            document.getElementById('coords').style.display = 'none';
+            updateStatus('info', 'ℹ️', 'Log cleared', 'Ready to test again');
+        }
+
+        function updateStatus(className, emoji, title, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${className}`;
+            statusDiv.innerHTML = `
+                <span class="emoji">${emoji}</span>
+                <strong>${title}</strong><br>
+                ${message}
+            `;
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function testLocation() {
+            const btn = document.getElementById('testBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Acquiring GPS location...';
+
+            updateStatus('info', '📡', 'Requesting GPS Permission', 'Please allow location access when prompted');
+            log('🔴 TEST STARTED - Requesting GPS location permission');
+
+            if (!navigator.geolocation) {
+                updateStatus('error', '❌', 'GPS Not Available', 'Your device does not support geolocation');
+                log('Geolocation API not available on this device', 'error');
+                btn.disabled = false;
+                btn.textContent = '📍 TEST GPS LOCATION';
+                return;
+            }
+
+            const startTime = Date.now();
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            const timeoutDuration = isMobile ? 120000 : 60000;
+
+            log(`📱 Device: ${isMobile ? 'MOBILE' : 'DESKTOP'} | Timeout: ${timeoutDuration/1000}s`);
+            log('🎯 HIGH ACCURACY MODE ENABLED - Waiting for GPS lock...');
+
+            const timeoutId = setTimeout(() => {
+                updateStatus('error', '⏱️', 'GPS Timeout', `Location request timed out after ${timeoutDuration/1000} seconds`);
+                log(`GPS request timed out after ${timeoutDuration/1000}s`, 'error');
+                btn.disabled = false;
+                btn.textContent = '📍 TEST GPS LOCATION';
+            }, timeoutDuration);
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    clearTimeout(timeoutId);
+                    const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                    
+                    log(`✅✅✅ LOCATION PERMISSION GRANTED AND CAPTURED ✅✅✅`, 'success');
+                    log(`⏱️ Time taken: ${elapsedTime} seconds`);
+
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    const altitude = position.coords.altitude;
+                    const heading = position.coords.heading;
+                    const speed = position.coords.speed;
+
+                    log(`📊 RAW POSITION DATA:`);
+                    log(`    Latitude:  ${lat}`);
+                    log(`    Longitude: ${lng}`);
+                    log(`    Accuracy:  ${accuracy}m`);
+                    log(`    Altitude:  ${altitude}m`);
+                    log(`    Heading:   ${heading}°`);
+                    log(`    Speed:     ${speed}m/s`);
+
+                    // Check for coordinate swap
+                    let swapped = false;
+                    if (lat > 100 && lng < 50) {
+                        log('⚠️⚠️⚠️ COORDINATE SWAP DETECTED! Swapping lat/lng...', 'warning');
+                        const temp = lat;
+                        lat = lng;
+                        lng = temp;
+                        swapped = true;
+                        log(`    CORRECTED Latitude:  ${lat}`);
+                        log(`    CORRECTED Longitude: ${lng}`);
+                    }
+
+                    // Validate coordinates
+                    const isValid = !isNaN(lat) && !isNaN(lng) && 
+                                   lat >= -90 && lat <= 90 && 
+                                   lng >= -180 && lng <= 180;
+
+                    if (!isValid) {
+                        updateStatus('error', '❌', 'Invalid Coordinates', 'Received invalid GPS coordinates');
+                        log('❌ INVALID COORDINATES DETECTED', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '📍 TEST GPS LOCATION';
+                        return;
+                    }
+
+                    // Calculate distance from East Tapinac
+                    const distance = calculateDistance(lat, lng, EAST_TAPINAC_LAT, EAST_TAPINAC_LNG);
+                    const distanceLat = Math.abs(lat - EAST_TAPINAC_LAT);
+                    const distanceLng = Math.abs(lng - EAST_TAPINAC_LNG);
+
+                    log(`🎯 AREA VALIDATION:`);
+                    log(`    Expected (East Tapinac): Lat ${EAST_TAPINAC_LAT}, Lng ${EAST_TAPINAC_LNG}`);
+                    log(`    Received: Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`);
+                    log(`    Distance from center: ${distance.toFixed(2)}km`);
+                    log(`    Offset: ${(distanceLat * 111).toFixed(2)}km N/S, ${(distanceLng * 111).toFixed(2)}km E/W`);
+
+                    // Accuracy assessment
+                    let accuracyLevel = '';
+                    if (accuracy <= 20) {
+                        accuracyLevel = '✅ EXCELLENT: High precision GPS';
+                        log(accuracyLevel + ` (±${Math.round(accuracy)}m)`, 'success');
+                    } else if (accuracy <= 50) {
+                        accuracyLevel = '✅ GOOD: Good GPS accuracy';
+                        log(accuracyLevel + ` (±${Math.round(accuracy)}m)`, 'success');
+                    } else if (accuracy <= 100) {
+                        accuracyLevel = '⚠️ MODERATE: Acceptable accuracy';
+                        log(accuracyLevel + ` (±${Math.round(accuracy)}m)`, 'warning');
+                    } else {
+                        accuracyLevel = '⚠️ LOW: Poor GPS accuracy';
+                        log(accuracyLevel + ` (±${Math.round(accuracy)}m)`, 'warning');
+                    }
+
+                    // Area validation result
+                    let locationStatus = '';
+                    let statusClass = 'success';
+                    if (distance < 1) {
+                        locationStatus = '✅ LOCATION VALIDATED: Within East Tapinac area';
+                        log(locationStatus, 'success');
+                    } else if (distance < 5) {
+                        locationStatus = '⚠️ Near East Tapinac (within 5km)';
+                        log(locationStatus, 'warning');
+                    } else {
+                        locationStatus = '⚠️ Location FAR from East Tapinac';
+                        statusClass = 'warning';
+                        log('⚠️⚠️⚠️ WARNING: Location seems FAR from East Tapinac, Imus, Cavite!', 'warning');
+                        log(`This may be CORRECT if you're testing outside the barangay`, 'warning');
+                    }
+
+                    // Display results
+                    const coordsDiv = document.getElementById('coords');
+                    coordsDiv.style.display = 'block';
+                    coordsDiv.innerHTML = `
+                        <div><strong>📍 Final Coordinates:</strong></div>
+                        <div>Latitude: ${lat.toFixed(8)} ${swapped ? '(swapped)' : ''}</div>
+                        <div>Longitude: ${lng.toFixed(8)} ${swapped ? '(swapped)' : ''}</div>
+                        <div><strong>📡 GPS Accuracy:</strong> ±${Math.round(accuracy)}m</div>
+                        <div><strong>📏 Distance from East Tapinac:</strong> ${distance.toFixed(2)}km</div>
+                        <div><strong>⏱️ Lock Time:</strong> ${elapsedTime}s</div>
+                    `;
+
+                    updateStatus(statusClass, distance < 1 ? '✅' : '⚠️', 
+                               'GPS Location Captured', 
+                               `${locationStatus}<br>${accuracyLevel}`);
+
+                    log('✅ TEST COMPLETED SUCCESSFULLY', 'success');
+
+                    btn.disabled = false;
+                    btn.textContent = '📍 TEST GPS LOCATION';
+                },
+                (error) => {
+                    clearTimeout(timeoutId);
+                    
+                    const errorMsg = error.code === 1 ? 'PERMISSION_DENIED - User denied location access' :
+                                   error.code === 2 ? 'POSITION_UNAVAILABLE - Location services unavailable' :
+                                   error.code === 3 ? 'TIMEOUT - GPS request timed out' :
+                                   'UNKNOWN_ERROR';
+
+                    log(`❌ GEOLOCATION ERROR: ${errorMsg}`, 'error');
+                    log(`Error details: ${error.message}`, 'error');
+                    
+                    updateStatus('error', '❌', 'GPS Error', `${errorMsg}<br>${error.message}`);
+
+                    btn.disabled = false;
+                    btn.textContent = '📍 TEST GPS LOCATION';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: timeoutDuration,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // Initialize
+        log('🚀 SOS Location Tester initialized');
+        log(`🎯 Target area: East Tapinac, Imus, Cavite`);
+        log(`📍 Expected coordinates: Lat ${EAST_TAPINAC_LAT}, Lng ${EAST_TAPINAC_LNG}`);
+    </script>
+</body>
+</html>

@@ -12,7 +12,7 @@ const navItems = [
   { path: '/admin-map', label: 'Incident Map', icon: MapPin },
   { path: '/admin-reports', label: 'All Reports', icon: FileText },
   { path: '/admin-verification', label: 'Verification Review', icon: Shield },
-  { path: '/admin-contacts', label: 'Emergency Contacts', icon: Phone },
+  { path: '/admin-contacts', label: 'Barangay Officials', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
 ]
 

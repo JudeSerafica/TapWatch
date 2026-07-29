@@ -120,6 +120,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [isRequestingPermission, setIsRequestingPermission] = useState(false)
+  const [locationWarning, setLocationWarning] = useState(null)
 
   // Get location with proper permission handling
   const requestLocationPermission = () => {
@@ -139,9 +140,10 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
     // Detect device type for appropriate timeout
     const userAgent = navigator.userAgent.toLowerCase()
     const isMobile = /android|webos|iphone|ipad|ipot|blackberry|iemobile|opera mini/i.test(userAgent)
-    const timeoutDuration = isMobile ? 90000 : 45000  // Increased timeout: 90s for mobile, 45s for desktop
+    const timeoutDuration = isMobile ? 120000 : 60000  // Extended timeout: 120s for mobile, 60s for desktop to allow GPS lock
     
     console.log(`📱 Device type: ${isMobile ? 'MOBILE' : 'DESKTOP'} - Timeout: ${timeoutDuration}ms`)
+    console.log('🎯 HIGH ACCURACY MODE ENABLED - Waiting for GPS lock...')
 
     // Timeout for location request
     const timeoutId = setTimeout(() => {
@@ -174,6 +176,19 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         console.log(`    Heading:   ${heading}°`)
         console.log(`    Speed:     ${speed}m/s`)
         
+        // 🎯 CRITICAL VALIDATION: Check if coordinates are swapped
+        // East Tapinac, Imus, Cavite coordinates should be around:
+        // Latitude: 14.83-14.84 (should be in 14-15 range for Philippines)
+        // Longitude: 120.28-120.29 (should be in 120-121 range for Cavite)
+        if (lat > 100 && lng < 50) {
+          console.warn('⚠️⚠️⚠️ COORDINATE SWAP DETECTED! Swapping lat/lng...')
+          const temp = lat
+          lat = lng
+          lng = temp
+          console.log(`    CORRECTED Latitude:  ${lat}`)
+          console.log(`    CORRECTED Longitude: ${lng}`)
+        }
+        
         // VALIDATION: Check if coordinates are within valid ranges
         const isValidCoordinate = (lat, lng) => {
           return (
@@ -202,13 +217,33 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         console.log(`    Longitude: ${lng}`)
         console.log(`    Accuracy:  ±${Math.round(accuracy)}m margin of error`)
         
-        // Assess accuracy quality
+        // 🎯 AREA VALIDATION: Check if location is near East Tapinac, Imus, Cavite
+        const expectedLat = 14.835   // East Tapinac center
+        const expectedLng = 120.283  // East Tapinac center
+        const distanceLat = Math.abs(lat - expectedLat)
+        const distanceLng = Math.abs(lng - expectedLng)
+        
+        // Assess accuracy quality and area validation
         if (accuracy > 100) {
           console.warn(`⚠️ WARNING: Location accuracy is moderate (±${Math.round(accuracy)}m)`)
         } else if (accuracy <= 20) {
           console.log(`✅ EXCELLENT: High precision GPS location (±${Math.round(accuracy)}m)`)
         } else if (accuracy <= 50) {
           console.log(`✅ GOOD: Good GPS accuracy (±${Math.round(accuracy)}m)`)
+        }
+        
+        // If more than 10km away (~0.1 degrees), warn user
+        if (distanceLat > 0.1 || distanceLng > 0.1) {
+          console.warn(`⚠️⚠️⚠️ WARNING: Location seems FAR from East Tapinac, Imus, Cavite!`)
+          console.warn(`    Expected: Lat ~14.835, Lng ~120.283`)
+          console.warn(`    Received: Lat ${lat}, Lng ${lng}`)
+          console.warn(`    Distance: ${(distanceLat * 111).toFixed(2)}km N/S, ${(distanceLng * 111).toFixed(2)}km E/W`)
+          console.warn(`    This may be correct if you're testing outside the barangay`)
+          setLocationWarning(`Location is ${(Math.max(distanceLat, distanceLng) * 111).toFixed(1)}km from East Tapinac`)
+        } else {
+          console.log(`✅ LOCATION VALIDATED: Within East Tapinac area`)
+          console.log(`    Distance from center: ${(distanceLat * 111 * 1000).toFixed(0)}m N/S, ${(distanceLng * 111 * 1000).toFixed(0)}m E/W`)
+          setLocationWarning(null)
         }
         
         setLocation({
@@ -251,7 +286,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       },
       { 
         enableHighAccuracy: true,     // Request high accuracy GPS (will use more battery on mobile)
-        timeout: timeoutDuration,     // Wait for specified timeout
+        timeout: timeoutDuration,     // Wait for specified timeout to get GPS lock
         maximumAge: 0                 // CRITICAL: Don't use cached location - always get fresh data
       }
     )
@@ -313,8 +348,12 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
         }
         
         if (isValidCoord(validLat, validLng)) {
-          locationString = `Lat: ${validLat.toFixed(6)}, Lng: ${validLng.toFixed(6)}`
+          // Use 8 decimal places for maximum precision (~1.1mm accuracy)
+          validLat = parseFloat(validLat.toFixed(8))
+          validLng = parseFloat(validLng.toFixed(8))
+          locationString = `Lat: ${validLat.toFixed(8)}, Lng: ${validLng.toFixed(8)}`
           console.log('✅ Location coordinates validated successfully')
+          console.log(`📍 FINAL COORDINATES TO SAVE: Lat=${validLat}, Lng=${validLng}`)
         } else {
           console.error('❌ Invalid coordinates detected, clearing location data')
           validLat = null
@@ -545,10 +584,12 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                       <Popup>
                         <div className="space-y-1">
                           <p className="font-semibold text-sm">🚨 SOS Alert Location</p>
-                          <p className="text-xs text-gray-600">Lat: {location.latitude.toFixed(6)}</p>
-                          <p className="text-xs text-gray-600">Lng: {location.longitude.toFixed(6)}</p>
+                          <p className="text-xs text-gray-600 font-mono">Lat: {location.latitude.toFixed(8)}</p>
+                          <p className="text-xs text-gray-600 font-mono">Lng: {location.longitude.toFixed(8)}</p>
                           {location?.accuracy && (
-                            <p className="text-xs text-gray-600">Accuracy: ±{Math.round(location.accuracy)}m</p>
+                            <p className="text-xs text-gray-600 bg-green-50 px-2 py-1 rounded mt-1">
+                              GPS Accuracy: ±{Math.round(location.accuracy)}m
+                            </p>
                           )}
                         </div>
                       </Popup>
@@ -556,9 +597,17 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                   </MapContainer>
                   
                   {/* Coordinates Badge */}
-                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-red-200 text-[9px] sm:text-[10px] font-mono text-red-700 shadow-sm">
-                    <div>📍 {location.latitude.toFixed(6)}</div>
-                    <div>📍 {location.longitude.toFixed(6)}</div>
+                  <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-red-200 shadow-lg">
+                    <div className="text-[9px] sm:text-[10px] font-mono text-red-700 space-y-0.5">
+                      <div className="font-semibold text-[10px] sm:text-[11px] text-center mb-0.5">GPS Coordinates</div>
+                      <div>Lat: {location.latitude.toFixed(8)}</div>
+                      <div>Lng: {location.longitude.toFixed(8)}</div>
+                      {location?.accuracy && (
+                        <div className="text-[8px] text-gray-600 mt-1 text-center">
+                          ±{Math.round(location.accuracy)}m accuracy
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -616,10 +665,18 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
                 Emergency SOS
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600 mb-6">
+              <p className="text-xs sm:text-sm text-gray-600 mb-4">
                 This will immediately alert emergency services and share your location.
                 Use only in life-threatening situations.
               </p>
+
+              {/* Location Info Preview */}
+              <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-900 font-semibold mb-1">📍 Your Location Will Be Shared</p>
+                <p className="text-[10px] text-blue-700">
+                  GPS will capture your exact coordinates and send them to barangay officials for immediate response.
+                </p>
+              </div>
 
               <div className="space-y-2.5 sm:space-y-3">
                 <button
@@ -652,14 +709,33 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                 Emergency services will be notified in {countdown} {countdown === 1 ? 'second' : 'seconds'}
               </p>
               {isRequestingPermission && (
-                <p className="text-xs opacity-75 mb-3">
-                  📍 Capturing your location...
-                </p>
+                <div className="mb-3 space-y-1">
+                  <p className="text-xs opacity-75 animate-pulse">
+                    📍 Acquiring GPS location...
+                  </p>
+                  <p className="text-[10px] opacity-60">
+                    Waiting for accurate GPS lock
+                  </p>
+                </div>
               )}
               {location && (
-                <p className="text-xs opacity-75 mb-4 text-green-200">
-                  ✓ Location captured ({Math.round(location.accuracy || 0)}m accuracy)
-                </p>
+                <div className="mb-4 space-y-1">
+                  <p className="text-xs text-green-200 flex items-center justify-center gap-1">
+                    <span>✓</span>
+                    <span>GPS Location Captured</span>
+                  </p>
+                  <p className="text-[10px] opacity-75">
+                    Accuracy: ±{Math.round(location.accuracy || 0)}m
+                  </p>
+                  <p className="text-[9px] opacity-60 font-mono">
+                    {location.latitude?.toFixed(6)}, {location.longitude?.toFixed(6)}
+                  </p>
+                  {locationWarning && (
+                    <p className="text-[10px] opacity-90 text-yellow-200 bg-yellow-900/30 px-2 py-1 rounded mt-1">
+                      ⚠️ {locationWarning}
+                    </p>
+                  )}
+                </div>
               )}
               <button
                 onClick={handleCancel}

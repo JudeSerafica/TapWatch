@@ -649,7 +649,7 @@ export default function EmergencyContacts() {
   return (
     <div className="pb-16 md:pb-0 bg-gray-50 min-h-screen">
       <TopBar 
-        title="Emergency Contacts" 
+        title="Barangay Officials" 
         showUserMenu={true} 
         showNotifications={true}
       >

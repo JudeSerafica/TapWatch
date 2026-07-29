@@ -1412,7 +1412,7 @@ export default function Dashboard() {
                 </div>
 
                 <h3 className="font-semibold text-gray-900 text-sm">
-                  Emergency Contacts
+                  Barangay Officials
                 </h3>
 
                 <p className="text-xs text-gray-600">
