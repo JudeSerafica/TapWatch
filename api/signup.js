@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   const { error: otpError } = await supabaseAnon.auth.signInWithOtp({
     email: emailLower,
     options: {
-      shouldCreateUser: false, // don't create user yet, just send OTP
+      shouldCreateUser: true, // Supabase creates a temp unconfirmed user to send the OTP
     },
   })
 
