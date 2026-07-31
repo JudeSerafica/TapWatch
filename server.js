@@ -162,7 +162,101 @@ app.post('/api/verify', async (req, res) => {
     return res.status(500).json({ error: `Failed to verify: ${err.message}` })
   }
 })
- 
+
+// ── POST /api/ai/classify — OpenAI text classification proxy ───────────────
+app.post('/api/ai/classify', async (req, res) => {
+  const { description } = req.body
+  if (!description) return res.status(400).json({ error: 'description required' })
+
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured on server' })
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an emergency incident classifier for a barangay in the Philippines. Classify into exactly one of: Crime, Fire, Flood, Accident, Disturbance. Respond with ONLY valid JSON, no markdown.'
+          },
+          {
+            role: 'user',
+            content: `Classify this incident: "${description}"\n\nRespond ONLY with this JSON:\n{"type":"Fire","confidence":0.9,"urgency":"critical","keywords":["fire"],"reasoning":"one sentence"}`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 300,
+        response_format: { type: 'json_object' }
+      })
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      console.error('[AI/classify] OpenAI error:', response.status, err.substring(0, 200))
+      return res.status(response.status).json({ error: err })
+    }
+
+    const data = await response.json()
+    res.json({ content: data.choices[0].message.content })
+  } catch (err) {
+    console.error('[AI/classify] error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── POST /api/ai/analyze-image — OpenAI GPT-4o vision proxy ──────────────
+app.post('/api/ai/analyze-image', async (req, res) => {
+  const { imageDataUrl } = req.body
+  if (!imageDataUrl) return res.status(400).json({ error: 'imageDataUrl required' })
+
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured on server' })
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: imageDataUrl, detail: 'low' }
+            },
+            {
+              type: 'text',
+              text: `Analyze this image from a Philippine barangay emergency app. Respond with ONLY valid JSON (no markdown):\n{"type":"Fire","confidence":0.95,"urgency":"critical","detected":["flames","smoke"],"hasVictims":false,"environmentalHazards":["fire"],"recommendedAction":"Dispatch fire department","reasoning":"Truck on fire on a road.","isIncidentRelated":true,"nonIncidentReason":"","isAuthentic":true,"authenticityConfidence":0.9,"manipulationDetected":false,"fakeness_indicators":[],"authenticity_reasoning":"Real photo","image_source":"real_photo"}\n\nType rules: Fire=flames/smoke/burning, Flood=water/flooded roads, Crime=robbery/violence, Accident=vehicle crash, Disturbance=fight/riot, Unknown=selfie/food/unrelated`
+            }
+          ]
+        }],
+        temperature: 0.2,
+        max_tokens: 600,
+        response_format: { type: 'json_object' }
+      })
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      console.error('[AI/analyze-image] OpenAI error:', response.status, err.substring(0, 200))
+      return res.status(response.status).json({ error: err })
+    }
+
+    const data = await response.json()
+    res.json({ content: data.choices[0].message.content })
+  } catch (err) {
+    console.error('[AI/analyze-image] error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Start server ───────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`))
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`)
+  console.log(`🤖 OpenAI API Key: ${process.env.OPENAI_API_KEY ? '✅ Loaded (' + process.env.OPENAI_API_KEY.substring(0, 8) + '...)' : '❌ NOT FOUND'}`)
+})

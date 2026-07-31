@@ -358,6 +358,7 @@ export default function ReportIncident() {
   // showAuthenticityModal removed - only admins see this modal
   const [loadingAI, setLoadingAI] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [mismatchBlocked, setMismatchBlocked] = useState(false) // Blocks submit when description ≠ photo
   const aiDebounceTimer = useRef(null) // For debouncing auto-classification
   const [submitting, setSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -393,6 +394,10 @@ const handleFileChange = (e) => {
     return
   }
 
+  // Reset mismatch when a new file is uploaded
+  setMismatchBlocked(false)
+  setAiAnalysis(null)
+
   setForm(f => ({
     ...f,
     mediaFile: file,
@@ -410,17 +415,17 @@ const handleFileChange = (e) => {
     if (file.type.startsWith('image/')) {
       console.log('📸 Image uploaded')
       
-      // Wait a bit for state to update, then check if we have description too
+      // Capture description at this moment (avoid stale closure in setTimeout)
+      const capturedDescription = form.description || ''
+      
       setTimeout(() => {
-        const hasDescription = form.description && form.description.trim().length > 10
+        const hasDescription = capturedDescription.trim().length > 10
         
         if (hasDescription) {
-          // Both ready - analyze together!
           console.log('🤖 Both description and image ready - analyzing together...')
           showNotification('🤖 AI analyzing description + image...', 'success')
-          analyzeImageDirectly(dataUrl)
+          analyzeImageDirectly(dataUrl, capturedDescription)
         } else {
-          // No description yet - just notify
           console.log('⏳ Image uploaded, waiting for description...')
           showNotification('✅ Image uploaded. Add description to analyze.', 'success')
         }
@@ -432,20 +437,18 @@ const handleFileChange = (e) => {
   e.target.value = ''
 }
 
-// 🆕 Analyze image + description together (only when BOTH are ready!)
-const analyzeImageDirectly = async (imageDataUrl) => {
+// 🆕 Analyze image + description together — accepts both as params to avoid stale closures
+const analyzeImageDirectly = async (imageDataUrl, descriptionText) => {
   setLoadingAI(true)
   
   try {
-    console.log('🤖 Analyzing BOTH description + image together...')
-    console.log('📝 Description:', form.description?.substring(0, 50) + '...')
-    console.log('📸 Image: Present')
+    const currentDescription = descriptionText ?? form.description ?? ''
+    console.log('🤖 Analyzing BOTH description + image with Gemini...')
+    console.log('📝 Description:', currentDescription.substring(0, 50) + '...')
+    console.log('📸 Image: Present (base64 data URL)')
 
-    // Analyze BOTH description AND image together
-    const analysis = await analyzeIncident(
-      form.description || '',
-      imageDataUrl
-    )
+    // Gemini 1.5 Flash accepts base64 data URLs natively — no upload needed
+    const analysis = await analyzeIncident(currentDescription, imageDataUrl)
 
     console.log('✅ Combined Analysis Result:', analysis)
 
@@ -463,42 +466,31 @@ const analyzeImageDirectly = async (imageDataUrl) => {
     )
     
     // 🔍 CHECK FOR MISMATCH between description and photo
+    // Use INDIVIDUAL confidences from text and image analysis, not combined
     const textType = analysis.text?.type || 'Unknown'
     const imageType = analysis.image?.type || 'Unknown'
-    const hasMismatch = textType !== 'Unknown' && imageType !== 'Unknown' && textType !== imageType
-    
-    // 🚫 BLOCK INAPPROPRIATE IMAGES
-    if (!isIncidentRelated || hasNonIncidentContent || (detectedType === 'Unknown' && confidence < 0.4)) {
-      console.warn('⚠️ Non-incident image detected!')
-      
-      const reason = nonIncidentReason || 
-                     (hasNonIncidentContent ? detected.filter(item => 
-                       nonIncidentKeywords.some(keyword => item.toLowerCase().includes(keyword))
-                     ).join(', ') : 'Not an emergency/incident')
-      
-      showNotification('❌ This image does not appear to be incident-related', 'error')
-      
-      // Show modal instead of alert
-      setInvalidImageData({
-        reason: reason,
-        detected: detected.slice(0, 5),
-        mismatch: false
-      })
-      setShowInvalidImageModal(true)
-      
-      // Clear the invalid media
-      clearMedia()
-      setLoadingAI(false)
-      return
-    }
+    const textConfidence = analysis.text?.confidence || 0
+    const imageConfidence = analysis.image?.confidence || 0
 
-    // ⚠️ WARN ABOUT MISMATCH between description and photo
-    if (hasMismatch && confidence > 0.6) {
-      console.warn('⚠️ Mismatch detected between description and photo!')
+    // Mismatch = both have a known type, both have decent confidence, but they disagree
+    const hasMismatch = (
+      textType !== 'Unknown' &&
+      imageType !== 'Unknown' &&
+      textType !== imageType &&
+      textConfidence >= 0.4 &&   // text analysis is reasonably confident
+      imageConfidence >= 0.4     // image analysis is reasonably confident
+    )
+    
+    // 🔍 CHECK FOR MISMATCH — runs FIRST, before non-incident check
+    // A fire photo is incident-related, but if description says "flood" it should still be blocked
+    if (hasMismatch) {
+      console.warn('⚠️ Mismatch detected! Text:', textType, '| Image:', imageType)
+      console.warn('Text confidence:', textConfidence, '| Image confidence:', imageConfidence)
       
-      showNotification('⚠️ Description and photo do not match', 'error')
+      showNotification('⚠️ Description and photo do not match — submission blocked', 'error')
       
-      // Show mismatch modal
+      // Block submit and show modal
+      setMismatchBlocked(true)
       setInvalidImageData({
         reason: `Description says "${textType}" but photo shows "${imageType}"`,
         detected: detected.slice(0, 5),
@@ -510,12 +502,35 @@ const analyzeImageDirectly = async (imageDataUrl) => {
       })
       setShowInvalidImageModal(true)
       
-      // Don't clear media - let user decide
+      setLoadingAI(false)
+      return
+    }
+
+    // 🚫 BLOCK INAPPROPRIATE / NON-INCIDENT IMAGES (runs after mismatch check)
+    if (!isIncidentRelated || hasNonIncidentContent || (detectedType === 'Unknown' && confidence < 0.4)) {
+      console.warn('⚠️ Non-incident image detected!')
+      
+      const reason = nonIncidentReason || 
+                     (hasNonIncidentContent ? detected.filter(item => 
+                       nonIncidentKeywords.some(keyword => item.toLowerCase().includes(keyword))
+                     ).join(', ') : 'Not an emergency/incident')
+      
+      showNotification('❌ This image does not appear to be incident-related', 'error')
+      
+      setInvalidImageData({
+        reason: reason,
+        detected: detected.slice(0, 5),
+        mismatch: false
+      })
+      setShowInvalidImageModal(true)
+      
+      clearMedia()
       setLoadingAI(false)
       return
     }
 
     // ✅ IMAGE IS VALID - Continue with normal processing
+    setMismatchBlocked(false) // Clear any previous mismatch block
     setAiType(analysis.combined.type)
     setAiAnalysis(analysis.combined)
     setForm(f => ({ ...f, type: analysis.combined.type }))
@@ -551,11 +566,12 @@ const analyzeImageDirectly = async (imageDataUrl) => {
 
 
   const clearMedia = () => {
-    setForm(f => ({ ...f, mediaUrl: null, mediaName: '' }))
+    setForm(f => ({ ...f, mediaUrl: null, mediaName: '', mediaFile: null }))
     // Clear AI analysis when media is removed
     setAiAnalysis(null)
     setAiRecommendations([])
-    setImageAuthenticity(null) // Clear authenticity check
+    setImageAuthenticity(null)
+    setMismatchBlocked(false) // Allow submit again after photo is removed/replaced
   }
 
   // 🤖 AUTOMATIC AI Classification (no button click needed!)
@@ -634,36 +650,33 @@ const analyzeImageDirectly = async (imageDataUrl) => {
     }
   }
 
-  // 🎯 AUTO-CLASSIFY when BOTH description AND image are ready (no more separate triggers!)
+  // 🎯 AUTO-CLASSIFY: Only trigger when image is uploaded AND description is ready.
+  // Does NOT re-run on every keystroke to avoid burning API quota.
+  // Re-runs only when mediaUrl changes (new image uploaded).
   useEffect(() => {
-    // Clear previous timer
     if (aiDebounceTimer.current) {
       clearTimeout(aiDebounceTimer.current)
     }
 
-    // Only auto-classify if BOTH description AND image are present
+    const hasImage = !!form.mediaUrl
     const hasDescription = form.description && form.description.trim().length > 15
-    const hasImage = form.mediaUrl
-    
-    if (hasDescription && hasImage && !loadingAI) {
-      // Wait 1.5 seconds after user stops typing before analyzing TOGETHER
+
+    if (hasImage && hasDescription && !loadingAI) {
+      const capturedDescription = form.description
+      const capturedMediaUrl = form.mediaUrl
+
+      // 3 second debounce — fires once after image upload settles
       aiDebounceTimer.current = setTimeout(() => {
-        console.log('🤖 Both description and image ready - analyzing together...')
+        console.log('🤖 Image uploaded + description ready — running AI analysis once...')
         showNotification('🤖 AI analyzing description + image...', 'success')
-        analyzeImageDirectly(form.mediaUrl)
-      }, 1500)
-    } else if (hasDescription && !hasImage) {
-      // Has description but no image yet - just show message
-      console.log('⏳ Description ready, waiting for image...')
+        analyzeImageDirectly(capturedMediaUrl, capturedDescription)
+      }, 3000)
     }
 
-    // Cleanup on unmount
     return () => {
-      if (aiDebounceTimer.current) {
-        clearTimeout(aiDebounceTimer.current)
-      }
+      if (aiDebounceTimer.current) clearTimeout(aiDebounceTimer.current)
     }
-  }, [form.description, form.mediaUrl]) // Run when EITHER changes
+  }, [form.mediaUrl]) // ← Only fires when the IMAGE changes, not every keystroke
 
   const notifyAdmin = (incident) => {
     console.log('ADMIN NOTIFICATION: New incident reported:', incident)
@@ -715,6 +728,12 @@ const uploadMedia = async () => {
   // ✅ CHECK VERIFICATION STATUS FIRST
   if (!profile?.verification_status || profile.verification_status === 'unverified') {
     setShowVerificationModal(true)
+    return
+  }
+
+  // 🚫 BLOCK SUBMISSION IF MISMATCH IS DETECTED
+  if (mismatchBlocked) {
+    showNotification('⚠️ Fix the description-photo mismatch before submitting', 'error')
     return
   }
 
@@ -1352,14 +1371,42 @@ const uploadMedia = async () => {
           <textarea
             required rows={4}
             value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
+            onChange={e => {
+              setForm({ ...form, description: e.target.value })
+              // If user edits description after a mismatch, allow re-analysis
+              if (mismatchBlocked) setMismatchBlocked(false)
+            }}
             className="ri-textarea"
             placeholder="Describe what happened… (e.g. May banggaan ng motor sa highway)"
             style={{
               ...inputStyle, resize: 'vertical', minHeight: 80,
-              lineHeight: 1.0, fontFamily: "'DM Sans', sans-serif"
+              lineHeight: 1.0, fontFamily: "'DM Sans', sans-serif",
+              borderColor: mismatchBlocked ? '#f59e0b' : undefined,
+              boxShadow: mismatchBlocked ? '0 0 0 3px rgba(245,158,11,0.15)' : undefined
             }}
           />
+          {mismatchBlocked && (
+            <p style={{ fontSize: 11, color: '#d97706', marginTop: 4, fontWeight: 600 }}>
+              ✏️ Edit description to match your photo, then click{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  if (form.mediaUrl && form.description?.trim().length > 10) {
+                    setMismatchBlocked(false)
+                    showNotification('🤖 Re-analyzing...', 'success')
+                    analyzeImageDirectly(form.mediaUrl, form.description)
+                  }
+                }}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  color: '#d97706', fontWeight: 700, cursor: 'pointer',
+                  textDecoration: 'underline', fontSize: 11
+                }}
+              >
+                Re-analyze
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Incident Type */}
@@ -1463,6 +1510,102 @@ const uploadMedia = async () => {
         {/* Divider */}
         <div style={{ borderTop: '1px solid #f1f5f9', margin: '2px 0' }} />
 
+        {/* MISMATCH WARNING BANNER - Shown inline when blocked */}
+        {mismatchBlocked && (
+          <div style={{
+            padding: '14px 18px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+            border: '2px solid #f59e0b',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            animation: 'slideDown 0.3s ease'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <FiAlertTriangle size={22} color="#d97706" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: '#92400e',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}>
+                  ⚠️ Submission Blocked - Mismatch Detected
+                </p>
+                <p style={{
+                  margin: '2px 0 0',
+                  fontSize: 12,
+                  color: '#78350f',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}>
+                  Your description and photo do not match
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#fff',
+              borderRadius: 10,
+              padding: '12px 14px',
+              border: '1px solid #fbbf24'
+            }}>
+              <p style={{
+                margin: '0 0 8px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#92400e',
+                fontFamily: "'DM Sans', sans-serif"
+              }}>
+                To proceed, please do ONE of the following:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'start', gap: 8 }}>
+                  <span style={{ color: '#d97706', fontWeight: 700, fontSize: 13 }}>1.</span>
+                  <span style={{ fontSize: 12, color: '#78350f' }}>
+                    <strong>Edit your description</strong> to match the photo, then click{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (form.mediaUrl && form.description?.trim().length > 10) {
+                          setMismatchBlocked(false)
+                          showNotification('🤖 Re-analyzing...', 'success')
+                          analyzeImageDirectly(form.mediaUrl, form.description)
+                        }
+                      }}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        color: '#d97706', fontWeight: 700, cursor: 'pointer',
+                        textDecoration: 'underline', fontSize: 12
+                      }}
+                    >
+                      Re-analyze
+                    </button>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'start', gap: 8 }}>
+                  <span style={{ color: '#d97706', fontWeight: 700, fontSize: 13 }}>2.</span>
+                  <span style={{ fontSize: 12, color: '#78350f' }}>
+                    <strong>Replace the photo</strong> with one that matches your description
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Date/Time + Reporter info — single line on desktop/tablet, stacked on mobile */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="reporter-info-grid">
           <div>
@@ -1499,27 +1642,30 @@ const uploadMedia = async () => {
         {/* Submit */}
         <button
           type="submit" 
-          disabled={submitted || submitting || !pin || !form.mediaUrl}
+          disabled={submitted || submitting || !pin || !form.mediaUrl || mismatchBlocked}
           className="submit-btn"
           style={{
             marginTop: 4,
             padding: '13px 0',
             background: submitted ? '#22c55e' : 
+                       mismatchBlocked ? '#f59e0b' :
                        (!pin || !form.mediaUrl) ? '#9ca3af' :
                        'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
             color: '#fff', border: 'none', borderRadius: 12,
             fontSize: 14, fontWeight: 700,
-            cursor: (submitted || submitting || !pin || !form.mediaUrl) ? 'not-allowed' : 'pointer',
+            cursor: (submitted || submitting || !pin || !form.mediaUrl || mismatchBlocked) ? 'not-allowed' : 'pointer',
             fontFamily: "'DM Sans', sans-serif",
             letterSpacing: '0.01em',
-            boxShadow: submitted ? 'none' : (!pin || !form.mediaUrl) ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
+            boxShadow: submitted ? 'none' : mismatchBlocked ? '0 4px 14px rgba(245,158,11,0.3)' : (!pin || !form.mediaUrl) ? 'none' : '0 4px 14px rgba(37,99,235,0.22)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            opacity: (submitted || submitting || !pin || !form.mediaUrl) ? 0.6 : 1
+            opacity: (submitted || submitting || !pin || !form.mediaUrl || mismatchBlocked) ? 0.75 : 1
           }}>
           {submitting
             ? 'Submitting...'
             : submitted
             ? <><FiCheckCircle size={16} /> Submitted!</>
+            : mismatchBlocked
+            ? <><FiAlertTriangle size={15} /> Fix Mismatch to Submit</>
             : (!pin || !form.mediaUrl)
             ? <><FiXCircle size={15} /> {!pin && !form.mediaUrl ? 'Pin Location & Add Photo Required' : !pin ? 'Pin Location Required' : 'Photo Required'}</>
             : <><FiAlertTriangle size={15} /> Submit Report</>
@@ -1527,7 +1673,7 @@ const uploadMedia = async () => {
         </button>
 
         {/* Requirements Helper Text */}
-        {(!pin || !form.mediaUrl) && !submitted && (
+        {(!pin || !form.mediaUrl || mismatchBlocked) && !submitted && (
           <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs font-semibold text-amber-800 mb-2">📋 Required before submitting:</p>
             <div className="space-y-1">
@@ -1551,6 +1697,14 @@ const uploadMedia = async () => {
                   Upload photo evidence
                 </span>
               </div>
+              {mismatchBlocked && (
+                <div className="flex items-center gap-2">
+                  <FiAlertTriangle size={14} color="#d97706" />
+                  <span className="text-xs text-amber-700 font-semibold">
+                    Fix description-photo mismatch (edit description or replace photo)
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
