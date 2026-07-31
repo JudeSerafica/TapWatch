@@ -14,19 +14,6 @@ export default function LandingPage() {
       }}
     >
       <div className="flex flex-col items-center justify-center text-center max-w-md w-full -mt-10">
-        {/* DOTS DECORATION - Top Left */}
-        <div className="absolute top-8 left-8 grid grid-cols-5 gap-2 opacity-20 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
-          ))}
-        </div>
-
-        {/* DOTS DECORATION - Bottom Right */}
-        <div className="absolute bottom-8 right-8 grid grid-cols-5 gap-2 opacity-20 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div key={i} className="w-1.5 h-1.5 rounded-full bg-white" />
-          ))}
-        </div>
 
         {/* LOGO AND TITLE */}
         <div className="mb-15 mt-20">
