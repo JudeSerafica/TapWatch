@@ -1,19 +1,6 @@
 import nodemailer from 'nodemailer'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-)
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-})
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -21,6 +8,35 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // ── Environment check ────────────────────────────────────────────────────
+  const supabaseUrl = process.env.VITE_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+  const gmailUser   = process.env.GMAIL_USER
+  const gmailPass   = process.env.GMAIL_APP_PASSWORD
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('[signup] Missing Supabase env vars')
+    return res.status(500).json({ error: 'Server configuration error: Supabase credentials missing. Set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel environment variables.' })
+  }
+  if (!gmailUser || !gmailPass) {
+    console.error('[signup] Missing Gmail env vars')
+    return res.status(500).json({ error: 'Server configuration error: Gmail credentials missing. Set GMAIL_USER and GMAIL_APP_PASSWORD in Vercel environment variables.' })
+  }
+
+  // ── Init clients inside handler (safe for serverless cold starts) ────────
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  // Use explicit SMTP settings instead of service shorthand — more reliable on serverless
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // SSL
+    auth: {
+      user: gmailUser,
+      pass: gmailPass,
+    },
+  })
 
   const { email, password } = req.body
 
@@ -30,10 +46,9 @@ export default async function handler(req, res) {
   if (password.length < 6)
     return res.status(400).json({ error: 'Password must be at least 6 characters.' })
 
-  const emailLower = email.toLowerCase()
-  const now = new Date()
+  const emailLower = email.toLowerCase().trim()
 
-  // Rate limit: check if OTP was sent in last 30 seconds
+  // ── Rate limit: check if OTP was sent in last 30 seconds ─────────────────
   const { data: existing } = await supabase
     .from('otp_codes')
     .select('created_at')
@@ -53,28 +68,29 @@ export default async function handler(req, res) {
     }
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString()
+  const code      = Math.floor(100000 + Math.random() * 900000).toString()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
 
-  // Delete any previous OTPs for this email, then insert new one
+  // ── Store OTP in Supabase ─────────────────────────────────────────────────
   await supabase.from('otp_codes').delete().eq('email', emailLower)
   const { error: insertError } = await supabase.from('otp_codes').insert({
     email: emailLower,
     code,
-    password, // stored temporarily, deleted after verify
+    password,
     expires_at: expiresAt,
   })
 
   if (insertError) {
     console.error('[OTP INSERT ERROR]', insertError)
-    return res.status(500).json({ error: 'Failed to store verification code.' })
+    return res.status(500).json({ error: `Failed to store verification code: ${insertError.message}` })
   }
 
   console.log(`[OTP] ${emailLower} → ${code}`)
 
+  // ── Send email ────────────────────────────────────────────────────────────
   try {
     const mailResult = await transporter.sendMail({
-      from: `"Tap-Watch" <${process.env.GMAIL_USER}>`,
+      from: `"Tap-Watch" <${gmailUser}>`,
       to: email,
       subject: 'Your Tap-Watch Verification Code',
       html: `
@@ -92,10 +108,18 @@ export default async function handler(req, res) {
     console.log(`[EMAIL SENT] ${emailLower} — Message ID: ${mailResult.messageId}`)
     return res.status(200).json({ message: 'Verification code sent to your email.' })
   } catch (err) {
-    console.error('[EMAIL ERROR]', err.message, err.code)
+    console.error('[EMAIL ERROR]', err.message, err.code, err.responseCode)
+    // Clean up OTP record if email failed
     await supabase.from('otp_codes').delete().eq('email', emailLower)
-    if (err.code === 'EAUTH')
-      return res.status(500).json({ error: 'Gmail auth failed. Check GMAIL_USER and GMAIL_APP_PASSWORD in Vercel environment variables.' })
+
+    if (err.code === 'EAUTH' || err.responseCode === 535) {
+      return res.status(500).json({
+        error: 'Gmail authentication failed. Make sure GMAIL_APP_PASSWORD is a 16-character Google App Password (not your regular Gmail password). Enable 2FA on your Google account first, then generate an App Password at myaccount.google.com/apppasswords.'
+      })
+    }
+    if (err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT') {
+      return res.status(500).json({ error: 'Could not connect to Gmail SMTP. Try again.' })
+    }
     return res.status(500).json({ error: `Failed to send email: ${err.message}` })
   }
 }
