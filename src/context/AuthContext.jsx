@@ -77,6 +77,10 @@ export function AuthProvider({ children }) {
       }
 
       if (result.error) throw result.error
+
+      // Mark this tab as having an active session so ProtectedLanding
+      // will redirect to dashboard within the same tab (cleared on tab close)
+      sessionStorage.setItem('activeWebSession', '1')
     
       return { user: result.data?.user, error: null }
     } catch (error) {

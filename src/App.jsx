@@ -33,15 +33,33 @@ function LoadingScreen() {
   )
 }
 
+// Detect if running as installed PWA/APK (standalone mode)
+function isStandaloneApp() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true // iOS Safari PWA
+  )
+}
+
 // Protected Route Component - redirects to dashboard if logged in
 function ProtectedLanding() {
   const { user, profile, loading } = useAuth()
   
   if (loading) return <LoadingScreen />
-  
-  // If user is logged in, redirect to appropriate dashboard
+
   if (user && profile) {
-    return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+    // On installed PWA/APK: always go straight to dashboard
+    if (isStandaloneApp()) {
+      return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+    }
+    // On web browser: only redirect if user is actively in the same tab session
+    // (sessionStorage is cleared when the tab is closed/reopened)
+    const activeSession = sessionStorage.getItem('activeWebSession')
+    if (activeSession) {
+      return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+    }
+    // Tab was freshly opened — show landing page even if logged in
+    return <LandingPage />
   }
   
   return <LandingPage />
@@ -54,11 +72,23 @@ function AuthRoute({ children }) {
   if (loading) return <LoadingScreen />
   
   // If user is logged in, redirect to appropriate dashboard
+  // (reaching /login or /signup means they are intentionally in a session)
   if (user && profile) {
     return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
   }
   
   return children
+}
+
+// Stamp the session when user is on any protected route within the same tab.
+// This ensures navigating back to "/" within the same tab still redirects to dashboard.
+function SessionStamp() {
+  const { user } = useAuth()
+  const location = useLocation()
+  useEffect(() => {
+    if (user) sessionStorage.setItem('activeWebSession', '1')
+  }, [user, location.pathname])
+  return null
 }
 
 function AppRoutes() {
@@ -92,7 +122,9 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
+    <>
+      <SessionStamp />
+      <Routes>
       {/* Landing page - redirects to dashboard if logged in */}
       <Route path="/" element={<ProtectedLanding />} />
       
@@ -117,6 +149,7 @@ function AppRoutes() {
       <Route path="/admin-verification" element={<AdminLayout><AdminVerificationReview /></AdminLayout>} />
       <Route path="/admin-settings" element={<AdminLayout><SystemSettings /></AdminLayout>} />
     </Routes>
+    </>
   )
 }
 
