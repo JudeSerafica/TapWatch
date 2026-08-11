@@ -11,12 +11,10 @@ export default async function handler(req, res) {
     SUPABASE_SERVICE_ROLE_KEY:      !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     VITE_SUPABASE_SERVICE_ROLE_KEY: !!process.env.VITE_SUPABASE_SERVICE_ROLE_KEY,
     VITE_SUPABASE_ANON_KEY:         !!process.env.VITE_SUPABASE_ANON_KEY,
-    RESEND_API_KEY:                 !!process.env.RESEND_API_KEY,
-    RESEND_API_KEY_prefix:          process.env.RESEND_API_KEY
-                                      ? process.env.RESEND_API_KEY.substring(0, 8) + '...'
-                                      : 'NOT SET',
     GMAIL_USER:                     !!process.env.GMAIL_USER,
+    GMAIL_USER_value:               process.env.GMAIL_USER || 'NOT SET',
     GMAIL_APP_PASSWORD:             !!process.env.GMAIL_APP_PASSWORD,
+    RESEND_API_KEY:                 !!process.env.RESEND_API_KEY,
     OPENAI_API_KEY:                 !!process.env.OPENAI_API_KEY,
   }
 
@@ -40,8 +38,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Test Supabase connection
-  let supabaseTest = 'skipped (no key)'
+  // Test Supabase connection  let supabaseTest = 'skipped (no key)'
   if (process.env.VITE_SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY)) {
     try {
       const { createClient } = await import('@supabase/supabase-js')

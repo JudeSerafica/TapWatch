@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -9,14 +10,15 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   // ── Environment check ─────────────────────────────────────────────────────
-  const supabaseUrl    = process.env.VITE_SUPABASE_URL
-  const supabaseKey    = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-  const resendKey      = process.env.RESEND_API_KEY
+  const supabaseUrl = process.env.VITE_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+  const gmailUser   = process.env.GMAIL_USER
+  const gmailPass   = process.env.GMAIL_APP_PASSWORD
 
   if (!supabaseUrl || !supabaseKey)
     return res.status(500).json({ error: 'Server configuration error: Supabase credentials missing.' })
-  if (!resendKey)
-    return res.status(500).json({ error: 'Server configuration error: RESEND_API_KEY is missing.' })
+  if (!gmailUser || !gmailPass)
+    return res.status(500).json({ error: 'Server configuration error: Gmail credentials missing.' })
 
   const { email, password } = req.body
   if (!email || !password)
@@ -63,47 +65,38 @@ export default async function handler(req, res) {
 
   console.log(`[OTP] ${emailLower} → ${code}`)
 
-  // ── Send email via Resend (HTTPS — works on Vercel) ───────────────────────
+  // ── Send email via Gmail (SMTP via Nodemailer) ────────────────────────────
   try {
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass,
       },
-      body: JSON.stringify({
-        from: 'Tap-Watch <onboarding@resend.dev>',
-        to: [email],
-        subject: 'Your Tap-Watch Verification Code',
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px;">
-            <h2 style="color:#1d4ed8;margin-bottom:8px;">Tap-Watch</h2>
-            <p style="color:#374151;font-size:15px;">Your verification code is:</p>
-            <div style="font-size:42px;font-weight:bold;letter-spacing:12px;color:#1d4ed8;margin:24px 0;">${code}</div>
-            <p style="color:#6b7280;font-size:13px;">This code expires in <strong>5 minutes</strong>.</p>
-            <p style="color:#6b7280;font-size:13px;">If you did not request this, you can safely ignore this email.</p>
-            <hr style="margin:24px 0;border-color:#e5e7eb;"/>
-            <p style="color:#9ca3af;font-size:12px;">Barangay East Tapinac — Community Emergency Monitoring System</p>
-          </div>
-        `,
-      }),
     })
 
-    const result = await emailRes.json()
+    await transporter.sendMail({
+      from: `"Tap-Watch" <${gmailUser}>`,
+      to: email,
+      subject: 'Your Tap-Watch Verification Code',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px;">
+          <h2 style="color:#1d4ed8;margin-bottom:8px;">Tap-Watch</h2>
+          <p style="color:#374151;font-size:15px;">Your verification code is:</p>
+          <div style="font-size:42px;font-weight:bold;letter-spacing:12px;color:#1d4ed8;margin:24px 0;">${code}</div>
+          <p style="color:#6b7280;font-size:13px;">This code expires in <strong>5 minutes</strong>.</p>
+          <p style="color:#6b7280;font-size:13px;">If you did not request this, you can safely ignore this email.</p>
+          <hr style="margin:24px 0;border-color:#e5e7eb;"/>
+          <p style="color:#9ca3af;font-size:12px;">Barangay East Tapinac — Community Emergency Monitoring System</p>
+        </div>
+      `,
+    })
 
-    if (!emailRes.ok) {
-      console.error('[RESEND ERROR]', emailRes.status, result)
-      await supabase.from('otp_codes').delete().eq('email', emailLower)
-      return res.status(500).json({
-        error: `Failed to send email: ${result.message || result.name || JSON.stringify(result)}`
-      })
-    }
-
-    console.log(`[EMAIL SENT] ${emailLower} — Resend ID: ${result.id}`)
+    console.log(`[EMAIL SENT] ${emailLower} via Gmail`)
     return res.status(200).json({ message: 'Verification code sent to your email.' })
 
   } catch (err) {
-    console.error('[EMAIL FETCH ERROR]', err.message)
+    console.error('[GMAIL ERROR]', err.message)
     await supabase.from('otp_codes').delete().eq('email', emailLower)
     return res.status(500).json({ error: `Failed to send email: ${err.message}` })
   }
