@@ -20,7 +20,10 @@ export const getIncidents = async (filters = {}) => {
     query = query.eq('purok', filters.purok)
   }
   if (filters.search) {
-    query = query.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`)
+    // Sanitize before interpolating into a PostgREST filter string.
+    // Characters like , ) . are parsed as filter syntax inside .or() strings.
+    const safe = filters.search.replace(/[%_\\]/g, '\\$&')
+    query = query.or(`description.ilike.%${safe}%,location.ilike.%${safe}%`)
   }
 
   const { data, error } = await query
@@ -383,11 +386,14 @@ export const getHotspots = async () => {
 export const checkDuplicateIncident = async (description, location, timeThresholdMinutes = 30) => {
   const threshold = new Date(Date.now() - timeThresholdMinutes * 60 * 1000).toISOString()
   
+  const safeDesc = description.substring(0, 50).replace(/[%_\\]/g, '\\$&')
+  const safeLoc  = location.replace(/[%_\\]/g, '\\$&')
+
   const { data, error } = await supabase
     .from('incidents')
     .select('*')
     .gte('created_at', threshold)
-    .or(`description.ilike.%${description.substring(0, 50)}%,location.ilike.%${location}%`)
+    .or(`description.ilike.%${safeDesc}%,location.ilike.%${safeLoc}%`)
     .limit(10)
 
   if (error) return { isDuplicate: false, error }

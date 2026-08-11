@@ -351,6 +351,7 @@ export default function ReportIncident() {
   const { profile } = useAuth()
   const { isCollapsed } = useSidebar()
   const [pin, setPin] = useState(null)
+  const [reportMapSatellite, setReportMapSatellite] = useState(true)
   const [aiType, setAiType] = useState('')
   const [aiAnalysis, setAiAnalysis] = useState(null) // Store full AI analysis
   const [aiRecommendations, setAiRecommendations] = useState([]) // Store recommendations
@@ -1327,13 +1328,49 @@ const uploadMedia = async () => {
 
     {/* LEFT — Map Section (unchanged) */}
     <SectionCard icon={FiMapPin} label="Pin the Location" iconColor="#2563eb">
-      <div style={{ height: '560px' }} className="report-map-container">
+      <div style={{ height: '560px', position: 'relative' }} className="report-map-container">
         <MapContainer center={[14.835, 120.283]} zoom={16} style={{ height: '100%', width: '100%', zIndex: 1 }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {reportMapSatellite ? (
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+              maxZoom={19}
+            />
+          ) : (
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          )}
           <MapBoundsHandler />
           <MapClickHandler onClick={handleMapClick} onBoundaryError={handleBoundaryError} />
           {pin && <Marker position={pin} icon={pinIcon} />}
         </MapContainer>
+
+        {/* Satellite/Street Toggle */}
+        <div style={{
+          position: 'absolute', top: 10, right: 10, zIndex: 1000,
+          display: 'flex', borderRadius: 8, overflow: 'hidden',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+        }}>
+          <button
+            type="button"
+            onClick={() => setReportMapSatellite(false)}
+            style={{
+              padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: 'none', transition: 'all 0.2s',
+              background: !reportMapSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+              color: !reportMapSatellite ? '#fff' : '#374151',
+            }}
+          >Street</button>
+          <button
+            type="button"
+            onClick={() => setReportMapSatellite(true)}
+            style={{
+              padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: 'none', transition: 'all 0.2s',
+              background: reportMapSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+              color: reportMapSatellite ? '#fff' : '#374151',
+            }}
+          >Satellite</button>
+        </div>
       </div>
 
       {pin && (

@@ -121,6 +121,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [isRequestingPermission, setIsRequestingPermission] = useState(false)
   const [locationWarning, setLocationWarning] = useState(null)
+  const [isSatellite, setIsSatellite] = useState(true)
 
   // Get location with proper permission handling
   const requestLocationPermission = () => {
@@ -574,7 +575,15 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                     className="h-full w-full"
                     style={{ zIndex: 1 }}
                   >
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    {isSatellite ? (
+                      <TileLayer
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        attribution="Tiles &copy; Esri"
+                        maxZoom={19}
+                      />
+                    ) : (
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    )}
                     <MapBoundsHandler />
                     <FlyToLocationModal location={location} />
                     <Marker
@@ -595,6 +604,32 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                       </Popup>
                     </Marker>
                   </MapContainer>
+
+                  {/* Satellite/Street Toggle */}
+                  <div style={{
+                    position: 'absolute', top: 8, right: 8, zIndex: 1000,
+                    display: 'flex', borderRadius: 8, overflow: 'hidden',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+                  }}>
+                    <button
+                      onClick={() => setIsSatellite(false)}
+                      style={{
+                        padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        border: 'none', transition: 'all 0.2s',
+                        background: !isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                        color: !isSatellite ? '#fff' : '#374151',
+                      }}
+                    >Street</button>
+                    <button
+                      onClick={() => setIsSatellite(true)}
+                      style={{
+                        padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        border: 'none', transition: 'all 0.2s',
+                        background: isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                        color: isSatellite ? '#fff' : '#374151',
+                      }}
+                    >Satellite</button>
+                  </div>
                   
                   {/* Coordinates Badge */}
                   <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-red-200 shadow-lg">

@@ -28,17 +28,24 @@ CREATE POLICY "Anyone can view active emergency contacts" ON emergency_contacts
 CREATE POLICY "Authenticated users can view all emergency contacts" ON emergency_contacts
   FOR SELECT USING (auth.role() = 'authenticated');
 
--- Allow authenticated users to insert emergency contacts
-CREATE POLICY "Authenticated users can create emergency contacts" ON emergency_contacts
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
--- Allow authenticated users to update emergency contacts
-CREATE POLICY "Authenticated users can update emergency contacts" ON emergency_contacts
-  FOR UPDATE USING (auth.role() = 'authenticated');
-
--- Allow authenticated users to delete emergency contacts
-CREATE POLICY "Authenticated users can delete emergency contacts" ON emergency_contacts
-  FOR DELETE USING (auth.role() = 'authenticated');
+-- Allow all authenticated users to insert emergency contacts
+-- ⚠️ SECURITY FIX: Only admins can manage emergency contacts
+CREATE POLICY "Admins can manage emergency contacts" ON emergency_contacts
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'admin'
+    )
+  );
 
 -- 4. Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_emergency_contacts_position ON emergency_contacts(position);
@@ -111,3 +118,21 @@ FROM emergency_contacts;
 
 -- Show current records
 SELECT 'Current Records:' as info, * FROM emergency_contacts ORDER BY created_at DESC;
+
+-- ============================================
+-- SECURITY: Protect profiles.role from self-elevation
+-- Run this in Supabase SQL Editor to ensure residents
+-- cannot UPDATE their own role to 'admin'.
+-- ============================================
+
+-- Drop any overly permissive existing UPDATE policy on profiles
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+
+-- Recreate: users can update their own row but NOT change the role column
+CREATE POLICY "Users update own profile but not role" ON profiles
+  FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id
+    AND role = (SELECT role FROM profiles WHERE id = auth.uid())
+  );

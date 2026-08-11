@@ -32,11 +32,13 @@ export const advancedSearchIncidents = async (filters = {}) => {
         )
       `)
 
-    // Text search (description, location, reporter name)
+    // Text search (description, location) — use chained .ilike() to avoid
+    // injecting raw user input into a PostgREST .or() filter string.
     if (filters.search) {
+      const safe = filters.search.replace(/[%_\\]/g, '\\$&') // escape LIKE wildcards only
       query = query.or(
-        `description.ilike.%${filters.search}%,` +
-        `location.ilike.%${filters.search}%`
+        `description.ilike.%${safe}%,` +
+        `location.ilike.%${safe}%`
       )
     }
 

@@ -25,7 +25,6 @@ export default function ResidentSidebar() {
   const handleSignOut = async () => {
     setShowSignOutModal(false)
     await signOut()
-    // signOut will handle the redirect
   }
 
   return (
@@ -36,6 +35,8 @@ export default function ResidentSidebar() {
           transition-all duration-300 ease-in-out
           ${isCollapsed ? 'w-16' : 'w-64'}
         `}
+        onMouseEnter={() => setIsCollapsed(false)}
+        onMouseLeave={() => setIsCollapsed(true)}
         style={{
           background: `
             linear-gradient(

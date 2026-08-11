@@ -107,6 +107,7 @@ export default function AdminMap() {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [statusFilter, setStatusFilter] = useState('All Status')
+  const [isSatellite, setIsSatellite] = useState(true)
 
   useEffect(() => {
     const loadIncidents = async () => {
@@ -264,6 +265,7 @@ export default function AdminMap() {
 
           {/* MAP */}
           <div className="bg-white rounded-xl border overflow-hidden h-100 md:h-[635px]">
+            <div className="relative h-full">
             <MapContainer
               center={[14.835, 120.283]}
               zoom={15}
@@ -272,7 +274,15 @@ export default function AdminMap() {
               className="h-full w-full"
               style={{ zIndex: 1 }}
             >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {isSatellite ? (
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+                  maxZoom={19}
+                />
+              ) : (
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              )}
 
               {/* ✅ FIXED MAP BOUNDS */}
               <MapBoundsHandler />
@@ -325,6 +335,33 @@ export default function AdminMap() {
                 )
               })}
             </MapContainer>
+
+            {/* Satellite/Street Toggle */}
+            <div style={{
+              position: 'absolute', top: 10, right: 10, zIndex: 1000,
+              display: 'flex', borderRadius: 8, overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+            }}>
+              <button
+                onClick={() => setIsSatellite(false)}
+                style={{
+                  padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: !isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: !isSatellite ? '#fff' : '#374151',
+                }}
+              >Street</button>
+              <button
+                onClick={() => setIsSatellite(true)}
+                style={{
+                  padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: isSatellite ? '#fff' : '#374151',
+                }}
+              >Satellite</button>
+            </div>
+            </div>
           </div>
 
           <p className="text-center text-xs text-gray-400">

@@ -65,6 +65,24 @@ function ProtectedLanding() {
   return <LandingPage />
 }
 
+// Require authenticated user — redirects to /login if not logged in
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+  if (loading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />
+  return children
+}
+
+// Require admin role — redirects to /dashboard if not an admin
+function RequireAdmin({ children }) {
+  const { user, profile, loading } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  if (profile?.role !== 'admin') return <Navigate to="/dashboard" replace />
+  return children
+}
+
 // Auth Route Component - redirects to dashboard if already logged in
 function AuthRoute({ children }) {
   const { user, profile, loading } = useAuth()
@@ -132,22 +150,22 @@ function AppRoutes() {
       <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
       
-      {/* Protected routes */}
-      <Route path="/profile-setup" element={<ProfileSetup />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/report" element={<ReportIncident />} />
-      <Route path="/resident-map" element={<IncidentMap />} />
-      <Route path="/verification" element={<VerificationCenter />} />
-      
-      {/* Admin routes with AdminLayout */}
-      <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-      <Route path="/admin-map" element={<AdminLayout><AdminMap /></AdminLayout>} />
-      <Route path="/admin-reports" element={<AdminLayout><AllReports /></AdminLayout>} />
-      <Route path="/admin-analytics" element={<AdminLayout><Analytics /></AdminLayout>} />
-      <Route path="/admin-contacts" element={<AdminLayout><EmergencyContacts /></AdminLayout>} />
-      <Route path="/admin-verification" element={<AdminLayout><AdminVerificationReview /></AdminLayout>} />
-      <Route path="/admin-settings" element={<AdminLayout><SystemSettings /></AdminLayout>} />
+      {/* Protected routes — require authenticated user */}
+      <Route path="/profile-setup" element={<RequireAuth><ProfileSetup /></RequireAuth>} />
+      <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+      <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+      <Route path="/report" element={<RequireAuth><ReportIncident /></RequireAuth>} />
+      <Route path="/resident-map" element={<RequireAuth><IncidentMap /></RequireAuth>} />
+      <Route path="/verification" element={<RequireAuth><VerificationCenter /></RequireAuth>} />
+
+      {/* Admin routes — require admin role */}
+      <Route path="/admin" element={<RequireAdmin><AdminLayout><AdminDashboard /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-map" element={<RequireAdmin><AdminLayout><AdminMap /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-reports" element={<RequireAdmin><AdminLayout><AllReports /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-analytics" element={<RequireAdmin><AdminLayout><Analytics /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-contacts" element={<RequireAdmin><AdminLayout><EmergencyContacts /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-verification" element={<RequireAdmin><AdminLayout><AdminVerificationReview /></AdminLayout></RequireAdmin>} />
+      <Route path="/admin-settings" element={<RequireAdmin><AdminLayout><SystemSettings /></AdminLayout></RequireAdmin>} />
     </Routes>
     </>
   )

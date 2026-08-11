@@ -5,7 +5,7 @@ import { sendOTP, verifyOTP } from '../lib/otp'
 import { FaShieldAlt, FaUsers, FaBell, FaEye, FaEyeSlash } from "react-icons/fa";
  
 // API endpoints
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+import API_BASE_URL from '../config'
 const SEND_OTP_URL = `${API_BASE_URL}/api/signup`
 const VERIFY_OTP_URL = `${API_BASE_URL}/api/verify`
  

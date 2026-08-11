@@ -19,6 +19,7 @@ const typeColors = {
 export default function HeatMapAnalytics() {
   const [incidents, setIncidents] = useState([])
   const [timeRange, setTimeRange] = useState('7d') // 7d, 30d, 90d, 1y
+  const [isSatellite, setIsSatellite] = useState(true)
   const [selectedType, setSelectedType] = useState('all')
   const [hotspots, setHotspots] = useState([])
   const [patterns, setPatterns] = useState({})
@@ -214,13 +215,21 @@ export default function HeatMapAnalytics() {
 
           {/* Map */}
           <div className="bg-white rounded-xl border overflow-hidden">
-            <div className="h-96 md:h-[500px]">
+            <div className="h-96 md:h-[500px] relative">
               <MapContainer
                 center={[14.835, 120.283]}
                 zoom={15}
                 style={{ height: '100%', width: '100%' }}
               >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {isSatellite ? (
+                  <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution="Tiles &copy; Esri"
+                    maxZoom={19}
+                  />
+                ) : (
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                )}
 
                 {/* Heat circles */}
                 {hotspots.map((spot, index) => {
@@ -271,6 +280,32 @@ export default function HeatMapAnalytics() {
                   )
                 })}
               </MapContainer>
+
+              {/* Satellite/Street Toggle */}
+              <div style={{
+                position: 'absolute', top: 10, right: 10, zIndex: 1000,
+                display: 'flex', borderRadius: 8, overflow: 'hidden',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+              }}>
+                <button
+                  onClick={() => setIsSatellite(false)}
+                  style={{
+                    padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: 'none', transition: 'all 0.2s',
+                    background: !isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                    color: !isSatellite ? '#fff' : '#374151',
+                  }}
+                >Street</button>
+                <button
+                  onClick={() => setIsSatellite(true)}
+                  style={{
+                    padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: 'none', transition: 'all 0.2s',
+                    background: isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                    color: isSatellite ? '#fff' : '#374151',
+                  }}
+                >Satellite</button>
+              </div>
             </div>
           </div>
 

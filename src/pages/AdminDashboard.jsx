@@ -163,6 +163,8 @@ function IncidentMapModal({ incident, onClose }) {
     }
   }
 
+  const [isSatellite, setIsSatellite] = useState(true)
+
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape') {
@@ -236,10 +238,18 @@ function IncidentMapModal({ incident, onClose }) {
               className="z-0"
             >
               <ResizeMap />
-              <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              {isSatellite ? (
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  attribution="Tiles &copy; Esri"
+                  maxZoom={19}
+                />
+              ) : (
+                <TileLayer
+                  attribution='&copy; OpenStreetMap contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+              )}
               <MapBoundsHandler />
               <FlyToIncident incident={incident} />
               <Marker
@@ -257,6 +267,34 @@ function IncidentMapModal({ incident, onClose }) {
               <div className="text-center">
                 <p>No location data available</p>
               </div>
+            </div>
+          )}
+
+          {/* Satellite/Street Toggle */}
+          {hasCoords && (
+            <div style={{
+              position: 'absolute', top: 10, right: 10, zIndex: 1000,
+              display: 'flex', borderRadius: 8, overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+            }}>
+              <button
+                onClick={() => setIsSatellite(false)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: !isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: !isSatellite ? '#fff' : '#374151',
+                }}
+              >Street</button>
+              <button
+                onClick={() => setIsSatellite(true)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: isSatellite ? '#fff' : '#374151',
+                }}
+              >Satellite</button>
             </div>
           )}
         </div>

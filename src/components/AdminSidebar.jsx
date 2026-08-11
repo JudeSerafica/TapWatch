@@ -77,6 +77,8 @@ export default function AdminSidebar() {
           transition-all duration-300 ease-in-out
           ${isCollapsed ? 'w-16' : 'w-64'}
         `}
+        onMouseEnter={() => setIsCollapsed(false)}
+        onMouseLeave={() => setIsCollapsed(true)}
         style={{
           background: `
             linear-gradient(

@@ -213,6 +213,8 @@ function IncidentMapModal({ incident, onClose }) {
     }
   }
 
+  const [isSatellite, setIsSatellite] = useState(true)
+
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape') {
@@ -333,10 +335,18 @@ function IncidentMapModal({ incident, onClose }) {
             >
               <ResizeMap />
 
-              <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              {isSatellite ? (
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  attribution="Tiles &copy; Esri"
+                  maxZoom={19}
+                />
+              ) : (
+                <TileLayer
+                  attribution='&copy; OpenStreetMap contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+              )}
 
               <MapBoundsHandler />
 
@@ -369,6 +379,34 @@ function IncidentMapModal({ incident, onClose }) {
 
                 <p>No location data available</p>
               </div>
+            </div>
+          )}
+
+          {/* Satellite/Street Toggle */}
+          {hasCoords && (
+            <div style={{
+              position: 'absolute', top: 10, right: 10, zIndex: 1000,
+              display: 'flex', borderRadius: 8, overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+            }}>
+              <button
+                onClick={() => setIsSatellite(false)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: !isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: !isSatellite ? '#fff' : '#374151',
+                }}
+              >Street</button>
+              <button
+                onClick={() => setIsSatellite(true)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: isSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: isSatellite ? '#fff' : '#374151',
+                }}
+              >Satellite</button>
             </div>
           )}
         </div>
@@ -1354,70 +1392,58 @@ export default function Dashboard() {
 
               <button
                 onClick={() => navigate('/report')}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-red-300 hover:bg-red-50 transition flex flex-col items-start"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-red-300 hover:bg-red-50 transition flex items-center justify-between"
               >
-                <div className="text-2xl mb-2">
-                  <FaMapPin style={{ color: 'red' }} />
+                <div className="flex flex-col items-start">
+                  <div className="text-2xl mb-2">
+                    <FaMapPin style={{ color: 'red' }} />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Report Incident</h3>
+                  <p className="text-xs text-gray-600">Submit a report</p>
                 </div>
-
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Report Incident
-                </h3>
-
-                <p className="text-xs text-gray-600">
-                  Submit a report
-                </p>
+                <span className="text-gray-300 text-5xl font-light ml-2">›</span>
               </button>
 
               <button
                 onClick={() => navigate('/resident-map')}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-blue-300 hover:bg-blue-50 transition flex flex-col items-start"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-blue-300 hover:bg-blue-50 transition flex items-center justify-between"
               >
-                <div className="text-2xl mb-2">
-                  <FaMapMarkedAlt style={{ color: 'blue' }} />
+                <div className="flex flex-col items-start">
+                  <div className="text-2xl mb-2">
+                    <FaMapMarkedAlt style={{ color: 'blue' }} />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm">View Map</h3>
+                  <p className="text-xs text-gray-600">See nearby incidents</p>
                 </div>
-
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  View Map
-                </h3>
-
-                <p className="text-xs text-gray-600">
-                  See nearby incidents
-                </p>
+                <span className="text-gray-300 text-5xl font-light ml-2">›</span>
               </button>
 
               <button
                 onClick={() => setAlertsModalOpen(true)}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-green-300 hover:bg-green-50 transition flex flex-col items-start cursor-pointer"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-green-300 hover:bg-green-50 transition flex items-center justify-between cursor-pointer"
               >
-                <div className="text-2xl mb-2">
-                  <FaBell className="text-yellow-500" />
+                <div className="flex flex-col items-start">
+                  <div className="text-2xl mb-2">
+                    <FaBell className="text-yellow-500" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Community Alerts</h3>
+                  <p className="text-xs text-gray-600">Latest updates</p>
                 </div>
-
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Community Alerts
-                </h3>
-
-                <p className="text-xs text-gray-600">
-                  Latest updates
-                </p>
+                <span className="text-gray-300 text-5xl font-light ml-2">›</span>
               </button>
 
               <button
                 onClick={() => setEmergencyModalOpen(true)}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-orange-300 hover:bg-orange-50 transition flex flex-col items-start cursor-pointer"
+                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-orange-300 hover:bg-orange-50 transition flex items-center justify-between cursor-pointer"
               >
-                <div className="text-2xl mb-2">
-                  <BsFillTelephoneFill className="text-red-400" />
+                <div className="flex flex-col items-start">
+                  <div className="text-2xl mb-2">
+                    <BsFillTelephoneFill className="text-red-400" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Barangay Officials</h3>
+                  <p className="text-xs text-gray-600">Call for immediate help</p>
                 </div>
-
-                <h3 className="font-semibold text-gray-900 text-sm">
-                  Barangay Officials
-                </h3>
-
-                <p className="text-xs text-gray-600">
-                  Call for immediate help
-                </p>
+                <span className="text-gray-300 text-5xl font-light ml-2">›</span>
               </button>
 
             </div>

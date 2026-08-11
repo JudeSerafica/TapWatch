@@ -664,6 +664,7 @@ export default function AllReports() {
   const [loading, setLoading] = useState(true)
 
   const [selectedIncident, setSelectedIncident] = useState(null)
+  const [allReportsMapSatellite, setAllReportsMapSatellite] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [officialNotes, setOfficialNotes] = useState('')
@@ -1746,7 +1747,15 @@ export default function AllReports() {
               className="h-full w-full"
               style={{ zIndex: 1 }}
             >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {allReportsMapSatellite ? (
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  attribution="Tiles &copy; Esri"
+                  maxZoom={19}
+                />
+              ) : (
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              )}
               <MapBoundsHandler />
               <FlyToIncidentModal incident={selectedIncident} />
               <Marker
@@ -1762,6 +1771,32 @@ export default function AllReports() {
               </Marker>
             </MapContainer>
             
+            {/* Satellite/Street Toggle */}
+            <div style={{
+              position: 'absolute', top: 8, right: 8, zIndex: 1000,
+              display: 'flex', borderRadius: 8, overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)'
+            }}>
+              <button
+                onClick={() => setAllReportsMapSatellite(false)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: !allReportsMapSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: !allReportsMapSatellite ? '#fff' : '#374151',
+                }}
+              >Street</button>
+              <button
+                onClick={() => setAllReportsMapSatellite(true)}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.2s',
+                  background: allReportsMapSatellite ? '#2563eb' : 'rgba(255,255,255,0.9)',
+                  color: allReportsMapSatellite ? '#fff' : '#374151',
+                }}
+              >Satellite</button>
+            </div>
+
             {/* Coordinates Badge */}
             <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-gray-200 text-[10px] font-mono text-gray-700 shadow-sm">
               <div>📍 {selectedIncident.latitude.toFixed(6)}</div>
