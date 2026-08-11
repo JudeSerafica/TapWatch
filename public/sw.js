@@ -1,6 +1,6 @@
 // Service Worker for TapWatch PWA
-const CACHE_NAME = 'tapwatch-v2';
-const RUNTIME_CACHE = 'tapwatch-runtime-v2';
+const CACHE_NAME = 'tapwatch-v3';
+const RUNTIME_CACHE = 'tapwatch-runtime-v3';
 
 // Essential files to cache on install
 const urlsToCache = [
@@ -47,10 +47,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Cache API only supports GET — let all other methods (POST, PUT, DELETE…)
+  // pass straight through without touching the cache.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Check if valid response
+        // Only cache valid basic (same-origin) 200 responses
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
@@ -69,7 +75,7 @@ self.addEventListener('fetch', (event) => {
           if (response) {
             return response;
           }
-          
+
           // Return offline page for navigation requests
           if (event.request.mode === 'navigate') {
             return caches.match('/index.html');

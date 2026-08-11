@@ -160,6 +160,10 @@ export function AuthProvider({ children }) {
       await fetchProfile(user.id, user)
       return { error: null }
     } catch (error) {
+      // Provide a human-readable message for unique constraint violations
+      if (error.code === '23505' || (error.message && error.message.includes('profiles_phone_key'))) {
+        return { error: 'That contact number is already registered to another account. Please use a different number.' }
+      }
       return { error: error.message }
     }
   }

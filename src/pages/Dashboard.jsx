@@ -43,6 +43,7 @@ import { BsFillTelephoneFill } from 'react-icons/bs'
 // Calling System Integration
 import { useCallManager } from '../hooks/useCallManager'
 import CallModal from '../components/CallModal'
+import TermsOfUseModal from '../components/TermsOfUseModal'
 
 /* ─────────────────────────────────────────────
    FIX LEAFLET DEFAULT ICON ISSUE
@@ -1019,6 +1020,29 @@ export default function Dashboard() {
 
   const [showProfileSetupModal, setShowProfileSetupModal] = useState(false)
 
+  // Terms of Use modal — show once per new user (tracked in localStorage)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+
+  useEffect(() => {
+    if (!profile?.id || profile?.role === 'admin') return
+    const key = `terms_accepted_${profile.id}`
+    if (!localStorage.getItem(key)) {
+      setShowTermsModal(true)
+    }
+  }, [profile?.id, profile?.role])
+
+  const handleTermsAccept = () => {
+    if (profile?.id) {
+      localStorage.setItem(`terms_accepted_${profile.id}`, 'true')
+    }
+    setShowTermsModal(false)
+  }
+
+  const handleTermsCancel = () => {
+    // Just close — they can use the app but will see it again next session
+    setShowTermsModal(false)
+  }
+
   // Calling System Integration
   const {
     incomingCall,
@@ -1270,6 +1294,14 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+
+      {/* Terms of Use modal — shown once to new residents */}
+      {showTermsModal && (
+        <TermsOfUseModal
+          onAccept={handleTermsAccept}
+          onCancel={handleTermsCancel}
+        />
+      )}
 
       <ResidentSidebar />
 
