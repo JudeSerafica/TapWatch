@@ -1020,16 +1020,9 @@ export default function Dashboard() {
 
   const [showProfileSetupModal, setShowProfileSetupModal] = useState(false)
 
-  // Terms of Use modal — show once per new user (tracked in localStorage)
+  // Terms of Use modal — show once per new user AFTER profile is complete
+  // (opened programmatically by handleCompleteProfile, not on mount)
   const [showTermsModal, setShowTermsModal] = useState(false)
-
-  useEffect(() => {
-    if (!profile?.id || profile?.role === 'admin') return
-    const key = `terms_accepted_${profile.id}`
-    if (!localStorage.getItem(key)) {
-      setShowTermsModal(true)
-    }
-  }, [profile?.id, profile?.role])
 
   const handleTermsAccept = () => {
     if (profile?.id) {
@@ -1039,7 +1032,7 @@ export default function Dashboard() {
   }
 
   const handleTermsCancel = () => {
-    // Just close — they can use the app but will see it again next session
+    // Just close — will show again next session until they accept
     setShowTermsModal(false)
   }
 
@@ -1075,6 +1068,14 @@ export default function Dashboard() {
         purok: profile.purok || '',
         address: profile.address || '',
       })
+    } else if (
+      profile?.id &&
+      profile?.role !== 'admin' &&
+      profile?.phone && profile?.address && profile?.purok &&
+      !localStorage.getItem(`terms_accepted_${profile.id}`)
+    ) {
+      // Profile is already complete but terms not yet accepted — show terms directly
+      setShowTermsModal(true)
     }
   }, [profile])
 
@@ -1142,6 +1143,10 @@ export default function Dashboard() {
       setProfileError(error)
     } else {
       setShowProfileSetupModal(false)
+      // Show Terms of Use next — only if not yet accepted
+      if (profile?.id && !localStorage.getItem(`terms_accepted_${profile.id}`)) {
+        setShowTermsModal(true)
+      }
     }
   }
 
