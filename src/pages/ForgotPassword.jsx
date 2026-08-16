@@ -32,9 +32,12 @@ export default function ForgotPassword() {
       return
     }
 
-    // Determine the correct redirect URL based on role
-    const origin = window.location.origin
-    const redirectTo = `${origin}/reset-password`
+    // Use the configured app URL so the reset link always points to the correct
+    // environment. VITE_APP_URL must be set to your production domain in Vercel
+    // env vars (e.g. https://tap-watch.vercel.app). Falls back to the current
+    // origin so localhost still works during development.
+    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
+    const redirectTo = `${appUrl}/reset-password`
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
       redirectTo,

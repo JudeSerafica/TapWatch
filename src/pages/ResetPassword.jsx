@@ -88,23 +88,33 @@ export default function ResetPassword() {
     }
 
     setSubmitting(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    setSubmitting(false)
 
-    if (updateError) {
-      if (updateError.message?.includes('same password')) {
-        setError('New password must be different from your current password.')
-      } else if (updateError.message?.includes('expired') || updateError.message?.includes('invalid')) {
-        setError('This reset link has expired or already been used. Please request a new one.')
-      } else {
-        setError('Failed to update password. Please try again.')
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+
+      if (updateError) {
+        setSubmitting(false)
+        if (updateError.message?.includes('same password')) {
+          setError('New password must be different from your current password.')
+        } else if (updateError.message?.includes('expired') || updateError.message?.includes('invalid')) {
+          setError('This reset link has expired or already been used. Please request a new one.')
+        } else {
+          setError('Failed to update password. Please try again.')
+        }
+        return
       }
-      return
-    }
 
-    // Sign out so the user logs in fresh with the new password
-    await supabase.auth.signOut()
-    setSuccess(true)
+      // Show success immediately — don't wait for signOut to finish
+      setSuccess(true)
+      setSubmitting(false)
+
+      // Sign out in the background so the user starts a fresh session
+      supabase.auth.signOut().catch(() => {})
+
+    } catch {
+      setSubmitting(false)
+      setError('An unexpected error occurred. Please try again.')
+    }
   }
 
   // ── Invalid / expired link ──────────────────────────────────────────────
