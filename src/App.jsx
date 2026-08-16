@@ -8,6 +8,7 @@ import SplashScreen from './components/SplashScreen'
 import AdminLayout from './components/AdminLayout'
 import OfflineIndicator from './components/OfflineIndicator'
 import ErrorBoundary from './components/ErrorBoundary'
+import SuspendedScreen from './components/SuspendedScreen'
 
 // ── Lazy-loaded pages — each becomes its own chunk at build time ──────────
 // Resident pages
@@ -21,6 +22,9 @@ const IncidentMap          = lazy(() => import('./pages/IncidentMap'))
 const Profile              = lazy(() => import('./pages/Profile'))
 const VerificationCenter   = lazy(() => import('./pages/VerificationCenter'))
 
+// Admin login page
+const AdminLogin              = lazy(() => import('./pages/AdminLogin'))
+
 // Admin pages — residents never download these chunks
 const AdminDashboard          = lazy(() => import('./pages/AdminDashboard'))
 const AdminMap                = lazy(() => import('./pages/AdminMap'))
@@ -29,6 +33,7 @@ const Analytics               = lazy(() => import('./pages/AnalyticsPage'))
 const EmergencyContacts       = lazy(() => import('./pages/EmergencyContacts'))
 const AdminVerificationReview = lazy(() => import('./pages/AdminVerificationReview'))
 const SystemSettings          = lazy(() => import('./pages/SystemSettings'))
+const ManageUsers             = lazy(() => import('./pages/ManageUsers'))
 
 // Loading Component
 function LoadingScreen() {
@@ -71,12 +76,21 @@ function ProtectedLanding() {
   return <LandingPage />
 }
 
+// Returns true if the user has an active (non-expired) suspension
+function isActivelySuspended(profile) {
+  if (!profile?.is_suspended) return false
+  if (!profile.suspension_expires_at) return true // indefinite
+  return new Date(profile.suspension_expires_at).getTime() > Date.now()
+}
+
 // Require authenticated user — redirects to /login if not logged in
+// Shows SuspendedScreen if the account is currently suspended
 function RequireAuth({ children }) {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const location = useLocation()
   if (loading) return <LoadingScreen />
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />
+  if (isActivelySuspended(profile)) return <SuspendedScreen profile={profile} />
   return children
 }
 
@@ -140,7 +154,8 @@ function AppRoutes() {
     return <SplashScreen onComplete={handleSplashComplete} />
   }
 
-  // Show loading while checking auth
+  // Show loading while checking auth — but only if there might be a session.
+  // If loading is false already (no stored token), skip straight to routes.
   if (loading) {
     return <LoadingScreen />
   }
@@ -153,9 +168,10 @@ function AppRoutes() {
         {/* Landing page - redirects to dashboard if logged in */}
         <Route path="/" element={<ProtectedLanding />} />
         
-        {/* Auth routes - redirects to dashboard if already logged in */}
-        <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+        {/* Auth routes — NOT wrapped in AuthRoute so login pages control their own redirect logic */}
+        <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
+        <Route path="/admin-login" element={<AdminLogin />} />
         
         {/* Protected routes — require authenticated user */}
         <Route path="/profile-setup" element={<RequireAuth><ProfileSetup /></RequireAuth>} />
@@ -173,6 +189,7 @@ function AppRoutes() {
         <Route path="/admin-contacts" element={<RequireAdmin><AdminLayout><EmergencyContacts /></AdminLayout></RequireAdmin>} />
         <Route path="/admin-verification" element={<RequireAdmin><AdminLayout><AdminVerificationReview /></AdminLayout></RequireAdmin>} />
         <Route path="/admin-settings" element={<RequireAdmin><AdminLayout><SystemSettings /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-users" element={<RequireAdmin><AdminLayout><ManageUsers /></AdminLayout></RequireAdmin>} />
       </Routes>
       </Suspense>
     </>

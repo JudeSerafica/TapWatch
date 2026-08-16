@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { supabase } from '../lib/supabase'
 import {
   getPendingVerifications,
   reviewVerification,
@@ -35,6 +36,20 @@ export default function AdminVerificationReview() {
       return
     }
     loadData()
+
+    // Re-fetch verified users list when any profile verification_status changes
+    const subscription = supabase
+      .channel('profiles-verification')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+      }, () => {
+        loadData()
+      })
+      .subscribe()
+
+    return () => subscription.unsubscribe()
   }, [profile])
 
   const loadData = async () => {

@@ -34,7 +34,17 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-  let initialized = false  // ← pigilan ang double fetch
+  let initialized = false
+
+  // If Supabase has no stored session token at all, we know immediately
+  // there's no user — skip the async wait and set loading false right away.
+  // This eliminates the loading flash on the /login page after sign-out.
+  const hasStoredSession = Object.keys(localStorage).some(
+    k => k.startsWith('sb-') && k.endsWith('-auth-token')
+  )
+  if (!hasStoredSession) {
+    setLoading(false)
+  }
 
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (session?.user) {
@@ -47,7 +57,7 @@ export function AuthProvider({ children }) {
   })
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-    if (!initialized) return  // ← skip kung hindi pa tapos ang getSession
+    if (!initialized) return
     if (session?.user) {
       setUser(session.user)
       await fetchProfile(session.user.id, session.user)
@@ -221,18 +231,18 @@ export function AuthProvider({ children }) {
       // Clear local state first
       setUser(null)
       setProfile(null)
-      
-      // Sign out from Supabase with scope: 'global' to clear all sessions
+
+      // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' })
-      
-      // Force a complete page reload to clear all React state
-      window.location.href = '/login'
+
+      // Navigate without a full page reload so there is no loading flash.
+      // We use location.replace so the current page is removed from history.
+      window.location.replace('/login')
       
       return { error: null }
     } catch (error) {
       console.error('Sign out error:', error)
-      // Even if there's an error, force redirect to login
-      window.location.href = '/login'
+      window.location.replace('/login')
       return { error: error.message }
     }
   }

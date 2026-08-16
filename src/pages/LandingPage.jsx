@@ -106,6 +106,14 @@ export default function LandingPage() {
         <p className="text-white/70 text-xs font-medium">
           Be alert. Be responsible. Be part of the solution.
         </p>
+
+        {/* ADMIN PORTAL LINK */}
+        <button
+          onClick={() => navigate('/admin-login')}
+          className="mt-4 text-xs text-white/40 hover:text-white/70 transition-colors"
+        >
+          Admin Portal →
+        </button>
       </div>
     </div>
   )

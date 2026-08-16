@@ -36,7 +36,7 @@ export default function VerificationCenter() {
 
   useEffect(() => {
     loadVerificationData()
-  }, [profile?.id])
+  }, [profile?.id, profile?.verification_status])
 
   const loadVerificationData = async () => {
     if (!profile?.id) return
@@ -48,7 +48,30 @@ export default function VerificationCenter() {
         getUserReputation(profile.id),
       ])
 
-      setVerificationStatus(verificationData.data)
+      // Use profile.verification_status as the authoritative source.
+      // An admin can change it directly via Manage Users without touching
+      // the user_verifications table, so we must reconcile both.
+      const profileStatus = profile?.verification_status // already in AuthContext
+      const verRecord = verificationData.data
+
+      if (verRecord) {
+        // If the profile status was updated by admin but the verification record
+        // wasn't synced yet, override the record's status with profile's status
+        if (profileStatus && profileStatus !== verRecord.status &&
+            (profileStatus === 'verified' || profileStatus === 'unverified' || profileStatus === 'trusted')) {
+          setVerificationStatus({ ...verRecord, status: profileStatus })
+        } else {
+          setVerificationStatus(verRecord)
+        }
+      } else {
+        // No verification record at all — synthesize one from profile status
+        if (profileStatus === 'verified' || profileStatus === 'trusted') {
+          setVerificationStatus({ status: profileStatus })
+        } else {
+          setVerificationStatus(null)
+        }
+      }
+
       setReputation(reputationData)
     } catch (err) {
       console.error('Error loading verification data:', err)

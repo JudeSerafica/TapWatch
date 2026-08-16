@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, Shield } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, Shield, Users } from 'lucide-react'
 
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/admin-map', label: 'Map', icon: MapPin },
   { path: '/admin-reports', label: 'Reports', icon: FileText },
   { path: '/admin-verification', label: 'Verify', icon: Shield },
+  { path: '/admin-users', label: 'Users', icon: Users },
   { path: '/admin-contacts', label: 'Contacts', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
 ]

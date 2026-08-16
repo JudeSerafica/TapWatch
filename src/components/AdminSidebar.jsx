@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTriangle, Shield, Menu, ChevronLeft } from 'lucide-react'
+import { LayoutDashboard, MapPin, FileText, BarChart3, Phone, LogOut, X, AlertTriangle, Shield, Menu, ChevronLeft, Users } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import { useSidebar } from '../context/SidebarContext'
 import { useState, useEffect } from 'react'
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/admin-map', label: 'Incident Map', icon: MapPin },
   { path: '/admin-reports', label: 'All Reports', icon: FileText },
   { path: '/admin-verification', label: 'Verification Review', icon: Shield },
+  { path: '/admin-users', label: 'Manage Users', icon: Users },
   { path: '/admin-contacts', label: 'Barangay Officials', icon: Phone },
   { path: '/admin-analytics', label: 'Analytics', icon: BarChart3 },
 ]
