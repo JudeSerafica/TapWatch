@@ -22,6 +22,10 @@ const IncidentMap          = lazy(() => import('./pages/IncidentMap'))
 const Profile              = lazy(() => import('./pages/Profile'))
 const VerificationCenter   = lazy(() => import('./pages/VerificationCenter'))
 
+// Auth utility pages
+const ForgotPassword          = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword           = lazy(() => import('./pages/ResetPassword'))
+
 // Admin login page
 const AdminLogin              = lazy(() => import('./pages/AdminLogin'))
 
@@ -172,6 +176,8 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
         <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* Protected routes — require authenticated user */}
         <Route path="/profile-setup" element={<RequireAuth><ProfileSetup /></RequireAuth>} />
