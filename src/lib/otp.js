@@ -1,13 +1,14 @@
 import { supabase } from './supabase'
 
 /**
- * Generate a random 6-digit OTP code
- * @returns {string} 6-digit OTP code
+ * Generate a cryptographically secure 6-digit OTP code.
+ * Uses crypto.getRandomValues (browser CSPRNG) instead of Math.random().
+ * The code is NOT logged — logging OTPs defeats out-of-band verification.
  */
 export const generateOTP = () => {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString()
-  console.log('🔐 [OTP Generated]', otp) // Dev mode display
-  return otp
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  return (100000 + (array[0] % 900000)).toString()
 }
 
 /**
@@ -20,13 +21,6 @@ export const generateOTP = () => {
 export const saveOTP = async (phone, otp, expiryMinutes = 10) => {
   try {
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000).toISOString()
-    
-    console.log('💾 [Saving OTP to Supabase]', {
-      phone,
-      otp,
-      expiresAt,
-      expiryMinutes
-    })
 
     const { data, error } = await supabase
       .from('otp_codes')
@@ -45,7 +39,6 @@ export const saveOTP = async (phone, otp, expiryMinutes = 10) => {
       return { data: null, error }
     }
 
-    console.log('✅ [OTP Saved Successfully]', data)
     return { data, error: null }
   } catch (err) {
     console.error('❌ [OTP Exception]', err)
@@ -61,8 +54,6 @@ export const saveOTP = async (phone, otp, expiryMinutes = 10) => {
  */
 export const verifyOTP = async (phone, code) => {
   try {
-    console.log('🔍 [Verifying OTP]', { phone, code })
-
     const { data, error } = await supabase
       .from('otp_codes')
       .select('*')
@@ -89,7 +80,6 @@ export const verifyOTP = async (phone, code) => {
       console.error('❌ [OTP Mark as Used Error]', updateError)
     }
 
-    console.log('✅ [OTP Verified Successfully]', data)
     return { isValid: true, error: null, data }
   } catch (err) {
     console.error('❌ [OTP Verification Exception]', err)
@@ -104,18 +94,15 @@ export const verifyOTP = async (phone, code) => {
  */
 export const sendOTP = async (phone) => {
   try {
-    // Generate OTP
     const otp = generateOTP()
-
-    // Save to Supabase
     const { data, error } = await saveOTP(phone, otp)
 
     if (error) {
       return { otp: null, data: null, error }
     }
 
-    // In a real app, you would send SMS here
-    console.log('📱 [SMS Would Be Sent]', `OTP ${otp} sent to ${phone}`)
+    // Log that an OTP was issued — but never log the code itself
+    console.log(`[OTP] code issued for ${phone}`)
 
     return { otp, data, error: null }
   } catch (err) {
@@ -130,14 +117,11 @@ export const sendOTP = async (phone) => {
  */
 export const cleanupExpiredOTPs = async () => {
   try {
-    console.log('🧹 [Cleaning Up Expired OTPs]')
-
     const { data, error } = await supabase
       .from('otp_codes')
       .delete()
       .lt('expires_at', new Date().toISOString())
 
-    console.log('✅ [Cleanup Complete]')
     return { deletedCount: data?.length || 0, error }
   } catch (err) {
     console.error('❌ [Cleanup Exception]', err)

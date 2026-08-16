@@ -1,53 +1,75 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 // Excel Export with filtering
-export const exportToExcel = (incidents, filters = {}) => {
+export const exportToExcel = async (incidents, filters = {}) => {
   try {
     console.log('🔄 Starting Excel export...')
-    console.log('📊 Total incidents:', incidents?.length || 0)
-    
+
     if (!incidents || incidents.length === 0) {
       throw new Error('No incidents data available')
     }
-    
+
     const filteredData = applyFilters(incidents, filters)
-    console.log('📊 Filtered incidents:', filteredData.length)
-    
+
     if (filteredData.length === 0) {
       throw new Error('No incidents match the selected filters')
     }
-    
-    const worksheet = XLSX.utils.json_to_sheet(
-      filteredData.map(incident => ({
-        'ID': incident.id?.substring(0, 8) || 'N/A',
-        'Type': incident.type || 'N/A',
-        'Description': incident.description || 'No description',
-        'Location': incident.location || 'N/A',
-        'Purok': incident.purok || 'N/A',
-        'Status': incident.status || 'pending',
-        'Urgency': incident.urgency_level || 'medium',
-        'Reporter': incident.reporter_name || incident.full_name || 'Anonymous',
-        'Contact': incident.reporter_contact || incident.phone || 'N/A',
-        'Date Reported': incident.created_at ? new Date(incident.created_at).toLocaleDateString() : 'N/A',
-        'Time': incident.created_at ? new Date(incident.created_at).toLocaleTimeString() : 'N/A',
-        'Resolved At': incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : 'Pending',
-        'AI Classification': incident.ai_classification || 'N/A',
-        'Confidence': incident.ai_confidence ? `${(incident.ai_confidence * 100).toFixed(0)}%` : 'N/A',
-      }))
-    )
 
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Incidents')
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Incidents')
 
-    // Generate filename with date
+    // Define columns
+    worksheet.columns = [
+      { header: 'ID',              key: 'id',              width: 12 },
+      { header: 'Type',            key: 'type',            width: 14 },
+      { header: 'Description',     key: 'description',     width: 40 },
+      { header: 'Location',        key: 'location',        width: 20 },
+      { header: 'Purok',           key: 'purok',           width: 12 },
+      { header: 'Status',          key: 'status',          width: 12 },
+      { header: 'Urgency',         key: 'urgency',         width: 12 },
+      { header: 'Reporter',        key: 'reporter',        width: 20 },
+      { header: 'Contact',         key: 'contact',         width: 16 },
+      { header: 'Date Reported',   key: 'date',            width: 14 },
+      { header: 'Time',            key: 'time',            width: 10 },
+      { header: 'Resolved At',     key: 'resolvedAt',      width: 20 },
+      { header: 'AI Classification', key: 'aiClass',       width: 18 },
+      { header: 'Confidence',      key: 'confidence',      width: 12 },
+    ]
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    worksheet.getRow(1).fill = {
+      type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' }
+    }
+
+    // Add rows
+    filteredData.forEach(incident => {
+      worksheet.addRow({
+        id:          (incident.id || 'N/A').substring(0, 8),
+        type:        incident.type || 'N/A',
+        description: incident.description || 'No description',
+        location:    incident.location || 'N/A',
+        purok:       incident.purok || 'N/A',
+        status:      incident.status || 'pending',
+        urgency:     incident.urgency_level || 'medium',
+        reporter:    incident.reporter_name || incident.full_name || 'Anonymous',
+        contact:     incident.reporter_contact || incident.phone || 'N/A',
+        date:        incident.created_at ? new Date(incident.created_at).toLocaleDateString() : 'N/A',
+        time:        incident.created_at ? new Date(incident.created_at).toLocaleTimeString() : 'N/A',
+        resolvedAt:  incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : 'Pending',
+        aiClass:     incident.ai_classification || 'N/A',
+        confidence:  incident.ai_confidence ? `${(incident.ai_confidence * 100).toFixed(0)}%` : 'N/A',
+      })
+    })
+
     const filename = `incident_report_${new Date().toISOString().split('T')[0]}.xlsx`
-    
-    console.log('✅ Excel workbook created, downloading...')
-    XLSX.writeFile(workbook, filename)
+    const buffer = await workbook.xlsx.writeBuffer()
+    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename)
+
     console.log('✅ Excel download complete!')
-    
     return filename
   } catch (err) {
     console.error('❌ Excel export error:', err)

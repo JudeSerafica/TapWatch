@@ -4,6 +4,23 @@ import { useAuth } from '../context/useAuth'
 import { sendOTP, verifyOTP } from '../lib/otp'
 import { FaShieldAlt, FaUsers, FaBell, FaEye, FaEyeSlash } from "react-icons/fa";
 
+// Map internal error messages to user-friendly strings.
+// Never expose raw error.message to the UI.
+const USER_MESSAGES = {
+  'Invalid login credentials': 'Incorrect email or password.',
+  'Email not confirmed': 'Please verify your email before signing in.',
+  'User already registered': 'An account with this email already exists.',
+  'Too many requests': 'Too many attempts. Please wait a moment and try again.',
+}
+const friendlyError = (err) => {
+  if (!err) return 'Something went wrong. Please try again.'
+  const msg = typeof err === 'string' ? err : (err.message || '')
+  for (const [key, friendly] of Object.entries(USER_MESSAGES)) {
+    if (msg.includes(key)) return friendly
+  }
+  return 'Something went wrong. Please try again.'
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const { signIn, profile } = useAuth()
@@ -35,17 +52,17 @@ export default function Login() {
         const { error } = await sendOTP(form.phone)
         setLoading(false)
         if (error) {
-          setError('Failed to send OTP: ' + error.message)
+          setError(friendlyError(error))
         } else {
           setShowOtpInput(true)
           setPendingPhone(form.phone)
-          setError(`✅ OTP sent to ${form.phone}. Check browser console for code! 👀`)
+          setError('OTP sent to your phone number.')
         }
       } else if (form.mode === 'phone' && showOtpInput) {
         const { isValid, error } = await verifyOTP(pendingPhone, form.otp)
         if (error) {
           setLoading(false)
-          setError('OTP verification failed: ' + error.message)
+          setError(friendlyError(error))
         } else if (isValid) {
           setLoginSuccess(true)
         } else {
@@ -56,8 +73,7 @@ export default function Login() {
         const { error } = await signIn({ email: form.email.trim(), password: form.password.trim() })
         if (error) {
           setLoading(false)
-          console.error('Sign in error:', error)
-          setError(error || 'Invalid email or password')
+          setError(friendlyError(error))
         } else {
           setLoginSuccess(true)
         }

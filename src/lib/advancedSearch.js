@@ -6,6 +6,19 @@
 import { supabase } from './supabase'
 
 /**
+ * Sanitize a search string before interpolating it into a PostgREST .or()
+ * filter string. PostgREST parses , ) . as filter syntax inside .or(), so
+ * those characters must be stripped. Length is also capped to prevent DoS.
+ */
+function sanitizeSearch(input) {
+  if (typeof input !== 'string') return ''
+  return input
+    .replace(/[,()\\.%]/g, ' ') // strip PostgREST filter metacharacters
+    .trim()
+    .slice(0, 100)               // bound the length
+}
+
+/**
  * Advanced search for incidents
  */
 export const advancedSearchIncidents = async (filters = {}) => {
@@ -30,16 +43,18 @@ export const advancedSearchIncidents = async (filters = {}) => {
         comments:incident_comments (
           count
         )
-      `)
+      `, { count: 'exact' })
 
-    // Text search (description, location) — use chained .ilike() to avoid
-    // injecting raw user input into a PostgREST .or() filter string.
+    // Text search — sanitize before interpolating into a PostgREST .or() string.
+    // Strip PostgREST filter metacharacters (, ) . and bound length.
     if (filters.search) {
-      const safe = filters.search.replace(/[%_\\]/g, '\\$&') // escape LIKE wildcards only
-      query = query.or(
-        `description.ilike.%${safe}%,` +
-        `location.ilike.%${safe}%`
-      )
+      const safe = sanitizeSearch(filters.search)
+      if (safe) {
+        query = query.or(
+          `description.ilike.%${safe}%,` +
+          `location.ilike.%${safe}%`
+        )
+      }
     }
 
     // Multiple incident types
@@ -111,8 +126,9 @@ export const advancedSearchIncidents = async (filters = {}) => {
         .lte('longitude', east)
     }
 
-    // Sorting
-    const sortBy = filters.sortBy || 'created_at'
+    // Sorting — restrict to an allowlist to prevent column injection
+    const ALLOWED_SORTS = ['created_at', 'updated_at', 'urgency_level', 'status', 'type']
+    const sortBy = ALLOWED_SORTS.includes(filters.sortBy) ? filters.sortBy : 'created_at'
     const sortOrder = filters.sortOrder || 'desc'
     query = query.order(sortBy, { ascending: sortOrder === 'asc' })
 
@@ -134,8 +150,8 @@ export const advancedSearchIncidents = async (filters = {}) => {
       pagination: {
         page,
         limit,
-        total: count,
-        totalPages: Math.ceil(count / limit)
+        total: count ?? 0,
+        totalPages: count ? Math.ceil(count / limit) : 0
       }
     }
   } catch (error) {
@@ -199,32 +215,57 @@ export const getSearchSuggestions = async (query, limit = 5) => {
 }
 
 /**
- * Search by proximity (near a coordinate)
+ * True great-circle distance between two coordinates (kilometres).
+ * Used to filter out bounding-box corners that exceed the actual radius.
+ */
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371
+  const toRad = d => d * Math.PI / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+/**
+ * Search by proximity (near a coordinate).
+ * Uses a bounding-box pre-filter (so Supabase can use its index) then
+ * applies a haversine post-filter to remove the up-to-41% over-inclusion
+ * caused by corners of the bounding box.
  */
 export const searchNearby = async (latitude, longitude, radiusKm = 1, filters = {}) => {
   try {
-    // Use PostGIS for proper geospatial search
-    // For now, simple bounding box approach
-    const latDelta = radiusKm / 111 // 1 degree ≈ 111km
+    const latDelta = radiusKm / 111
     const lngDelta = radiusKm / (111 * Math.cos(latitude * Math.PI / 180))
 
     const bounds = {
       north: latitude + latDelta,
       south: latitude - latDelta,
       east: longitude + lngDelta,
-      west: longitude - lngDelta
+      west: longitude - lngDelta,
     }
 
-    return await advancedSearchIncidents({
-      ...filters,
-      bounds
-    })
+    const result = await advancedSearchIncidents({ ...filters, bounds })
+
+    if (!result.success) return result
+
+    // Post-filter: keep only incidents within the true circular radius
+    result.incidents = result.incidents
+      .map(i => ({
+        ...i,
+        distanceKm: haversineKm(latitude, longitude, i.latitude, i.longitude),
+      }))
+      .filter(i => i.distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm) // nearest-first — useful for dispatch
+
+    return result
   } catch (error) {
     console.error('Nearby search error:', error)
     return {
       success: false,
       error: error.message,
-      incidents: []
+      incidents: [],
     }
   }
 }

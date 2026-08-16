@@ -991,7 +991,7 @@ export default function Dashboard() {
 
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const { isCollapsed } = useSidebar()
 
   const [incidents, setIncidents] = useState([])
@@ -1024,16 +1024,30 @@ export default function Dashboard() {
   // (opened programmatically by handleCompleteProfile, not on mount)
   const [showTermsModal, setShowTermsModal] = useState(false)
 
-  const handleTermsAccept = () => {
-    if (profile?.id) {
-      localStorage.setItem(`terms_accepted_${profile.id}`, 'true')
-    }
+  // Account is "new" if it was created within the last 30 days
+  const isNewAccount = (prof) => {
+    if (!prof?.created_at) return false
+    const age = Date.now() - new Date(prof.created_at).getTime()
+    return age < 30 * 24 * 60 * 60 * 1000
+  }
+
+  // shouldShowTerms: new account + not yet accepted
+  const shouldShowTerms = (prof) =>
+    prof?.role !== 'admin' &&
+    prof?.phone && prof?.address && prof?.purok &&
+    isNewAccount(prof) &&
+    !prof?.terms_accepted_at
+
+  const handleTermsAccept = async () => {
+    await acceptTerms()
     setShowTermsModal(false)
   }
 
-  const handleTermsCancel = () => {
-    // Just close — will show again next session until they accept
+  const handleTermsCancel = async () => {
+    // User declined the terms — sign them out immediately.
+    // They cannot use the app without accepting.
     setShowTermsModal(false)
+    await signOut()
   }
 
   // Calling System Integration
@@ -1056,7 +1070,7 @@ export default function Dashboard() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState('')
 
-  const { saveProfile } = useAuth()
+  const { saveProfile, acceptTerms, markVerificationModalSeen } = useAuth()
 
   // Check if profile is incomplete on mount
   useEffect(() => {
@@ -1068,61 +1082,36 @@ export default function Dashboard() {
         purok: profile.purok || '',
         address: profile.address || '',
       })
-    } else if (
-      profile?.id &&
-      profile?.role !== 'admin' &&
-      profile?.phone && profile?.address && profile?.purok &&
-      !localStorage.getItem(`terms_accepted_${profile.id}`)
-    ) {
-      // Profile is already complete but terms not yet accepted — show terms directly
+    } else if (shouldShowTerms(profile)) {
+      // Profile is complete, new account, terms not yet accepted — show modal
       setShowTermsModal(true)
     }
   }, [profile])
 
-  // Check if user was recently verified and show modal
+  // Check if user was recently verified and show modal (once, persisted in DB)
   useEffect(() => {
     const checkVerificationStatus = async () => {
       if (!profile) return
 
       const isVerified = profile.verification_status === 'verified'
-      const storageKey = `verification_modal_seen_${profile.id}`
-      const hasSeenModal = localStorage.getItem(storageKey) === 'true'
+      // Use DB flag — immune to localStorage.clear() on sign-out
+      const hasSeenModal = !!profile.verification_modal_seen_at
 
-      console.log('🔍 Verification Modal Check:', {
-        userId: profile.id,
-        isVerified,
-        hasSeenModal: localStorage.getItem(storageKey),
-        hasSeenModalBoolean: hasSeenModal,
-        storageKey
-      })
-
-      // Show modal ONLY if user is verified AND hasn't seen the modal yet
+      // Show modal ONLY if user is verified AND hasn't seen it yet
       if (isVerified && !hasSeenModal) {
-        console.log('✅ Showing verification modal for FIRST TIME')
-        // Small delay for better UX
         setTimeout(() => {
           setShowVerifiedModal(true)
         }, 1000)
-      } else if (isVerified && hasSeenModal) {
-        console.log('⏭️ Skipping modal - user ALREADY SAW IT (hasSeenModal = true)')
-      } else if (!isVerified) {
-        console.log('❌ User not verified yet')
       }
     }
 
     checkVerificationStatus()
   }, [profile])
 
-  const handleCloseVerifiedModal = () => {
-    // Mark as seen so it doesn't show again
-    if (profile?.id) {
-      const storageKey = `verification_modal_seen_${profile.id}`
-      localStorage.setItem(storageKey, 'true')
-      console.log('💾 SAVED TO localStorage:', storageKey, '= true')
-      console.log('📦 Confirming localStorage value:', localStorage.getItem(storageKey))
-    }
+  const handleCloseVerifiedModal = async () => {
     setShowVerifiedModal(false)
-    console.log('✅ Modal closed and marked as seen')
+    // Persist to DB so it never shows again, even after sign-out
+    await markVerificationModalSeen()
   }
 
   const handleCompleteProfile = async (e) => {
@@ -1143,8 +1132,8 @@ export default function Dashboard() {
       setProfileError(error)
     } else {
       setShowProfileSetupModal(false)
-      // Show Terms of Use next — only if not yet accepted
-      if (profile?.id && !localStorage.getItem(`terms_accepted_${profile.id}`)) {
+      // Show Terms of Use next — only for new accounts that haven't accepted yet
+      if (shouldShowTerms({ ...profile, phone: profileForm.phone, address: profileForm.address, purok: profileForm.purok })) {
         setShowTermsModal(true)
       }
     }

@@ -5,9 +5,14 @@ import nodemailer from 'nodemailer'
 import bcrypt from 'bcryptjs'
 import cors from 'cors'
 import { createClient } from '@supabase/supabase-js'
+import { randomInt } from 'crypto'
  
 const app = express()
-app.use(cors())
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+  methods: ['POST'],
+  credentials: true,
+}))
 app.use(express.json())
  
 // ── In-memory OTP store ────────────────────────────────────────────────────
@@ -16,6 +21,14 @@ const otpStore = new Map()
 const otpRequestCooldown = new Map() // email -> timestamp of last request
 // ── Verify attempt tracking (prevent brute force) ────────────────────────
 const verifyAttempts = new Map() // email -> { count, resetTime }
+
+// ── Sweep stale entries so Maps don't grow unbounded ─────────────────────
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of otpStore)          if (now > v.expiresAt)    otpStore.delete(k)
+  for (const [k, v] of verifyAttempts)    if (now > v.resetTime)    verifyAttempts.delete(k)
+  for (const [k, t] of otpRequestCooldown) if (now - t > 60000)     otpRequestCooldown.delete(k)
+}, 60000)
 
 // ── Gmail transporter ──────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -56,12 +69,12 @@ app.post('/api/signup', async (req, res) => {
  
   try {
     const passwordHash = await bcrypt.hash(password, 10)
-    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const code = (100000 + randomInt(900000)).toString()
     const expiresAt = Date.now() + 5 * 60 * 1000
  
     otpStore.set(emailLower, { code, expiresAt, passwordHash })
     otpRequestCooldown.set(emailLower, now)
-    console.log(`[OTP] ${email} → ${code}`)
+    console.log(`[OTP] code issued for ${emailLower}`)
  
     const mailResult = await transporter.sendMail({
       from: `"Tap-Watch" <${process.env.GMAIL_USER}>`,
@@ -84,11 +97,7 @@ app.post('/api/signup', async (req, res) => {
     return res.status(200).json({ message: 'Verification code sent to your email.' })
   } catch (err) {
     console.error('[/api/signup ERROR]', err.message, err.code)
-    if (err.code === 'EAUTH')
-      return res.status(500).json({ error: 'Gmail auth failed. Check GMAIL_USER and GMAIL_APP_PASSWORD in .env' })
-    if (err.message.includes('Invalid login'))
-      return res.status(500).json({ error: 'Gmail credentials invalid. Check .env file.' })
-    return res.status(500).json({ error: `Failed to send email: ${err.message}` })
+    return res.status(500).json({ error: 'Unable to send verification code. Please try again.' })
   }
 })
  
@@ -146,7 +155,12 @@ app.post('/api/verify', async (req, res) => {
 
     if (error) {
       console.error('[VERIFY ERROR] Supabase user creation failed:', error)
-      return res.status(400).json({ error: error.message || 'Failed to create user account.' })
+      // Map known Supabase errors to friendly messages; never return raw error.message
+      const msg = error.message || ''
+      if (msg.includes('already registered') || msg.includes('already been registered')) {
+        return res.status(400).json({ error: 'An account with this email already exists.' })
+      }
+      return res.status(400).json({ error: 'Unable to create account. Please try again.' })
     }
 
     otpStore.delete(emailLower)
@@ -159,7 +173,7 @@ app.post('/api/verify', async (req, res) => {
     })
   } catch (err) {
     console.error('[VERIFY CATCH ERROR]', err.message)
-    return res.status(500).json({ error: `Failed to verify: ${err.message}` })
+    return res.status(500).json({ error: 'Unable to verify code. Please try again.' })
   }
 })
 
@@ -196,14 +210,14 @@ app.post('/api/ai/classify', async (req, res) => {
     if (!response.ok) {
       const err = await response.text()
       console.error('[AI/classify] OpenAI error:', response.status, err.substring(0, 200))
-      return res.status(response.status).json({ error: err })
+      return res.status(502).json({ error: 'AI classification unavailable. Please try again.' })
     }
 
     const data = await response.json()
     res.json({ content: data.choices[0].message.content })
   } catch (err) {
     console.error('[AI/classify] error:', err.message)
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: 'AI classification unavailable. Please try again.' })
   }
 })
 
@@ -243,14 +257,14 @@ app.post('/api/ai/analyze-image', async (req, res) => {
     if (!response.ok) {
       const err = await response.text()
       console.error('[AI/analyze-image] OpenAI error:', response.status, err.substring(0, 200))
-      return res.status(response.status).json({ error: err })
+      return res.status(502).json({ error: 'AI image analysis unavailable. Please try again.' })
     }
 
     const data = await response.json()
     res.json({ content: data.choices[0].message.content })
   } catch (err) {
     console.error('[AI/analyze-image] error:', err.message)
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: 'AI image analysis unavailable. Please try again.' })
   }
 })
 

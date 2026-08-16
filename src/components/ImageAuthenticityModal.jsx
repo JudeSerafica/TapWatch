@@ -17,6 +17,9 @@ export default function ImageAuthenticityModal({ isOpen, onClose, authenticity }
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="authenticity-modal-title"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       style={{ animation: 'fadeIn 0.2s ease' }}
     >
@@ -44,7 +47,7 @@ export default function ImageAuthenticityModal({ isOpen, onClose, authenticity }
               </div>
             )}
             <div>
-              <h3 className="text-lg font-bold" style={{ color: isAuthentic ? '#065f46' : '#92400e' }}>
+              <h3 id="authenticity-modal-title" className="text-lg font-bold" style={{ color: isAuthentic ? '#065f46' : '#92400e' }}>
                 {isAuthentic ? '✅ Authentic Image' : '⚠️ Suspicious Image'}
               </h3>
               <p className="text-sm" style={{ color: isAuthentic ? '#047857' : '#78350f' }}>
@@ -55,8 +58,9 @@ export default function ImageAuthenticityModal({ isOpen, onClose, authenticity }
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 transition"
+            aria-label="Close image authenticity result"
           >
-            <FiX size={18} />
+            <FiX size={18} aria-hidden="true" />
           </button>
         </div>
 

@@ -24,7 +24,11 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
       backdropFilter: 'blur(8px)',
       padding: 16,
       animation: 'fadeIn 0.2s ease',
-    }}>
+    }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="call-options-title"
+    >
       <div style={{
         background: '#fff',
         borderRadius: 20,
@@ -58,10 +62,11 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
               justifyContent: 'center',
               transition: 'all 0.2s',
             }}
+            aria-label="Close call options"
             onMouseEnter={e => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
             onMouseLeave={e => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
           >
-            <FiX size={18} />
+            <FiX size={18} aria-hidden="true" />
           </button>
 
           <div style={{
@@ -80,7 +85,7 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
             {recipient?.name?.[0]?.toUpperCase() || '?'}
           </div>
 
-          <h2 style={{
+          <h2 id="call-options-title" style={{
             margin: 0,
             fontSize: 20,
             fontWeight: 700,
@@ -145,16 +150,11 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
               }}
             >
               <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
+                width: 48, height: 48, borderRadius: 12,
                 background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                <MdSmartphone size={24} color="#fff" />
+                <MdSmartphone size={24} color="#fff" aria-hidden="true" />
               </div>
 
               <div style={{ flex: 1, textAlign: 'left' }}>
@@ -166,7 +166,7 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
                 </div>
               </div>
 
-              <FiPhone size={20} color="#22c55e" />
+              <FiPhone size={20} color="#22c55e" aria-hidden="true" />
             </button>
 
             {/* In-App Voice Call Option */}
@@ -194,46 +194,28 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
               }}
             >
               <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
+                width: 48, height: 48, borderRadius: 12,
                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                <MdCall size={24} color="#fff" />
+                <MdCall size={24} color="#fff" aria-hidden="true" />
               </div>
 
               <div style={{ flex: 1, textAlign: 'left' }}>
                 <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600, 
-                  color: '#111827', 
-                  marginBottom: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                  fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 2,
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   In-App Voice Call
                   <span style={{
-                    padding: '2px 8px',
-                    borderRadius: 12,
-                    background: '#dbeafe',
-                    color: '#2563eb',
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}>
-                    FREE
-                  </span>
+                    padding: '2px 8px', borderRadius: 12,
+                    background: '#dbeafe', color: '#2563eb', fontSize: 10, fontWeight: 700,
+                  }}>FREE</span>
                 </div>
-                <div style={{ fontSize: 13, color: '#6b7280' }}>
-                  High quality voice call
-                </div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>High quality voice call</div>
               </div>
 
-              <FiPhone size={20} color="#3b82f6" />
+              <FiPhone size={20} color="#3b82f6" aria-hidden="true" />
             </button>
 
             {/* In-App Video Call Option */}
@@ -261,46 +243,28 @@ export default function CallOptionsModal({ isOpen, onClose, recipient, onSelectO
               }}
             >
               <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
+                width: 48, height: 48, borderRadius: 12,
                 background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                <FiVideo size={24} color="#fff" />
+                <FiVideo size={24} color="#fff" aria-hidden="true" />
               </div>
 
               <div style={{ flex: 1, textAlign: 'left' }}>
                 <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600, 
-                  color: '#111827', 
-                  marginBottom: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                  fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 2,
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   In-App Video Call
                   <span style={{
-                    padding: '2px 8px',
-                    borderRadius: 12,
-                    background: '#f3e8ff',
-                    color: '#7c3aed',
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}>
-                    FREE
-                  </span>
+                    padding: '2px 8px', borderRadius: 12,
+                    background: '#f3e8ff', color: '#7c3aed', fontSize: 10, fontWeight: 700,
+                  }}>FREE</span>
                 </div>
-                <div style={{ fontSize: 13, color: '#6b7280' }}>
-                  Face-to-face video call
-                </div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>Face-to-face video call</div>
               </div>
 
-              <FiVideo size={20} color="#7c3aed" />
+              <FiVideo size={20} color="#7c3aed" aria-hidden="true" />
             </button>
           </div>
         </div>

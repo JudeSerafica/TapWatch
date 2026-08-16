@@ -1,5 +1,18 @@
 import { supabase } from './supabase'
 
+/**
+ * Sanitize a search string before interpolating it into a PostgREST .or()
+ * filter string. PostgREST parses , ) . as filter syntax inside .or(), so
+ * those characters must be stripped. Length is also capped to prevent DoS.
+ */
+function sanitizeSearch(input) {
+  if (typeof input !== 'string') return ''
+  return input
+    .replace(/[,()\\.%]/g, ' ') // strip PostgREST filter metacharacters
+    .trim()
+    .slice(0, 100)               // bound the length
+}
+
 // Incidents
 export const getIncidents = async (filters = {}) => {
   let query = supabase
@@ -21,9 +34,8 @@ export const getIncidents = async (filters = {}) => {
   }
   if (filters.search) {
     // Sanitize before interpolating into a PostgREST filter string.
-    // Characters like , ) . are parsed as filter syntax inside .or() strings.
-    const safe = filters.search.replace(/[%_\\]/g, '\\$&')
-    query = query.or(`description.ilike.%${safe}%,location.ilike.%${safe}%`)
+    const safe = sanitizeSearch(filters.search)
+    if (safe) query = query.or(`description.ilike.%${safe}%,location.ilike.%${safe}%`)
   }
 
   const { data, error } = await query
@@ -386,8 +398,8 @@ export const getHotspots = async () => {
 export const checkDuplicateIncident = async (description, location, timeThresholdMinutes = 30) => {
   const threshold = new Date(Date.now() - timeThresholdMinutes * 60 * 1000).toISOString()
   
-  const safeDesc = description.substring(0, 50).replace(/[%_\\]/g, '\\$&')
-  const safeLoc  = location.replace(/[%_\\]/g, '\\$&')
+  const safeDesc = sanitizeSearch(description.substring(0, 50))
+  const safeLoc  = sanitizeSearch(location)
 
   const { data, error } = await supabase
     .from('incidents')
@@ -412,14 +424,19 @@ export const checkDuplicateIncident = async (description, location, timeThreshol
   }
 }
 
+// Normalise to lowercase, collapse whitespace — fixes case and whitespace
+// sensitivity, and handles NULL descriptions (the || '' guards the crash).
+const normalize = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim()
+
 const calculateSimilarity = (str1, str2) => {
-  const longer = str1.length > str2.length ? str1 : str2
-  const shorter = str1.length > str2.length ? str2 : str1
-  
+  const a = normalize(str1)
+  const b = normalize(str2)
+  const longer  = a.length > b.length ? a : b
+  const shorter = a.length > b.length ? b : a
+
   if (longer.length === 0) return 1.0
-  
-  const editDistance = levenshteinDistance(longer, shorter)
-  return (longer.length - editDistance) / longer.length
+
+  return (longer.length - levenshteinDistance(longer, shorter)) / longer.length
 }
 
 const levenshteinDistance = (str1, str2) => {

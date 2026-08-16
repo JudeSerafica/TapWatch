@@ -9,6 +9,23 @@ import API_BASE_URL from '../config'
 const SEND_OTP_URL = `${API_BASE_URL}/api/signup`
 const VERIFY_OTP_URL = `${API_BASE_URL}/api/verify`
  
+// Map internal error messages to user-friendly strings.
+const USER_MESSAGES = {
+  'User already registered': 'An account with this email already exists.',
+  'already registered':      'An account with this email already exists.',
+  'Invalid login credentials': 'Incorrect email or password.',
+  'Password should be':      'Password must be at least 6 characters.',
+  'Too many requests':       'Too many attempts. Please wait a moment and try again.',
+}
+const friendlyError = (err) => {
+  if (!err) return 'Something went wrong. Please try again.'
+  const msg = typeof err === 'string' ? err : (err.message || '')
+  for (const [key, friendly] of Object.entries(USER_MESSAGES)) {
+    if (msg.includes(key)) return friendly
+  }
+  return 'Something went wrong. Please try again.'
+}
+
 export default function Signup() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
@@ -73,19 +90,19 @@ export default function Signup() {
       const { error } = await sendOTP(form.phone)
       setLoading(false)
       if (error) {
-        setError('Failed to send OTP: ' + error.message)
+        setError(friendlyError(error))
       } else {
         setShowOtpInput(true)
         setPendingPhone(form.phone)
-        setError(`✅ OTP sent to ${form.phone}. Check browser console for code! 👀`)
+        setError('')
       }
- 
+
     } else if (form.mode === 'phone' && showOtpInput) {
       // ── Phone: verify OTP (unchanged) ──
       const { isValid, error } = await verifyOTP(pendingPhone, form.otp)
       setLoading(false)
       if (error) {
-        setError('OTP verification failed: ' + error.message)
+        setError(friendlyError(error))
       } else if (isValid) {
         setSignupSuccess(true)
         setTimeout(() => navigate('/login'), 2500)
@@ -106,11 +123,10 @@ export default function Signup() {
         setLoading(false)
         if (!response.ok) {
           console.error('Signup error response:', result)
-          // Show specific error messages
           if (response.status === 429) {
-            setError(`⏱️ ${result.error}`)
+            setError(`Please wait before requesting another code.`)
           } else {
-            setError(result.error || `Server error (${response.status})`)
+            setError(friendlyError(result.error))
           }
         } else {
           console.log('OTP sent successfully to:', form.email)
@@ -120,8 +136,7 @@ export default function Signup() {
         }
       } catch (err) {
         setLoading(false)
-        console.error('Signup fetch error:', err)
-        setError('Could not connect to server. Is backend running on port 5000?')
+        setError('Unable to connect to server. Please try again.')
       }
  
     } else if (form.mode === 'email' && showEmailOtp) {
@@ -141,7 +156,7 @@ export default function Signup() {
         const result = text ? JSON.parse(text) : {}
         setLoading(false)
         if (!response.ok) {
-          setError(result.error || `Server error (${response.status})`)
+          setError(friendlyError(result.error))
         } else {
           // User already created in Supabase by verify endpoint
           setSignupSuccess(true)
@@ -149,8 +164,7 @@ export default function Signup() {
         }
       } catch (err) {
         setLoading(false)
-        setError('Could not connect to server. Is your backend running?')
-        console.error('Verify fetch error:', err)
+        setError('Unable to connect to server. Please try again.')
       }
     }
   }

@@ -22,7 +22,8 @@ import {
   useMap,
 } from 'react-leaflet'
 import L from 'leaflet'
-import * as XLSX from 'xlsx'
+import * as ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
 import { useTranslation } from '../lib/i18n'
 import {
   DndContext,
@@ -205,77 +206,58 @@ const isVideoFile = (url = '', name = '') => {
 // EXPORT FUNCTIONS
 // ─────────────────────────────────────────────────────────────
 
-const exportToExcel = (data, filename = 'incidents_report') => {
-  const excelData = data.map((incident) => ({
-    'Type': incident.type?.toUpperCase() || 'N/A',
-    'Description': incident.description || 'N/A',
-    'Location': incident.location || 'N/A',
-    'Purok': incident.purok || 'N/A',
-    'Date': new Date(incident.created_at).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric'
-    }),
-    'Status': incident.status?.toUpperCase() || 'N/A',
-    'Reporter': incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
-    'Contact': incident.reporter_contact || 'N/A',
-    'AI Classification': incident.ai_classification || incident.type || 'N/A',
-    'Official Notes': incident.official_notes || 'N/A',
-  }))
+const exportToExcel = async (data, filename = 'incidents_report') => {
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('Incidents')
 
-  const ws = XLSX.utils.json_to_sheet(excelData)
-
-  // Column widths
-  ws['!cols'] = [
-    { wch: 12 }, // Type
-    { wch: 30 }, // Description
-    { wch: 25 }, // Location
-    { wch: 15 }, // Purok
-    { wch: 20 }, // Date
-    { wch: 12 }, // Status
-    { wch: 20 }, // Reporter
-    { wch: 15 }, // AI Classification
-    { wch: 30 }, // Official Notes
+  worksheet.columns = [
+    { header: 'Type',              key: 'type',        width: 12 },
+    { header: 'Description',       key: 'description', width: 30 },
+    { header: 'Location',          key: 'location',    width: 25 },
+    { header: 'Purok',             key: 'purok',       width: 15 },
+    { header: 'Date',              key: 'date',        width: 20 },
+    { header: 'Status',            key: 'status',      width: 12 },
+    { header: 'Reporter',          key: 'reporter',    width: 20 },
+    { header: 'Contact',           key: 'contact',     width: 15 },
+    { header: 'AI Classification', key: 'aiClass',     width: 18 },
+    { header: 'Official Notes',    key: 'notes',       width: 30 },
   ]
 
   // Style header row — blue background, white bold text
-  const headers = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1']
-  headers.forEach((cell) => {
-    if (ws[cell]) {
-      ws[cell].s = {
-        fill: {
-          patternType: 'solid',
-          fgColor: { rgb: '3B82F6' }, // blue-500
-        },
-        font: {
-          bold: true,
-          color: { rgb: 'FFFFFF' },
-          sz: 11,
-        },
-        alignment: {
-          horizontal: 'center',
-          vertical: 'center',
-        },
-        border: {
-          top: { style: 'thin', color: { rgb: '2563EB' } },
-          bottom: { style: 'thin', color: { rgb: '2563EB' } },
-          left: { style: 'thin', color: { rgb: '2563EB' } },
-          right: { style: 'thin', color: { rgb: '2563EB' } },
-        },
-      }
+  worksheet.getRow(1).eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    cell.border = {
+      top:    { style: 'thin', color: { argb: 'FF2563EB' } },
+      bottom: { style: 'thin', color: { argb: 'FF2563EB' } },
+      left:   { style: 'thin', color: { argb: 'FF2563EB' } },
+      right:  { style: 'thin', color: { argb: 'FF2563EB' } },
     }
   })
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Incidents')
+  data.forEach(incident => {
+    worksheet.addRow({
+      type:        incident.type?.toUpperCase() || 'N/A',
+      description: incident.description || 'N/A',
+      location:    incident.location || 'N/A',
+      purok:       incident.purok || 'N/A',
+      date:        new Date(incident.created_at).toLocaleString('en-US', {
+                     month: 'short', day: 'numeric', year: 'numeric',
+                     hour: 'numeric', minute: 'numeric'
+                   }),
+      status:      incident.status?.toUpperCase() || 'N/A',
+      reporter:    incident.reporter_name || incident.profiles?.full_name || 'Anonymous',
+      contact:     incident.reporter_contact || 'N/A',
+      aiClass:     incident.ai_classification || incident.type || 'N/A',
+      notes:       incident.official_notes || 'N/A',
+    })
+  })
 
   const timestamp = new Date().toISOString().split('T')[0]
   const finalFilename = `${filename}_${timestamp}.xlsx`
-
-  // xlsx-js-style supports cell styling — use writeFile with cellStyles option
-  XLSX.writeFile(wb, finalFilename, { cellStyles: true })
+  const buffer = await workbook.xlsx.writeBuffer()
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), finalFilename)
 }
 
 const exportToPDF = (data, typeFilter) => {
@@ -366,7 +348,7 @@ const exportToPDF = (data, typeFilter) => {
     doc.save(filename)
   } catch (error) {
     console.error('Error generating PDF:', error)
-    alert('Error generating PDF: ' + error.message)
+    // Do not surface raw error.message — PDF failures are non-critical export issues
   }
 }
 
@@ -1270,8 +1252,8 @@ export default function AllReports() {
       {exportOpen && (
         <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
           <button
-            onClick={() => {
-              exportToExcel(filtered, typeFilter === 'All Types' ? 'all_incidents' : `${typeFilter.toLowerCase()}_incidents`)
+            onClick={async () => {
+              await exportToExcel(filtered, typeFilter === 'All Types' ? 'all_incidents' : `${typeFilter.toLowerCase()}_incidents`)
               setExportOpen(false)
             }}
             className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"

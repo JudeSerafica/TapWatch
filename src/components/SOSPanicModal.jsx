@@ -122,6 +122,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   const [isRequestingPermission, setIsRequestingPermission] = useState(false)
   const [locationWarning, setLocationWarning] = useState(null)
   const [isSatellite, setIsSatellite] = useState(true)
+  const [sosError, setSosError] = useState('')
 
   // Get location with proper permission handling
   const requestLocationPermission = () => {
@@ -310,7 +311,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
     try {
       if (!profile?.id) {
         console.error('❌ No user profile found')
-        alert('Error: User not logged in. Please log in and try again.')
+        setSosError('You must be logged in to send an SOS alert.')
+        setIsActivated(false)
+        setCountdown(5)
         return
       }
 
@@ -391,7 +394,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
 
       if (error) {
         console.error('❌ Database error:', error)
-        alert(`Failed to send SOS alert: ${error.message}\n\nPlease call 911 directly for immediate help!`)
+        setSosError('Unable to send SOS alert. Please call 911 directly for immediate help!')
+        setIsActivated(false)
+        setCountdown(5)
         return
       }
 
@@ -412,7 +417,9 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
       setShowSuccess(true)
     } catch (err) {
       console.error('❌ Unexpected error:', err)
-      alert('Failed to send SOS alert. Please try again or call 911 directly.')
+      setSosError('Unable to send SOS alert. Please try again or call 911 directly.')
+      setIsActivated(false)
+      setCountdown(5)
     }
   }
 
@@ -448,16 +455,17 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
     return (
       <div 
         className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" 
-        style={{ 
-          backgroundColor: 'rgba(0, 0, 0, 0.6)'
-        }}
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sos-verify-title"
       >
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
           <div className="bg-amber-50 p-8 text-center">
             <div className="w-20 h-20 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
-              <span className="text-4xl">⚠️</span>
+              <span className="text-4xl" aria-hidden="true">⚠️</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-3">
+            <h2 id="sos-verify-title" className="text-xl font-bold text-gray-900 mb-3">
               Verification Required
             </h2>
             <p className="text-sm text-gray-600 mb-6">
@@ -496,9 +504,10 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
     return (
       <div 
         className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" 
-        style={{ 
-          backgroundColor: 'rgba(0, 0, 0, 0.6)'
-        }}
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sos-success-title"
       >
         <style>{`
           @keyframes sos-fadeInScale {
@@ -557,7 +566,7 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
               </div>
             </div>
 
-            <h2 className="sos-t1 text-white text-2xl font-bold mb-1">SOS Alert Sent!</h2>
+            <h2 className="sos-t1 text-white text-2xl font-bold mb-1" id="sos-success-title">SOS Alert Sent!</h2>
             <p className="sos-t2 text-white/80 text-sm">Emergency services have been notified</p>
           </div>
 
@@ -686,18 +695,19 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
   return (
     <div 
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" 
-      style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.6)'
-      }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sos-title"
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {!isActivated ? (
           <>
             <div className="p-6 sm:p-8 text-center">
               <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
-                <span className="text-4xl sm:text-6xl">🚨</span>
+                <span className="text-4xl sm:text-6xl" aria-hidden="true">🚨</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
+              <h2 id="sos-title" className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
                 Emergency SOS
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mb-4">
@@ -712,6 +722,17 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                   GPS will capture your exact coordinates and send them to barangay officials for immediate response.
                 </p>
               </div>
+
+              {/* SOS send error — shown instead of alert() */}
+              {sosError && (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs font-medium"
+                >
+                  🚨 {sosError}
+                </div>
+              )}
 
               <div className="space-y-2.5 sm:space-y-3">
                 <button
@@ -766,7 +787,11 @@ export default function SOSPanicModal({ isOpen, onClose, profile }) {
                     {location.latitude?.toFixed(6)}, {location.longitude?.toFixed(6)}
                   </p>
                   {locationWarning && (
-                    <p className="text-[10px] opacity-90 text-yellow-200 bg-yellow-900/30 px-2 py-1 rounded mt-1">
+                    <p
+                      role="alert"
+                      aria-live="assertive"
+                      className="text-[10px] opacity-90 text-yellow-200 bg-yellow-900/30 px-2 py-1 rounded mt-1"
+                    >
                       ⚠️ {locationWarning}
                     </p>
                   )}

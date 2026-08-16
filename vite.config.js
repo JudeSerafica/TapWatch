@@ -5,6 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Vitest configuration
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
   server: {
     proxy: {
       '/api': {
@@ -18,6 +23,12 @@ export default defineConfig({
       input: {
         main: './index.html',
       }
-    }
+    },
+    // Strip console.log and console.debug from production bundles.
+    // console.error is preserved for genuine runtime failures.
+    esbuild: {
+      drop: process.env.NODE_ENV === 'production' ? ['debugger'] : [],
+      pure: process.env.NODE_ENV === 'production' ? ['console.log', 'console.debug', 'console.warn', 'console.info'] : [],
+    },
   }
 })

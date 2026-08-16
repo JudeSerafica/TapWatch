@@ -18,6 +18,8 @@ export default function EmergencyContacts() {
   const [contactToDelete, setContactToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [formError, setFormError] = useState('')   // replaces alert() for form errors
+  const [uploadError, setUploadError] = useState('') // replaces alert() for upload errors
   const [formData, setFormData] = useState({
     name: '',
     position: '',
@@ -153,16 +155,14 @@ export default function EmergencyContacts() {
       fetchContacts()
     } catch (error) {
       console.error('Error saving contact:', error)
-      
-      // More detailed error message
       if (error?.message?.includes('relation "public.emergency_contacts" does not exist')) {
-        alert('Database table not found. Please run the emergency_contacts migration first.')
+        setFormError('Database setup required. Please contact your administrator.')
       } else if (error?.code === '42501') {
-        alert('Permission denied. Please check database policies.')
+        setFormError('Permission denied. You do not have access to perform this action.')
       } else if (error?.code === 'PGRST116') {
-        alert('Table not found. Please create the emergency_contacts table first.')
+        setFormError('Database setup required. Please contact your administrator.')
       } else {
-        alert(`Error saving contact: ${error?.message || 'Unknown error'}. Please try again.`)
+        setFormError('Unable to save contact. Please try again.')
       }
     }
   }
@@ -187,13 +187,13 @@ export default function EmergencyContacts() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (JPG, PNG, GIF, WebP)')
+      setUploadError('Please upload an image file (JPG, PNG, GIF, WebP).')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB')
+      setUploadError('Image size must be less than 5MB.')
       return
     }
 
@@ -256,16 +256,14 @@ export default function EmergencyContacts() {
       
     } catch (error) {
       console.error('Error uploading photo:', error)
-      
-      // Provide specific error messages
-      if (error.message?.includes('bucket not found')) {
-        alert('❌ Storage bucket not found.\n\nPlease:\n1. Go to Supabase Dashboard\n2. Create "emergency-contacts" bucket in Storage\n3. Set it as Public\n4. Try again')
+      if (error.message?.includes('bucket not found') || error.message?.includes('Bucket not found')) {
+        setUploadError('Photo storage is not configured. Please contact your administrator.')
       } else if (error.message?.includes('Access denied')) {
-        alert('❌ Access denied to storage.\n\nPlease:\n1. Check storage policies\n2. Ensure you are logged in\n3. Try again')
+        setUploadError('Permission denied. Please check your account permissions.')
       } else if (error.message?.includes('Already exists')) {
-        alert('❌ File already exists.\n\nPlease try uploading again with a different file.')
+        setUploadError('Upload failed. Please try again with a different file.')
       } else {
-        alert(`❌ Error uploading photo: ${error.message || 'Unknown error'}\n\nPlease try again or contact support.`)
+        setUploadError('Unable to upload photo. Please try again.')
       }
     } finally {
       setUploading(false)
@@ -290,7 +288,7 @@ export default function EmergencyContacts() {
       fetchContacts()
     } catch (error) {
       console.error('Error deleting contact:', error)
-      alert('Error deleting contact. Please try again.')
+      setFormError('Unable to delete contact. Please try again.')
     }
   }
 
@@ -321,12 +319,11 @@ export default function EmergencyContacts() {
         throw error
       }
       
-      console.log('Delete successful:', data)
       closeDeleteModal()
       fetchContacts()
     } catch (error) {
       console.error('Error deleting contact:', error)
-      alert(`Error deleting contact: ${error.message || 'Please try again.'}`)
+      setFormError('Unable to delete contact. Please try again.')
     } finally {
       setDeleting(false)
     }
@@ -336,6 +333,8 @@ export default function EmergencyContacts() {
     setShowForm(false)
     setEditingContact(null)
     setPhotoPreview(null)
+    setFormError('')
+    setUploadError('')
     setFormData({
       name: '',
       position: '',
@@ -698,10 +697,25 @@ export default function EmergencyContacts() {
                     <button
                       onClick={cancelForm}
                       className="p-2 hover:bg-gray-100 rounded-lg transition"
+                      aria-label="Close form"
                     >
-                      <X size={20} />
+                      <X size={20} aria-hidden="true" />
                     </button>
                   </div>
+
+                  {/* Form-level error banner */}
+                  {formError && (
+                    <div role="alert" className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                      {formError}
+                    </div>
+                  )}
+
+                  {/* Upload error banner */}
+                  {uploadError && (
+                    <div role="alert" className="mb-4 p-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-700 text-sm">
+                      {uploadError}
+                    </div>
+                  )}
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Photo Upload Section */}

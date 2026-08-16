@@ -168,6 +168,50 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const acceptTerms = async () => {
+    try {
+      if (!user) throw new Error('No authenticated user')
+
+      const now = new Date().toISOString()
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ terms_accepted_at: now, updated_at: now })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      // Refresh local profile so terms_accepted_at is available in context
+      await fetchProfile(user.id, user)
+      return { error: null }
+    } catch (error) {
+      console.error('acceptTerms error:', error)
+      return { error: error.message }
+    }
+  }
+
+  const markVerificationModalSeen = async () => {
+    try {
+      if (!user) throw new Error('No authenticated user')
+
+      const now = new Date().toISOString()
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ verification_modal_seen_at: now, updated_at: now })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      // Refresh local profile so verification_modal_seen_at is available
+      await fetchProfile(user.id, user)
+      return { error: null }
+    } catch (error) {
+      console.error('markVerificationModalSeen error:', error)
+      return { error: error.message }
+    }
+  }
+
   const signOut = async () => {
     try {
       // Clear all storage
@@ -200,7 +244,9 @@ export function AuthProvider({ children }) {
       signIn, 
       signUp, 
       verifyOtp,
-      saveProfile, 
+      saveProfile,
+      acceptTerms,
+      markVerificationModalSeen,
       signOut, 
       loading, 
       isAdmin: profile?.role === 'admin' 

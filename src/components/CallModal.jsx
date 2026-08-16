@@ -87,7 +87,11 @@ export default function CallModal({
       background: 'rgba(0, 0, 0, 0.95)',
       backdropFilter: 'blur(8px)',
       animation: 'fadeIn 0.3s ease',
-    }}>
+    }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="call-modal-title"
+    >
       <div style={{
         width: '100%',
         maxWidth: callStatus === 'active' && callData?.isVideo ? 900 : 480,
@@ -118,10 +122,11 @@ export default function CallModal({
             justifyContent: 'center',
             transition: 'all 0.2s',
           }}
+          aria-label="Close call"
           onMouseEnter={e => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
           onMouseLeave={e => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
         >
-          <FiX size={20} />
+          <FiX size={20} aria-hidden="true" />
         </button>
 
         {/* Video Call Interface */}
@@ -202,7 +207,7 @@ export default function CallModal({
             </div>
 
             {/* Caller/Callee Name */}
-            <h2 style={{
+            <h2 id="call-modal-title" style={{
               margin: '0 0 8px',
               fontSize: 28,
               fontWeight: 700,
@@ -276,46 +281,34 @@ export default function CallModal({
               <button
                 onClick={onDecline}
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: '#ef4444',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
+                  width: 60, height: 60, borderRadius: '50%',
+                  background: '#ef4444', border: 'none', color: '#fff',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', transition: 'all 0.2s',
                   boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
                 }}
+                aria-label="Decline call"
                 onMouseEnter={e => e.target.style.transform = 'scale(1.1)'}
                 onMouseLeave={e => e.target.style.transform = 'scale(1)'}
               >
-                <FiPhoneOff size={24} />
+                <FiPhoneOff size={24} aria-hidden="true" />
               </button>
 
               <button
                 onClick={onAnswer}
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: '#22c55e',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
+                  width: 60, height: 60, borderRadius: '50%',
+                  background: '#22c55e', border: 'none', color: '#fff',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', transition: 'all 0.2s',
                   boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)',
                   animation: 'pulse 2s ease-in-out infinite',
                 }}
+                aria-label="Answer call"
                 onMouseEnter={e => e.target.style.transform = 'scale(1.1)'}
                 onMouseLeave={e => e.target.style.transform = 'scale(1)'}
               >
-                <FiPhone size={24} />
+                <FiPhone size={24} aria-hidden="true" />
               </button>
             </>
           )}
@@ -327,22 +320,18 @@ export default function CallModal({
               <button
                 onClick={handleToggleMute}
                 style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: '50%',
+                  width: 50, height: 50, borderRadius: '50%',
                   background: isMuted ? '#ef4444' : 'rgba(255, 255, 255, 0.1)',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  border: 'none', color: '#fff', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.2s',
                 }}
+                aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                aria-pressed={isMuted}
                 onMouseEnter={e => e.target.style.background = isMuted ? '#dc2626' : 'rgba(255, 255, 255, 0.2)'}
                 onMouseLeave={e => e.target.style.background = isMuted ? '#ef4444' : 'rgba(255, 255, 255, 0.1)'}
               >
-                {isMuted ? <FiMicOff size={20} /> : <FiMic size={20} />}
+                {isMuted ? <FiMicOff size={20} aria-hidden="true" /> : <FiMic size={20} aria-hidden="true" />}
               </button>
 
               {/* Video Toggle (if video call) */}
@@ -350,22 +339,18 @@ export default function CallModal({
                 <button
                   onClick={handleToggleVideo}
                   style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: '50%',
+                    width: 50, height: 50, borderRadius: '50%',
                     background: !isVideoEnabled ? '#ef4444' : 'rgba(255, 255, 255, 0.1)',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    border: 'none', color: '#fff', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all 0.2s',
                   }}
+                  aria-label={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+                  aria-pressed={!isVideoEnabled}
                   onMouseEnter={e => e.target.style.background = !isVideoEnabled ? '#dc2626' : 'rgba(255, 255, 255, 0.2)'}
                   onMouseLeave={e => e.target.style.background = !isVideoEnabled ? '#ef4444' : 'rgba(255, 255, 255, 0.1)'}
                 >
-                  {isVideoEnabled ? <FiVideo size={20} /> : <FiVideoOff size={20} />}
+                  {isVideoEnabled ? <FiVideo size={20} aria-hidden="true" /> : <FiVideoOff size={20} aria-hidden="true" />}
                 </button>
               )}
 
@@ -373,23 +358,17 @@ export default function CallModal({
               <button
                 onClick={onEnd}
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: '#ef4444',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
+                  width: 60, height: 60, borderRadius: '50%',
+                  background: '#ef4444', border: 'none', color: '#fff',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', transition: 'all 0.2s',
                   boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
                 }}
+                aria-label="End call"
                 onMouseEnter={e => e.target.style.transform = 'scale(1.1)'}
                 onMouseLeave={e => e.target.style.transform = 'scale(1)'}
               >
-                <FiPhoneOff size={24} />
+                <FiPhoneOff size={24} aria-hidden="true" />
               </button>
             </>
           )}
@@ -399,23 +378,17 @@ export default function CallModal({
             <button
               onClick={onEnd}
               style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: '#ef4444',
-                border: 'none',
-                color: '#fff',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
+                width: 60, height: 60, borderRadius: '50%',
+                background: '#ef4444', border: 'none', color: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', transition: 'all 0.2s',
                 boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
               }}
+              aria-label="Cancel call"
               onMouseEnter={e => e.target.style.transform = 'scale(1.1)'}
               onMouseLeave={e => e.target.style.transform = 'scale(1)'}
             >
-              <FiPhoneOff size={24} />
+              <FiPhoneOff size={24} aria-hidden="true" />
             </button>
           )}
         </div>

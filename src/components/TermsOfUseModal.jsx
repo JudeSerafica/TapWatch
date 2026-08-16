@@ -189,7 +189,7 @@ export default function TermsOfUseModal({ onAccept, onCancel }) {
               onClick={onCancel}
               className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-100 transition"
             >
-              Cancel
+              Cancel &amp; Sign Out
             </button>
             <button
               onClick={onAccept}
@@ -200,6 +200,11 @@ export default function TermsOfUseModal({ onAccept, onCancel }) {
               I Agree &amp; Continue
             </button>
           </div>
+
+          {/* Warning */}
+          <p className="text-xs text-center text-gray-400">
+            ⚠️ You must agree to the terms to use Tap-Watch. Cancelling will sign you out.
+          </p>
         </div>
 
       </div>

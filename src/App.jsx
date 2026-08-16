@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { SidebarProvider } from './context/SidebarContext'
@@ -6,23 +6,29 @@ import { useAuth } from './context/useAuth'
 import { OrbitProgress } from 'react-loading-indicators'
 import SplashScreen from './components/SplashScreen'
 import AdminLayout from './components/AdminLayout'
-import LandingPage from './pages/LandingPage'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import ProfileSetup from './pages/ProfileSetup'
-import ReportIncident from './pages/ReportIncident'
-import Dashboard from './pages/Dashboard'
-import AdminMap from './pages/AdminMap'
-import IncidentMap from './pages/IncidentMap'
-import AdminDashboard from './pages/AdminDashboard'
-import AllReports from './pages/AllReports'
-import Analytics from './pages/AnalyticsPage'
-import Profile from './pages/Profile'
-import EmergencyContacts from './pages/EmergencyContacts'
-import VerificationCenter from './pages/VerificationCenter'
-import AdminVerificationReview from './pages/AdminVerificationReview'
-import SystemSettings from './pages/SystemSettings'
 import OfflineIndicator from './components/OfflineIndicator'
+import ErrorBoundary from './components/ErrorBoundary'
+
+// ── Lazy-loaded pages — each becomes its own chunk at build time ──────────
+// Resident pages
+const LandingPage          = lazy(() => import('./pages/LandingPage'))
+const Login                = lazy(() => import('./pages/Login'))
+const Signup               = lazy(() => import('./pages/Signup'))
+const ProfileSetup         = lazy(() => import('./pages/ProfileSetup'))
+const Dashboard            = lazy(() => import('./pages/Dashboard'))
+const ReportIncident       = lazy(() => import('./pages/ReportIncident'))
+const IncidentMap          = lazy(() => import('./pages/IncidentMap'))
+const Profile              = lazy(() => import('./pages/Profile'))
+const VerificationCenter   = lazy(() => import('./pages/VerificationCenter'))
+
+// Admin pages — residents never download these chunks
+const AdminDashboard          = lazy(() => import('./pages/AdminDashboard'))
+const AdminMap                = lazy(() => import('./pages/AdminMap'))
+const AllReports              = lazy(() => import('./pages/AllReports'))
+const Analytics               = lazy(() => import('./pages/AnalyticsPage'))
+const EmergencyContacts       = lazy(() => import('./pages/EmergencyContacts'))
+const AdminVerificationReview = lazy(() => import('./pages/AdminVerificationReview'))
+const SystemSettings          = lazy(() => import('./pages/SystemSettings'))
 
 // Loading Component
 function LoadingScreen() {
@@ -142,45 +148,51 @@ function AppRoutes() {
   return (
     <>
       <SessionStamp />
-      <Routes>
-      {/* Landing page - redirects to dashboard if logged in */}
-      <Route path="/" element={<ProtectedLanding />} />
-      
-      {/* Auth routes - redirects to dashboard if already logged in */}
-      <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
-      <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
-      
-      {/* Protected routes — require authenticated user */}
-      <Route path="/profile-setup" element={<RequireAuth><ProfileSetup /></RequireAuth>} />
-      <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-      <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-      <Route path="/report" element={<RequireAuth><ReportIncident /></RequireAuth>} />
-      <Route path="/resident-map" element={<RequireAuth><IncidentMap /></RequireAuth>} />
-      <Route path="/verification" element={<RequireAuth><VerificationCenter /></RequireAuth>} />
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+        {/* Landing page - redirects to dashboard if logged in */}
+        <Route path="/" element={<ProtectedLanding />} />
+        
+        {/* Auth routes - redirects to dashboard if already logged in */}
+        <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+        <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
+        
+        {/* Protected routes — require authenticated user */}
+        <Route path="/profile-setup" element={<RequireAuth><ProfileSetup /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/report" element={<RequireAuth><ReportIncident /></RequireAuth>} />
+        <Route path="/resident-map" element={<RequireAuth><IncidentMap /></RequireAuth>} />
+        <Route path="/verification" element={<RequireAuth><VerificationCenter /></RequireAuth>} />
 
-      {/* Admin routes — require admin role */}
-      <Route path="/admin" element={<RequireAdmin><AdminLayout><AdminDashboard /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-map" element={<RequireAdmin><AdminLayout><AdminMap /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-reports" element={<RequireAdmin><AdminLayout><AllReports /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-analytics" element={<RequireAdmin><AdminLayout><Analytics /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-contacts" element={<RequireAdmin><AdminLayout><EmergencyContacts /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-verification" element={<RequireAdmin><AdminLayout><AdminVerificationReview /></AdminLayout></RequireAdmin>} />
-      <Route path="/admin-settings" element={<RequireAdmin><AdminLayout><SystemSettings /></AdminLayout></RequireAdmin>} />
-    </Routes>
+        {/* Admin routes — require admin role */}
+        <Route path="/admin" element={<RequireAdmin><AdminLayout><AdminDashboard /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-map" element={<RequireAdmin><AdminLayout><AdminMap /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-reports" element={<RequireAdmin><AdminLayout><AllReports /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-analytics" element={<RequireAdmin><AdminLayout><Analytics /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-contacts" element={<RequireAdmin><AdminLayout><EmergencyContacts /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-verification" element={<RequireAdmin><AdminLayout><AdminVerificationReview /></AdminLayout></RequireAdmin>} />
+        <Route path="/admin-settings" element={<RequireAdmin><AdminLayout><SystemSettings /></AdminLayout></RequireAdmin>} />
+      </Routes>
+      </Suspense>
     </>
   )
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <SidebarProvider>
-          <AppRoutes />
-          <OfflineIndicator />
-        </SidebarProvider>
-      </BrowserRouter>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <ErrorBoundary>
+            <SidebarProvider>
+              <AppRoutes />
+              <OfflineIndicator />
+            </SidebarProvider>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
