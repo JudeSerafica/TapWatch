@@ -9,6 +9,7 @@ import AdminLayout from './components/AdminLayout'
 import OfflineIndicator from './components/OfflineIndicator'
 import ErrorBoundary from './components/ErrorBoundary'
 import SuspendedScreen from './components/SuspendedScreen'
+import UpdateBanner from './components/UpdateBanner'
 
 // ── Lazy-loaded pages — each becomes its own chunk at build time ──────────
 // Resident pages
@@ -246,6 +247,7 @@ function App() {
             <SidebarProvider>
               <AppRoutes />
               <OfflineIndicator />
+              <UpdateBanner />
             </SidebarProvider>
           </ErrorBoundary>
         </BrowserRouter>
