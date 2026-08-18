@@ -7,6 +7,7 @@ import {
   FaCheckCircle, FaArrowRight, FaExclamationTriangle,
   FaMap
 } from 'react-icons/fa'
+import { QRCodeSVG } from 'qrcode.react'
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { eastTapinacGeoJSON } from '../data/EastTapinac'
@@ -692,37 +693,99 @@ function HeroSection() {
           </div>
         </div>
 
-        {/* Mobile/tablet — stacked (untouched) */}
-        <div className="lg:hidden flex flex-col items-center text-center px-5 pt-24 pb-10 gap-6 relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur border border-white/30 rounded-full px-4 py-1.5">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-white text-xs font-semibold">A Safer Community</span>
+        {/* ── Mobile/tablet hero — full responsive landing ─────────── */}
+        <div className="lg:hidden flex flex-col relative z-10 min-h-screen">
+
+          {/* Mobile hero area */}
+          <div className="flex flex-col items-center text-center px-5 pt-20 pb-8 gap-5">
+            {/* Live badge */}
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur border border-white/30 rounded-full px-4 py-1.5">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <span className="text-white text-xs font-semibold">Barangay East Tapinac • Live Monitoring</span>
+            </div>
+
+            {/* Headline */}
+            <h1 className="text-[2rem] font-black text-white leading-tight drop-shadow-lg">
+              Together, We Keep{' '}
+              <span className="text-blue-300">East Tapinac</span> Safe.
+            </h1>
+
+            <p className="text-white/85 text-sm leading-relaxed max-w-sm">
+              Tap-Watch is a community emergency monitoring system. Report incidents,
+              receive real-time alerts, and stay connected with your barangay.
+            </p>
+
+            {/* Primary CTA buttons */}
+            <div className="flex flex-col gap-3 w-full max-w-sm">
+              {/* Download APK — most prominent */}
+              {APK_URL ? (
+                <a href={APK_URL} download
+                  className="w-full flex items-center justify-center gap-2.5 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl shadow-blue-900/30 active:scale-95 transition-transform">
+                  <FaAndroid className="text-xl text-blue-600" />
+                  <div className="text-left">
+                    <div className="text-[10px] text-blue-500 font-semibold leading-none uppercase tracking-wide">Free Download</div>
+                    <div className="text-blue-700 font-black text-base leading-none mt-0.5">Download Tap-Watch APK</div>
+                  </div>
+                  <FaDownload className="text-blue-400 text-sm ml-auto" />
+                </a>
+              ) : (
+                <button
+                  onClick={() => document.getElementById('getstarted')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full flex items-center justify-center gap-2.5 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl">
+                  <FaAndroid className="text-xl text-blue-600" />
+                  <span>Download Tap-Watch APK</span>
+                </button>
+              )}
+
+              {/* Secondary buttons */}
+              <div className="flex gap-3">
+                <button onClick={() => navigate('/login')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 rounded-xl text-sm shadow-lg">
+                  Log In
+                </button>
+                <button onClick={() => navigate('/signup')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-white/20 backdrop-blur text-white font-bold py-3 rounded-xl border border-white/30 text-sm">
+                  Sign Up
+                </button>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-black text-white leading-tight">
-            Together, We Keep <span className="text-blue-300">East Tapinac</span> Safe.
-          </h1>
-          <p className="text-white/80 text-sm leading-relaxed max-w-sm">
-            Community emergency monitoring system for Barangay East Tapinac.
-          </p>
-          <div className="flex flex-col gap-3 w-full max-w-xs">
-            <button onClick={() => navigate('/report')} className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 rounded-xl text-sm">
-              <FaShieldAlt /> Report an Incident
-            </button>
-            <button onClick={() => navigate('/resident-map')} className="w-full flex items-center justify-center gap-2 bg-white/20 backdrop-blur text-white font-semibold py-3 rounded-xl border border-white/30 text-sm">
-              <FaMap /> View Incident Map
-            </button>
-            {APK_URL ? (
-              <a href={APK_URL} download className="w-full flex items-center justify-center gap-2 bg-white text-blue-700 font-semibold py-3 rounded-xl text-sm shadow">
-                <FaAndroid className="text-base text-blue-600" /> Download Tap-Watch App <FaDownload className="text-xs text-blue-400" />
-              </a>
-            ) : (
-              <button onClick={() => document.getElementById('getstarted')?.scrollIntoView({ behavior:'smooth' })}
-                className="w-full flex items-center justify-center gap-2 bg-white text-blue-700 font-semibold py-3 rounded-xl text-sm shadow">
-                <FaAndroid className="text-base text-blue-600" /> Download Tap-Watch App
-              </button>
-            )}
+
+          {/* Phone mockup */}
+          <div className="flex justify-center pb-6">
+            <div className="scale-90 origin-top">
+              <DashboardPhone />
+            </div>
           </div>
-          <DashboardPhone />
+
+          {/* Feature chips — scrollable row */}
+          <div className="px-4 pb-8">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                [FaShieldAlt, 'Report Incidents', 'Crime, fire, flood & more', 'bg-blue-600'],
+                [FaMapMarkedAlt, 'Live Map', 'Real-time incident map', 'bg-indigo-600'],
+                [FaExclamationTriangle, 'SOS Emergency', 'One-tap emergency alert', 'bg-red-500'],
+                [FaBell, 'Community Alerts', 'Stay informed instantly', 'bg-amber-500'],
+              ].map(([Icon, title, sub, bg]) => (
+                <div key={title} className="flex items-start gap-3 bg-white/15 backdrop-blur border border-white/20 rounded-xl p-3">
+                  <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="text-white text-sm" />
+                  </div>
+                  <div>
+                    <p className="text-white text-xs font-bold leading-tight">{title}</p>
+                    <p className="text-white/70 text-[10px] leading-snug mt-0.5">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Admin portal link */}
+          <div className="text-center pb-6">
+            <button onClick={() => navigate('/admin-login')} className="text-white/50 text-xs">
+              Admin Portal →
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1233,15 +1296,20 @@ function GetStartedSection() {
                   </a>
                   <p className="text-blue-300 text-xs">Android App • Free Download • Tap-Watch Official App</p>
                 </div>
-                {/* Right: QR placeholder */}
+                {/* Right: QR code */}
                 <div className="flex-shrink-0 text-center">
-                  <div className="w-32 h-32 bg-white/10 border-2 border-white/20 rounded-2xl flex flex-col items-center justify-center mb-2 backdrop-blur">
-                    <div className="text-white text-center p-2">
-                      <div className="text-2xl mb-1">📱</div>
-                      <p className="text-[9px] text-blue-200 leading-tight">Scan to download<br/>Tap-Watch APK</p>
-                    </div>
+                  <div className="w-36 h-36 bg-white rounded-2xl flex items-center justify-center mb-2 shadow-lg p-2">
+                    <QRCodeSVG
+                      value={APK_URL}
+                      size={112}
+                      bgColor="#ffffff"
+                      fgColor="#1d4ed8"
+                      level="M"
+                      includeMargin={false}
+                    />
                   </div>
-                  <p className="text-blue-300 text-[10px]">Scan to Download</p>
+                  <p className="text-blue-200 text-[11px] font-medium">Scan to Download</p>
+                  <p className="text-blue-300 text-[10px] mt-0.5">Tap-Watch APK</p>
                 </div>
               </div>
 
@@ -1257,6 +1325,20 @@ function GetStartedSection() {
                 <a href={APK_URL} download className="flex items-center justify-center gap-2 w-full bg-white text-blue-700 font-black py-4 rounded-2xl text-base hover:bg-blue-50 transition-all">
                   <FaAndroid className="text-xl" /> Download Tap-Watch APK
                 </a>
+                {/* QR for mobile users who share the screen */}
+                <div className="flex flex-col items-center gap-1 pt-2">
+                  <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-lg">
+                    <QRCodeSVG
+                      value={APK_URL}
+                      size={96}
+                      bgColor="#ffffff"
+                      fgColor="#1d4ed8"
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                  <p className="text-blue-300 text-[11px]">Scan to Download</p>
+                </div>
               </div>
             </div>
           </div>

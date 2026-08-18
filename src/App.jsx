@@ -76,18 +76,21 @@ function ProtectedLanding() {
       return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
     }
     // On web browser: only redirect if user is actively in the same tab session
-    // (sessionStorage is cleared when the tab is closed/reopened)
     const activeSession = sessionStorage.getItem('activeWebSession')
     if (activeSession) {
       return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
     }
-    // Tab was freshly opened — show landing page even if logged in
-    // On mobile, go to the mobile intro page; on desktop show full landing
-    return isMobileScreen() ? <Navigate to="/welcome" replace /> : <LandingPage />
+    // Tab was freshly opened — always show the landing page (desktop or mobile browser)
+    return <LandingPage />
   }
   
-  // Not logged in — mobile gets mobile intro, desktop gets landing page
-  return isMobileScreen() ? <Navigate to="/welcome" replace /> : <LandingPage />
+  // Not logged in:
+  // - APK/standalone on mobile → go to /welcome (onboarding flow)
+  // - Browser (any screen size) → show LandingPage
+  if (isStandaloneApp() && isMobileScreen()) {
+    return <Navigate to="/welcome" replace />
+  }
+  return <LandingPage />
 }
 
 // Mobile welcome/intro route guard
@@ -163,12 +166,12 @@ function AppRoutes() {
   const { loading } = useAuth()
 
   useEffect(() => {
-    // Check if we're on mobile/tablet
-    const isMobileOrTablet = window.innerWidth < 1024
+    // Splash screen ONLY shows when running as installed PWA/APK (standalone mode).
+    // Never show it in a browser — browser users see the landing page directly.
+    const standalone = isStandaloneApp()
     const hasShownSplash = sessionStorage.getItem('splashShown')
-    
-    // Show splash IMMEDIATELY on mobile, even before auth check
-    if (isMobileOrTablet && !hasShownSplash) {
+
+    if (standalone && !hasShownSplash) {
       setShowSplash(true)
     }
   }, [])
@@ -176,17 +179,13 @@ function AppRoutes() {
   const handleSplashComplete = () => {
     setShowSplash(false)
     sessionStorage.setItem('splashShown', 'true')
-    // On mobile, if not authenticated, navigate to the welcome/intro page
-    // (ProtectedLanding will also do this, but doing it explicitly avoids a flicker)
   }
 
-  // Show splash screen FIRST, before anything else
+  // Show splash screen FIRST (APK/standalone only)
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />
   }
 
-  // Show loading while checking auth — but only if there might be a session.
-  // If loading is false already (no stored token), skip straight to routes.
   if (loading) {
     return <LoadingScreen />
   }
