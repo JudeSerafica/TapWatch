@@ -11,6 +11,24 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
+// ── Dev mode guard ────────────────────────────────────────────────────────
+// In development (localhost / 127.0.0.1) the service worker must do nothing.
+// Activating the SW in dev causes ERR_CONNECTION_REFUSED white screens because
+// the SW tries to cache Vite's internal assets and HMR requests.
+const DEV_ORIGINS = ['http://localhost', 'http://127.0.0.1', 'http://0.0.0.0'];
+const isDev = DEV_ORIGINS.some(o => self.location.origin.startsWith(o));
+
+if (isDev) {
+  // Immediately self-destruct — unregister so it never intercepts requests
+  self.addEventListener('install', () => self.skipWaiting());
+  self.addEventListener('activate', () => {
+    self.registration.unregister();
+    self.clients.matchAll().then(clients =>
+      clients.forEach(c => c.navigate(c.url))
+    );
+  });
+} else {
+
 // Install event - cache essential files
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -42,13 +60,21 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - Network First, fallback to Cache strategy
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+
   // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  if (!url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Cache API only supports GET — let all other methods (POST, PUT, DELETE…)
-  // pass straight through without touching the cache.
+  // Skip Vite HMR / dev-server internal requests
+  if (url.includes('/@vite/') || url.includes('/@fs/') || url.includes('__vite') ||
+      url.includes('?t=') || url.includes('hot-update') || url.includes('ws://') ||
+      url.includes('wss://')) {
+    return;
+  }
+
+  // Cache API only supports GET — let all other methods pass straight through
   if (event.request.method !== 'GET') {
     return;
   }
@@ -70,16 +96,20 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Network failed, try cache
-        return caches.match(event.request).then((response) => {
-          if (response) {
-            return response;
+        // Network failed — try cache
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+
+          // Navigation requests → return the app shell
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html').then((shell) =>
+              shell || new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
+            );
           }
 
-          // Return offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
+          // For everything else return a proper empty 204 so the SW
+          // doesn't throw "Failed to convert value to Response"
+          return new Response('', { status: 204, statusText: 'No Content' });
         });
       })
   );
@@ -206,3 +236,5 @@ self.addEventListener('periodicsync', (event) => {
 async function checkForNewIncidents() {
   console.log('Checking for new incidents...');
 }
+
+} // end else (production only)
