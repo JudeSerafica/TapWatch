@@ -15,6 +15,11 @@ import { getIncidents, subscribeToIncidents } from '../lib/database'
 
 const APK_URL = import.meta.env.VITE_APK_DOWNLOAD_URL || '/downloads/tap-watch.apk'
 
+/* Full absolute URL for QR code — phone scanners need a complete URL, not a relative path */
+const APK_QR_URL = APK_URL.startsWith('http')
+  ? APK_URL
+  : `${import.meta.env.VITE_APP_URL || window.location.origin}/downloads/tap-watch.apk`
+
 /* Force-download helper — works even without proper Content-Disposition headers */
 async function downloadAPK() {
   try {
@@ -1213,7 +1218,7 @@ function GetStartedSection() {
                 <div className="flex-shrink-0 text-center">
                   <div className="w-36 h-36 bg-white rounded-2xl flex items-center justify-center mb-2 shadow-lg p-2">
                     <QRCodeSVG
-                      value={APK_URL}
+                      value={APK_QR_URL}
                       size={112}
                       bgColor="#ffffff"
                       fgColor="#1d4ed8"
@@ -1242,7 +1247,7 @@ function GetStartedSection() {
                 <div className="flex flex-col items-center gap-1 pt-2">
                   <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-lg">
                     <QRCodeSVG
-                      value={APK_URL}
+                      value={APK_QR_URL}
                       size={96}
                       bgColor="#ffffff"
                       fgColor="#1d4ed8"
@@ -1532,7 +1537,7 @@ export default function LandingPage() {
             {/* QR code */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-lg">
-                <QRCodeSVG value={APK_URL} size={96} bgColor="#ffffff" fgColor="#1d4ed8" level="M" includeMargin={false} />
+                <QRCodeSVG value={APK_QR_URL} size={96} bgColor="#ffffff" fgColor="#1d4ed8" level="M" includeMargin={false} />
               </div>
               <p className="text-blue-300 text-xs">Scan to Download</p>
             </div>
