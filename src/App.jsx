@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext'
 import { SidebarProvider } from './context/SidebarContext'
 import { useAuth } from './context/useAuth'
 import { OrbitProgress } from 'react-loading-indicators'
-import { Capacitor } from '@capacitor/core'
 import SplashScreen from './components/SplashScreen'
 import AdminLayout from './components/AdminLayout'
 import OfflineIndicator from './components/OfflineIndicator'
@@ -53,12 +52,11 @@ function LoadingScreen() {
   )
 }
 
-// Detect if running as installed APK/PWA (standalone mode)
-// Capacitor.isNativePlatform() is the most reliable check for APK builds.
-// Falls back to matchMedia for browser-installed PWAs.
+// Detect if running as installed APK/PWA (standalone mode).
+// PWABuilder APK wraps the site in a WebView that sets display-mode: standalone.
+// This is reliable for both PWABuilder APK and browser-installed PWAs.
 function isStandaloneApp() {
   return (
-    Capacitor.isNativePlatform() ||
     window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone === true // iOS Safari PWA
   )
