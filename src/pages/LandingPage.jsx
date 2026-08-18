@@ -15,6 +15,27 @@ import { getIncidents, subscribeToIncidents } from '../lib/database'
 
 const APK_URL = import.meta.env.VITE_APK_DOWNLOAD_URL || '/downloads/tap-watch.apk'
 
+/* Force-download helper — works even without proper Content-Disposition headers */
+async function downloadAPK() {
+  try {
+    const res = await fetch(APK_URL)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'tap-watch.apk'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('APK download failed:', err)
+    // Fallback: open directly
+    window.open(APK_URL, '_blank')
+  }
+}
+
 /* ── Incident type config ───────────────────────────────────────────── */
 const INCIDENT_TYPES = [
   { key: 'crime',        label: 'Crime',        color: 'red',    badgeBg: 'bg-red-500',    barColor: 'bg-red-500' },
@@ -201,16 +222,10 @@ function Navbar({ active }) {
           <div className="pt-3 space-y-2 border-t border-gray-100">
             <button onClick={() => navigate('/login')} className="w-full py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg">Log In</button>
             <button onClick={() => navigate('/signup')} className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg">Sign Up</button>
-            {APK_URL ? (
-              <a href={APK_URL} download className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-lg">
-                <FaAndroid /> Download APK
-              </a>
-            ) : (
-              <button onClick={() => { document.getElementById('getstarted')?.scrollIntoView({ behavior:'smooth' }); setOpen(false) }}
-                className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-lg">
-                <FaAndroid /> Download APK
-              </button>
-            )}
+            <button onClick={() => { downloadAPK(); setOpen(false) }}
+              className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-lg">
+              <FaAndroid /> Download APK
+            </button>
           </div>
         </div>
       )}
@@ -614,21 +629,12 @@ function HeroSection() {
                   <FaMap className="text-sm" /> View Incident Map
                 </button>
                 {/* Download APK button */}
-                {APK_URL ? (
-                  <a href={APK_URL} download
-                    className="flex items-center justify-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-2xl shadow-lg transition-all hover:scale-105 text-base border border-white w-full">
-                    <FaAndroid className="text-xl text-blue-600" />
-                    <span>Download Tap-Watch APK</span>
-                    <FaDownload className="text-sm text-blue-400" />
-                  </a>
-                ) : (
-                  <button onClick={() => document.getElementById('getstarted')?.scrollIntoView({ behavior:'smooth' })}
-                    className="flex items-center justify-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-2xl shadow-lg transition-all hover:scale-105 text-base border border-white w-full">
-                    <FaAndroid className="text-xl text-blue-600" />
-                    <span>Download Tap-Watch APK</span>
-                    <FaDownload className="text-sm text-blue-400" />
-                  </button>
-                )}
+                <button onClick={downloadAPK}
+                  className="flex items-center justify-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-2xl shadow-lg transition-all hover:scale-105 text-base border border-white w-full">
+                  <FaAndroid className="text-xl text-blue-600" />
+                  <span>Download Tap-Watch APK</span>
+                  <FaDownload className="text-sm text-blue-400" />
+                </button>
               </div>
 
               {/* 3 trust/benefit small cards */}
@@ -1192,7 +1198,7 @@ function GetStartedSection() {
                     ))}
                   </div>
                   {/* Download button */}
-                  <a href={APK_URL} download
+                  <button onClick={downloadAPK}
                     className="inline-flex items-center gap-3 bg-white text-blue-700 font-black px-8 py-4 rounded-2xl text-base hover:bg-blue-50 transition-all shadow-xl hover:scale-105 active:scale-95 hover:shadow-white/20">
                     <FaAndroid className="text-xl text-blue-600" />
                     <div className="text-left">
@@ -1200,7 +1206,7 @@ function GetStartedSection() {
                       <div className="text-blue-700 font-black text-base leading-none mt-0.5">Download Tap-Watch APK</div>
                     </div>
                     <FaDownload className="text-blue-500 text-sm ml-1" />
-                  </a>
+                  </button>
                   <p className="text-blue-300 text-xs">Android App • Free Download • Tap-Watch Official App</p>
                 </div>
                 {/* Right: QR code */}
@@ -1229,9 +1235,9 @@ function GetStartedSection() {
                 <h3 className="text-white font-black text-2xl">Take Tap-Watch With You.</h3>
                 <p className="text-blue-200 text-sm leading-relaxed">Download the Android app and stay connected with your community.</p>
                 <APKPhone />
-                <a href={APK_URL} download className="flex items-center justify-center gap-2 w-full bg-white text-blue-700 font-black py-4 rounded-2xl text-base hover:bg-blue-50 transition-all">
+                <button onClick={downloadAPK} className="flex items-center justify-center gap-2 w-full bg-white text-blue-700 font-black py-4 rounded-2xl text-base hover:bg-blue-50 transition-all">
                   <FaAndroid className="text-xl" /> Download Tap-Watch APK
-                </a>
+                </button>
                 {/* QR for mobile users who share the screen */}
                 <div className="flex flex-col items-center gap-1 pt-2">
                   <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-lg">
@@ -1268,10 +1274,10 @@ function GetStartedSection() {
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg hover:scale-105 transition-all">
                 Get Started <FaArrowRight className="text-sm" />
               </button>
-              <a href={APK_URL} download
+              <button onClick={downloadAPK}
                 className="flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl transition-all bg-gray-900 hover:bg-gray-800 text-white hover:scale-105 shadow-lg">
                 <FaAndroid /> Download APK
-              </a>
+              </button>
               <button onClick={() => navigate('/resident-map')}
                 className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 hover:border-blue-500 font-bold px-8 py-3.5 rounded-xl hover:scale-105 transition-all shadow-sm">
                 <FaMap /> Explore Incident Map
@@ -1349,14 +1355,14 @@ function Footer() {
           <div>
             <h4 className="text-white font-bold text-sm mb-4">Mobile App</h4>
             <div className="space-y-3">
-              <a href={APK_URL} download
+              <button onClick={downloadAPK}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all w-full bg-blue-600 border-blue-500 text-white hover:bg-blue-700">
                 <FaAndroid className="text-base" />
                 <div className="text-left">
                   <p className="text-[9px] opacity-70 leading-none">TAP TO DOWNLOAD</p>
                   <p className="text-xs leading-none mt-0.5">Android APK</p>
                 </div>
-              </a>
+              </button>
               <p className="text-[10px] text-gray-600 leading-relaxed">
                 Free for Android devices.<br />Official Tap-Watch release.
               </p>
@@ -1447,22 +1453,12 @@ export default function LandingPage() {
 
             {/* Download APK — primary CTA */}
             <div className="w-full max-w-sm space-y-3">
-              {APK_URL ? (
-                <a href={APK_URL} download
-                  className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 px-5 rounded-2xl text-base shadow-xl shadow-blue-900/30 active:scale-95 transition-transform">
-                  <FaAndroid className="text-xl text-blue-600" />
-                  <span>Download Tap-Watch APK</span>
-                  <FaDownload className="text-blue-400 text-sm" />
-                </a>
-              ) : (
-                <button
-                  onClick={() => document.getElementById('mobile-getstarted')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl">
-                  <FaAndroid className="text-xl text-blue-600" />
-                  <span>Download Tap-Watch APK</span>
-                  <FaDownload className="text-blue-400 text-sm" />
-                </button>
-              )}
+              <button onClick={downloadAPK}
+                className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 px-5 rounded-2xl text-base shadow-xl shadow-blue-900/30 active:scale-95 transition-transform">
+                <FaAndroid className="text-xl text-blue-600" />
+                <span>Download Tap-Watch APK</span>
+                <FaDownload className="text-blue-400 text-sm" />
+              </button>
             </div>
 
             {/* Phone mockup */}
@@ -1527,18 +1523,12 @@ export default function LandingPage() {
 
           {/* QR + Download */}
           <div className="flex flex-col items-center gap-4">
-            {APK_URL ? (
-              <a href={APK_URL} download
-                className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl active:scale-95 transition-transform">
-                <FaAndroid className="text-xl text-blue-600" />
-                Download Tap-Watch APK
-                <FaDownload className="text-blue-400 text-sm" />
-              </a>
-            ) : (
-              <div className="w-full py-4 bg-white/20 border border-white/30 rounded-2xl text-center text-white font-semibold text-sm">
-                APK coming soon
-              </div>
-            )}
+            <button onClick={downloadAPK}
+              className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl active:scale-95 transition-transform">
+              <FaAndroid className="text-xl text-blue-600" />
+              Download Tap-Watch APK
+              <FaDownload className="text-blue-400 text-sm" />
+            </button>
             {/* QR code */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-lg">
