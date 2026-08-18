@@ -702,14 +702,29 @@ const uploadMedia = async () => {
 
   setUploadProgress(10)
 
-  const { error } = await supabase.storage
-    .from('incident-media')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
-    })
+  // Wrap upload in a timeout so it never hangs forever (60s limit)
+  const uploadWithTimeout = new Promise(async (resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Upload timed out. Please check your connection and try again.'))
+    }, 60000)
 
-  if (error) throw error
+    try {
+      const { error } = await supabase.storage
+        .from('incident-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+      clearTimeout(timeout)
+      if (error) reject(error)
+      else resolve()
+    } catch (err) {
+      clearTimeout(timeout)
+      reject(err)
+    }
+  })
+
+  await uploadWithTimeout
 
   setUploadProgress(80)
 
@@ -1087,11 +1102,11 @@ const uploadMedia = async () => {
           input[type="datetime-local"],
           textarea {
             font-size: 11px !important;
-            padding: 8px 10px !important;
+            padding: 8px 12px !important;
           }
           /* Fix icon overlap - ensure proper spacing for inputs with icons */
           .input-with-icon {
-            padding-left: 30px !important;
+            padding-left: 34px !important;
             font-size: 11px !important;
           }
           /* Make icons slightly smaller on mobile */
@@ -1604,30 +1619,48 @@ const uploadMedia = async () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="reporter-info-grid">
           <div>
             <FieldLabel>Date & Time</FieldLabel>
-            <div style={{ position: 'relative' }}>
-              <FiClock size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
-              <input type="datetime-local" value={`${form.date}T${form.time}`} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 14px',
+              border: '1.5px solid #f3f4f6', borderRadius: 10,
+              background: '#f9fafb',
+            }}>
+              <FiClock size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, color: '#9ca3af', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {new Date(`${form.date}T${form.time}`).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+              </span>
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Auto-filled to current time</p>
           </div>
 
           <div>
             <FieldLabel>Reporter Name</FieldLabel>
-            <div style={{ position: 'relative' }}>
-              <FiUser size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
-              <input type="text" value={form.reporterName} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 14px',
+              border: '1.5px solid #f3f4f6', borderRadius: 10,
+              background: '#f9fafb',
+            }}>
+              <FiUser size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, color: '#9ca3af', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {form.reporterName || '—'}
+              </span>
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
           </div>
 
           <div>
             <FieldLabel>Contact Number</FieldLabel>
-            <div style={{ position: 'relative' }}>
-              <FiPhone size={13} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} className="input-icon" />
-              <input type="tel" value={form.contact} readOnly
-                style={{ ...readOnlyInputStyle, paddingLeft: 32 }} className="input-with-icon" />
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 14px',
+              border: '1.5px solid #f3f4f6', borderRadius: 10,
+              background: '#f9fafb',
+            }}>
+              <FiPhone size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, color: '#9ca3af', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {form.contact || '—'}
+              </span>
             </div>
             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>From your profile</p>
           </div>

@@ -947,10 +947,10 @@ export default function EmergencyContacts() {
                   {(() => {
                     const contact = getContactByPosition('punong_barangay')
                     return contact ? (
-                      <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-300 p-6 w-full max-w-lg">
-                        <div className="flex items-center gap-6">
-                          {/* Large Square Photo */}
-                          <div className="w-32 h-32 bg-blue-100 rounded-xl flex-shrink-0 overflow-hidden border-4 border-blue-200">
+                      <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-300 p-4 w-full max-w-lg">
+                        <div className="flex items-start gap-4">
+                          {/* Photo */}
+                          <div className="w-24 h-24 md:w-32 md:h-32 bg-blue-100 rounded-xl flex-shrink-0 overflow-hidden border-4 border-blue-200">
                             {contact.photo_url ? (
                               <img
                                 src={contact.photo_url}
@@ -959,25 +959,25 @@ export default function EmergencyContacts() {
                               />
                             ) : (
                               <div className="w-full h-full bg-blue-100 flex items-center justify-center">
-                                <User size={48} className="text-blue-600" />
+                                <User size={40} className="text-blue-600" />
                               </div>
                             )}
                           </div>
                           
                           {/* Contact Info */}
-                          <div className="flex-1 text-left">
-                            <h3 className="font-bold text-2xl text-gray-900 mb-2">{contact.name}</h3>
-                            <p className="text-blue-600 font-semibold text-lg mb-4">Punong Barangay</p>
+                          <div className="flex-1 min-w-0 text-left">
+                            <h3 className="font-bold text-base md:text-xl text-gray-900 mb-1 break-words leading-snug">{contact.name}</h3>
+                            <p className="text-blue-600 font-semibold text-sm md:text-base mb-3">Punong Barangay</p>
                             
-                            <div className="space-y-2 text-base text-gray-600">
-                              <div className="flex items-center gap-3">
-                                <Phone size={18} className="text-gray-400" />
-                                <span>{contact.phone}</span>
+                            <div className="space-y-1.5 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                                <span className="truncate">{contact.phone}</span>
                               </div>
                               {contact.email && (
-                                <div className="flex items-center gap-3">
-                                  <Mail size={18} className="text-gray-400" />
-                                  <span className="truncate">{contact.email}</span>
+                                <div className="flex items-center gap-2">
+                                  <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                                  <span className="truncate text-xs md:text-sm">{contact.email}</span>
                                 </div>
                               )}
                             </div>
@@ -985,40 +985,40 @@ export default function EmergencyContacts() {
                           
                           {/* Action Buttons */}
                           {!isEditMode && (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 flex-shrink-0">
                               <button
                                 onClick={() => handleEdit(contact)}
                                 className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition"
                               >
-                                <Edit2 size={18} />
+                                <Edit2 size={16} />
                               </button>
                               <button
                                 onClick={() => openDeleteModal(contact)}
                                 className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
                               >
-                                <Trash2 size={18} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-white rounded-2xl shadow-lg border-2 border-dashed border-blue-300 p-6 w-full max-w-lg cursor-pointer hover:border-blue-500 transition-all"
+                      <div className="bg-white rounded-2xl shadow-lg border-2 border-dashed border-blue-300 p-4 w-full max-w-lg cursor-pointer hover:border-blue-500 transition-all"
                            onClick={() => isEditMode && handleEditPosition('punong_barangay', 'Punong Barangay')}>
-                        <div className="flex items-center gap-6">
-                          <div className="w-32 h-32 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center border-4 border-gray-200">
-                            <User size={48} className="text-gray-400" />
+                        <div className="flex items-start gap-4">
+                          <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center border-4 border-gray-200">
+                            <User size={40} className="text-gray-400" />
                           </div>
-                          <div className="flex-1 text-left">
-                            <h3 className="font-bold text-2xl text-gray-400 mb-2">NO OFFICIAL ASSIGNED</h3>
-                            <p className="text-blue-600 font-semibold text-lg mb-4">Punong Barangay</p>
-                            <div className="space-y-2 text-base text-gray-300">
-                              <div className="flex items-center gap-3">
-                                <Phone size={18} />
+                          <div className="flex-1 min-w-0 text-left">
+                            <h3 className="font-bold text-base md:text-xl text-gray-400 mb-1 break-words leading-snug">NO OFFICIAL ASSIGNED</h3>
+                            <p className="text-blue-600 font-semibold text-sm md:text-base mb-3">Punong Barangay</p>
+                            <div className="space-y-1.5 text-sm text-gray-300">
+                              <div className="flex items-center gap-2">
+                                <Phone size={14} />
                                 <span>No phone</span>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <Mail size={18} />
+                              <div className="flex items-center gap-2">
+                                <Mail size={14} />
                                 <span>No email</span>
                               </div>
                             </div>
@@ -1034,10 +1034,10 @@ export default function EmergencyContacts() {
               <div>
                 <div className="flex items-center justify-center mb-6">
                   <div className="flex-1 h-px bg-blue-300"></div>
-                  <div className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold text-base shadow-md mx-4">
+                  <div className="px-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm md:text-base shadow-md mx-2 md:mx-4 text-center">
                     <div className="flex items-center gap-2">
-                      <User size={20} className="text-white" />
-                      SANGGUNIANG BARANGAY (KAGAWAD)
+                      <User size={18} className="text-white flex-shrink-0" />
+                      <span>SANGGUNIANG BARANGAY (KAGAWAD)</span>
                     </div>
                   </div>
                   <div className="flex-1 h-px bg-blue-300"></div>

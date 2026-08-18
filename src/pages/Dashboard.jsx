@@ -1215,6 +1215,14 @@ export default function Dashboard() {
 
     loadIncidents()
 
+    // Re-fetch incidents when user returns to the app (e.g. after switching to another app on Android)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadIncidents()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     const subscription =
       subscribeToIncidents((payload) => {
 
@@ -1261,7 +1269,10 @@ export default function Dashboard() {
         }
       })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
 
   }, [profile?.id])
 

@@ -68,7 +68,32 @@ export function AuthProvider({ children }) {
     }
   })
 
-  return () => subscription.unsubscribe()
+  // ── Auto-refresh when user returns to the app (tab/app resume) ──
+  // Handles both browser tab switching and Android app switching.
+  // Re-validates the Supabase session and re-fetches the profile
+  // so the UI is always up-to-date without a manual refresh.
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setUser(session.user)
+          fetchProfile(session.user.id, session.user)
+        } else {
+          // Session expired while app was in background — log out cleanly
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+        }
+      })
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  return () => {
+    subscription.unsubscribe()
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
 }, [])
 
   const signIn = async (credentials) => {
