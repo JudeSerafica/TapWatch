@@ -14,6 +14,12 @@ export default function UpdateBanner() {
   const { updateAvailable, latestVersion, releaseNotes, apkUrl, forceUpdate, dismissed, dismiss } = useAppUpdate()
   const [expanded, setExpanded] = useState(false)
 
+  // Only show in installed APK/PWA (standalone mode) — never in a regular browser tab
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  if (!isStandalone) return null
+
   // Nothing to show
   if (!updateAvailable || (dismissed && !forceUpdate)) return null
 
