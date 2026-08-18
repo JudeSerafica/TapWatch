@@ -616,23 +616,17 @@ function HeroSection() {
                 {/* Download APK button */}
                 {APK_URL ? (
                   <a href={APK_URL} download
-                    className="flex items-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-xl shadow-lg transition-all hover:scale-105 text-base border border-white">
+                    className="flex items-center justify-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-2xl shadow-lg transition-all hover:scale-105 text-base border border-white w-full">
                     <FaAndroid className="text-xl text-blue-600" />
-                    <div className="text-left">
-                      <div className="text-[10px] text-blue-500 font-semibold leading-none uppercase tracking-wide">Free Download</div>
-                      <div className="font-black text-base leading-none mt-0.5">Download Tap-Watch APK</div>
-                    </div>
-                    <FaDownload className="text-sm text-blue-400 ml-1" />
+                    <span>Download Tap-Watch APK</span>
+                    <FaDownload className="text-sm text-blue-400" />
                   </a>
                 ) : (
                   <button onClick={() => document.getElementById('getstarted')?.scrollIntoView({ behavior:'smooth' })}
-                    className="flex items-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-xl shadow-lg transition-all hover:scale-105 text-base border border-white">
+                    className="flex items-center justify-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black px-7 py-4 rounded-2xl shadow-lg transition-all hover:scale-105 text-base border border-white w-full">
                     <FaAndroid className="text-xl text-blue-600" />
-                    <div className="text-left">
-                      <div className="text-[10px] text-blue-500 font-semibold leading-none uppercase tracking-wide">Free Download</div>
-                      <div className="font-black text-base leading-none mt-0.5">Download Tap-Watch APK</div>
-                    </div>
-                    <FaDownload className="text-sm text-blue-400 ml-1" />
+                    <span>Download Tap-Watch APK</span>
+                    <FaDownload className="text-sm text-blue-400" />
                   </button>
                 )}
               </div>
@@ -1455,20 +1449,18 @@ export default function LandingPage() {
             <div className="w-full max-w-sm space-y-3">
               {APK_URL ? (
                 <a href={APK_URL} download
-                  className="w-full flex items-center gap-3 bg-white text-blue-700 font-black py-4 px-5 rounded-2xl text-base shadow-xl shadow-blue-900/30 active:scale-95 transition-transform">
-                  <FaAndroid className="text-xl text-blue-600 flex-shrink-0" />
-                  <div className="text-left flex-1">
-                    <div className="text-[10px] text-blue-500 font-semibold leading-none uppercase tracking-wide">Free Download</div>
-                    <div className="text-blue-700 font-black text-base leading-none mt-0.5">Download Tap-Watch APK</div>
-                  </div>
-                  <FaDownload className="text-blue-400 text-sm flex-shrink-0" />
+                  className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 px-5 rounded-2xl text-base shadow-xl shadow-blue-900/30 active:scale-95 transition-transform">
+                  <FaAndroid className="text-xl text-blue-600" />
+                  <span>Download Tap-Watch APK</span>
+                  <FaDownload className="text-blue-400 text-sm" />
                 </a>
               ) : (
                 <button
                   onClick={() => document.getElementById('mobile-getstarted')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="w-full flex items-center justify-center gap-2 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl">
+                  className="w-full flex items-center justify-center gap-3 bg-white text-blue-700 font-black py-4 rounded-2xl text-base shadow-xl">
                   <FaAndroid className="text-xl text-blue-600" />
                   <span>Download Tap-Watch APK</span>
+                  <FaDownload className="text-blue-400 text-sm" />
                 </button>
               )}
             </div>

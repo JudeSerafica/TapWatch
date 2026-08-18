@@ -34,10 +34,25 @@ export default function TopBar({ title, children, showUserMenu = false, showNoti
           )}
           
           {children}
+
+          {/* Mobile avatar with green online dot — shown after SOS in header */}
+          <button
+            onClick={() => navigate('/profile')}
+            className="relative flex-shrink-0 md:hidden"
+          >
+            <div className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <User size={18} className="text-gray-500" />
+              )}
+            </div>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+          </button>
           
-          {/* User Menu Button - Only show on mobile/tablet when showUserMenu is true */}
+          {/* User Menu Button - Only show on desktop when showUserMenu is true */}
           {showUserMenu && (
-            <div className="relative md:hidden">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"

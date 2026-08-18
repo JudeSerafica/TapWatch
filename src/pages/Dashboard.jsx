@@ -1326,60 +1326,243 @@ export default function Dashboard() {
           title="Dashboard"
           showNotifications={true}
           onNotificationClick={() => {
-            // Handle notification click
             console.log('Notification clicked')
           }}
         >
+          {/* SOS button — desktop only, hidden on mobile */}
           <button
             onClick={() => setSOSModalOpen(true)}
-            className="relative flex items-center justify-center w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl animate-pulse-slow"
+            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-xl"
           >
-            <style>{`
-              @keyframes pulse-slow {
-                0%, 100% {
-                  opacity: 1;
-                  transform: scale(1);
-                }
-                50% {
-                  opacity: 0.7;
-                  transform: scale(1.05);
-                }
-              }
-              @keyframes ripple {
-                0% {
-                  transform: scale(1);
-                  opacity: 0.6;
-                }
-                100% {
-                  transform: scale(1.8);
-                  opacity: 0;
-                }
-              }
-              .animate-pulse-slow {
-                animation: pulse-slow 2s ease-in-out infinite;
-              }
-              .sos-ripple {
-                position: absolute;
-                inset: 0;
-                border-radius: 50%;
-                border: 1px solid #dc2626;
-                animation: ripple 2s ease-out infinite;
-              }
-              .sos-ripple:nth-child(2) {
-                animation-delay: 0.7s;
-              }
-              .sos-ripple:nth-child(3) {
-                animation-delay: 1.4s;
-              }
-            `}</style>
-            <span className="sos-ripple"></span>
-            <span className="sos-ripple"></span>
-            <span className="sos-ripple"></span>
-            <span className="relative z-10 text-xl">🚨</span>
+            <span className="text-xl">🚨</span>
           </button>
         </TopBar>
 
-        <main className="p-4 md:p-8 space-y-6 md:space-y-8">
+        <main className="p-4 md:p-8 space-y-4 md:space-y-8">
+
+          {/* ══════════════════════════════════════════════════════
+              MOBILE DASHBOARD (md:hidden)
+              Matches the reference image exactly
+          ══════════════════════════════════════════════════════ */}
+          <div className="md:hidden space-y-4">
+
+            {/* ── Hero card ── */}
+            <div
+              className="rounded-2xl p-5 text-white shadow-lg relative overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%)' }}
+            >
+              {/* decorative bg blobs */}
+              <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
+              <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/10" />
+              {/* building silhouette right side */}
+              <div className="absolute right-0 top-0 bottom-0 w-2/5 overflow-hidden opacity-20 pointer-events-none">
+                <img src="/greetbackground.png" alt="" className="h-full w-auto object-cover object-right" />
+              </div>
+
+              <div className="relative z-10">
+                <p className="text-blue-200 text-xs font-medium mb-2">{today}</p>
+                <h2 className="text-xl font-extrabold mb-1">
+                  Hello, {profile?.full_name?.split(' ')[0] || 'Resident'}{' '}
+                  <MdWavingHand className="inline text-yellow-400" />
+                </h2>
+                <p className="text-blue-100 text-xs font-semibold mb-1 flex items-center gap-1">
+                  <span>🛡️</span> Together, we keep Barangay East Tapinac safe.
+                </p>
+                <p className="text-blue-200 text-xs leading-relaxed mb-4">
+                  Report incidents, view alerts, and help build a safer community.
+                </p>
+                <button
+                  onClick={() => navigate('/report')}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-white text-blue-700 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform"
+                >
+                  <FaMapPin style={{ color: 'red' }} size={14} />
+                  Report an Incident
+                </button>
+              </div>
+            </div>
+
+            {/* ── Quick Actions ── */}
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                  ⚡ Quick Actions
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 divide-x divide-y divide-gray-100">
+                {/* Report Incident */}
+                <button
+                  onClick={() => navigate('/report')}
+                  className="flex items-center gap-3 px-4 py-4 hover:bg-red-50 active:bg-red-100 transition text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <FaMapPin className="text-red-500" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">Report Incident</p>
+                    <p className="text-xs text-gray-500">Submit a report</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 text-lg">›</span>
+                </button>
+
+                {/* View Map */}
+                <button
+                  onClick={() => navigate('/resident-map')}
+                  className="flex items-center gap-3 px-4 py-4 hover:bg-blue-50 active:bg-blue-100 transition text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <FaMapMarkedAlt className="text-blue-500" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">View Map</p>
+                    <p className="text-xs text-gray-500">See nearby incidents</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 text-lg">›</span>
+                </button>
+
+                {/* Community Alerts */}
+                <button
+                  onClick={() => setAlertsModalOpen(true)}
+                  className="flex items-center gap-3 px-4 py-4 hover:bg-yellow-50 active:bg-yellow-100 transition text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                    <FaBell className="text-yellow-500" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">Community Alerts</p>
+                    <p className="text-xs text-gray-500">Latest updates</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 text-lg">›</span>
+                </button>
+
+                {/* Barangay Officials */}
+                <button
+                  onClick={() => setEmergencyModalOpen(true)}
+                  className="flex items-center gap-3 px-4 py-4 hover:bg-green-50 active:bg-green-100 transition text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <BsFillTelephoneFill className="text-green-500" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">Barangay Officials</p>
+                    <p className="text-xs text-gray-500">Call for immediate help</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 text-lg">›</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── My Reports ── */}
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                  <FaClipboardList className="text-blue-600" size={15} /> My Reports
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 p-4">
+                <button
+                  onClick={() => setSelectedStatusFilter('pending')}
+                  className="rounded-xl p-3 text-center bg-blue-50 active:bg-blue-100"
+                >
+                  <p className="text-2xl font-black text-blue-600">{loading ? '…' : myReports.pending}</p>
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <MdPendingActions className="text-blue-500 text-xs" />
+                    <p className="text-xs text-blue-600 font-semibold">Pending</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSelectedStatusFilter('responding')}
+                  className="rounded-xl p-3 text-center bg-yellow-50 active:bg-yellow-100"
+                >
+                  <p className="text-2xl font-black text-yellow-500">{loading ? '…' : myReports.responding}</p>
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <FaPersonRunning className="text-yellow-500 text-xs" />
+                    <p className="text-xs text-yellow-600 font-semibold">Responding</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSelectedStatusFilter('resolved')}
+                  className="rounded-xl p-3 text-center bg-green-50 active:bg-green-100"
+                >
+                  <p className="text-2xl font-black text-green-600">{loading ? '…' : myReports.resolved}</p>
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <FaRegCheckCircle className="text-green-500 text-xs" />
+                    <p className="text-xs text-green-600 font-semibold">Resolved</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Recent Alerts ── */}
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                  🔔 Recent Alerts
+                </span>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-gray-400 text-sm">
+                    <Clock size={14} className="animate-spin" /> Loading…
+                  </div>
+                ) : recentAlerts.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">
+                    <FaBell className="mx-auto mb-2 text-2xl text-gray-300" />
+                    <p>No alerts yet</p>
+                  </div>
+                ) : (
+                  recentAlerts.map((incident) => {
+                    const minsAgo = Math.round((Date.now() - new Date(incident.created_at).getTime()) / 60000)
+                    const timeLabel = minsAgo < 60 ? `${minsAgo}m ago` : `${Math.round(minsAgo/60)}h ago`
+                    const isCritical = incident.status === 'pending' && (incident.type === 'fire' || incident.type === 'crime')
+                    const typeColor = {
+                      fire: 'text-red-500 bg-red-100',
+                      crime: 'text-purple-600 bg-purple-100',
+                      flood: 'text-blue-500 bg-blue-100',
+                      accident: 'text-orange-500 bg-orange-100',
+                      disturbance: 'text-yellow-600 bg-yellow-100',
+                    }[incident.type] || 'text-gray-600 bg-gray-100'
+
+                    return (
+                      <div
+                        key={incident.id}
+                        className="flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 cursor-pointer"
+                        onClick={() => setSelectedIncident(incident)}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          <IncidentIcon type={incident.type} size={36} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-0.5">
+                            <div>
+                              <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${typeColor}`}>
+                                {incident.type} Incident
+                              </span>
+                              <p className="text-sm text-gray-700 mt-1 leading-snug truncate">{incident.location || 'Unknown location'}</p>
+                            </div>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0 mt-1">{timeLabel}</span>
+                          </div>
+                          {isCritical && (
+                            <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white mt-1">
+                              Critical
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+          </div>
+          {/* end md:hidden mobile layout */}
+
+          {/* ══════════════════════════════════════════════════════
+              DESKTOP DASHBOARD (hidden md:block)
+          ══════════════════════════════════════════════════════ */}
+          <div className="hidden md:block space-y-8">
 
           {/* HERO */}
 
@@ -1644,6 +1827,9 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          </div>
+          {/* end hidden md:block desktop layout */}
 
         </main>
       </div>
