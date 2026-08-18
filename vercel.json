@@ -7,7 +7,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/((?!api).*)",
+      "source": "/((?!api|manifest\\.json|sw\\.js|version\\.json|favicon|.*\\.png|.*\\.jpg|.*\\.ico|.*\\.svg|.*\\.webp|.*\\.css|.*\\.js).*)",
       "destination": "/index.html"
     }
   ],
