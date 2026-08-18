@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FaAndroid } from 'react-icons/fa'
 import { X, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
 import { APP_VERSION } from '../lib/appVersion'
 import { useAppUpdate } from '../hooks/useAppUpdate'
 
@@ -16,6 +17,7 @@ export default function UpdateBanner() {
 
   // Only show in installed APK/PWA (standalone mode) — never in a regular browser tab
   const isStandalone =
+    Capacitor.isNativePlatform() ||
     window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone === true
   if (!isStandalone) return null
