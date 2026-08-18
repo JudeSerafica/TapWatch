@@ -1,56 +1,55 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "src": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      },
+      "dest": "/manifest.json"
     },
     {
-      "source": "/((?!api|manifest\\.json|sw\\.js|version\\.json|favicon|.*\\.png|.*\\.jpg|.*\\.ico|.*\\.svg|.*\\.webp|.*\\.css|.*\\.js).*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/manifest.json",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
+      "src": "/sw.js",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      },
+      "dest": "/sw.js"
     },
     {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
+      "src": "/version.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      },
+      "dest": "/version.json"
     },
     {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options",    "value": "nosniff" },
-        { "key": "X-Frame-Options",            "value": "DENY" },
-        { "key": "Referrer-Policy",            "value": "strict-origin-when-cross-origin" },
-        { "key": "Strict-Transport-Security",  "value": "max-age=31536000; includeSubDomains" },
-        { "key": "Permissions-Policy",         "value": "geolocation=(self), camera=(self), microphone=(self)" }
-      ]
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "^/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "^/(.+\\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|otf|eot|mp4|webm|pdf)$)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+        "Permissions-Policy": "geolocation=(self), camera=(self), microphone=(self)"
+      },
+      "dest": "/index.html"
     }
   ]
 }
