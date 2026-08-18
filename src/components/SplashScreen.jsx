@@ -1,168 +1,96 @@
 import { useEffect, useState } from 'react';
-import { Shield, Bell, Users, MapPin } from 'lucide-react';
 import './SplashScreen.css';
 
 const SplashScreen = ({ onComplete }) => {
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [showContent, setShowContent] = useState(false);
-  const [showReady, setShowReady] = useState(false);
+  const [phase, setPhase] = useState('logo');   // 'logo' → 'tagline' → 'shield' → 'done'
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const progressInterval = setInterval(() => {
-      setLoadingProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return Math.min(prev + 2, 100);
-      });
-    }, 60);
+    // Phase timeline:
+    // 0ms   — logo fades/scales in (CSS)
+    // 900ms — tagline appears
+    // 1800ms — shield check animates in
+    // 3200ms — start fade-out
+    // 3900ms — call onComplete
 
-    const contentTimer = setTimeout(() => {
-      setShowContent(true);
-    }, 3000);
-
-    const readyTimer = setTimeout(() => {
-      setShowReady(true);
-    }, 4000);
-
-    const fadeTimer = setTimeout(() => {
-      setFadeOut(true);
-    }, 6000);
-
-    const completeTimer = setTimeout(() => {
-      onComplete();
-    }, 7000);
+    const t1 = setTimeout(() => setPhase('tagline'), 900);
+    const t2 = setTimeout(() => setPhase('shield'), 1800);
+    const t3 = setTimeout(() => setFadeOut(true), 3200);
+    const t4 = setTimeout(() => onComplete(), 3900);
 
     return () => {
-      clearInterval(progressInterval);
-      clearTimeout(contentTimer);
-      clearTimeout(readyTimer);
-      clearTimeout(fadeTimer);
-      clearTimeout(completeTimer);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
     };
   }, [onComplete]);
 
   return (
     <div className={`splash-screen ${fadeOut ? 'fade-out' : ''}`}>
-      <div className="splash-background" />
+      {/* Blue gradient background */}
+      <div className="splash-bg-gradient" />
 
       <div className="splash-content">
 
-        {/* ── STAGE 1: Loading ── */}
-        {!showContent && (
-          <div className="loading-stage">
+        {/* ── Logo ring with glow ── */}
+        <div className={`splash-logo-container ${phase !== 'logo' ? 'splash-logo-up' : ''}`}>
+          <div className="splash-glow-ring" />
+          <div className="splash-logo-ring">
+            <img
+              src="/Tapinac.logo.jpg"
+              alt="Tap-Watch Logo"
+              className="splash-logo"
+            />
+          </div>
+        </div>
 
-            <div className="logo-wrapper">
-              {/* floating icons */}
-              <div className="icon-circle icon-top">
-                <Bell size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-left">
-                <Shield size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-right">
-                <Users size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-bottom">
-                <MapPin size={25} className="icon-blue" />
-              </div>
+        {/* ── Title ── */}
+        <h1 className={`app-title splash-fade-in`}>
+          <span className="text-dark">Tap</span>
+          <span className="text-blue">-Watch</span>
+        </h1>
 
-              {/* circle + logo */}
-              <div className="logo-ring">
-                <div className="logo-glow" />
-                <img
-                  src="/Tapinac.logo.jpg"
-                  alt="Tap-Watch Logo"
-                  className="splash-logo"
-                />
-              </div>
-            </div>
+        {/* ── Barangay sub-title ── */}
+        <p className={`barangay-text splash-fade-in`} style={{ animationDelay: '0.2s' }}>
+          Barangay East Tapinac
+        </p>
 
-            <h1 className="app-title">
-              <span className="text-dark">Tap</span>
-              <span className="text-blue">-Watch</span>
-            </h1>
-            <p className="barangay-text">Barangay East Tapinac</p>
-
-            <div className="progress-section">
-              <p className="progress-label">
-                Fast Response.<br />
-                <span className="text-blue">Safer Community.</span>
-              </p>
-              <div className="progress-bar-container">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${loadingProgress}%` }}
-                />
-              </div>
-              <p className="progress-percentage">{Math.round(loadingProgress)}%</p>
-            </div>
-
+        {/* ── Tagline ── */}
+        {(phase === 'tagline' || phase === 'shield') && (
+          <div className="splash-tagline-block fade-in">
+            <p className="splash-tagline-line1">Together, We Keep</p>
+            <p className="splash-tagline-line2">
+              <span className="text-blue font-bold">East Tapinac</span> Safe.
+            </p>
           </div>
         )}
 
-        {/* ── STAGE 2 & 3: System Ready ── */}
-        {showContent && (
-          <div className="content-stage">
-
-            <div className="logo-wrapper">
-              <div className="icon-circle icon-top">
-                <Bell size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-left">
-                <Shield size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-right">
-                <Users size={25} className="icon-blue" />
-              </div>
-              <div className="icon-circle icon-bottom">
-                <MapPin size={25} className="icon-blue" />
-              </div>
-
-              <div className="logo-ring">
-                <div className="logo-glow" />
-                <img
-                  src="/Tapinac.logo.jpg"
-                  alt="Tap-Watch Logo"
-                  className="splash-logo"
-                />
-              </div>
-            </div>
-
-            <h1 className="app-title">
-              <span className="text-dark">Tap</span>
-              <span className="text-blue">-Watch</span>
-            </h1>
-            <p className="barangay-text">Barangay East Tapinac</p>
-
-            <div className="tagline-section">
-              <p className="tagline-text">
-                Fast Response.<br />
-                <span className="text-blue">Safer Community.</span>
-              </p>
-            </div>
-
-            {showReady && (
-              <div className="ready-section fade-in">
-                <div className="check-icon-container">
-                  <svg className="check-icon" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" fill="#2563eb" className="check-circle" />
-                    <path
-                      d="M8 12.5l2.5 2.5L16 9"
-                      stroke="white"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="check-mark"
-                    />
-                  </svg>
-                </div>
-                <p className="ready-text">System Ready!</p>
-              </div>
-            )}
-
+        {/* ── Shield + checkmark ── */}
+        {phase === 'shield' && (
+          <div className="splash-shield-block fade-in">
+            <svg viewBox="0 0 60 70" fill="none" className="splash-shield-svg">
+              <path
+                d="M30 4L8 13v18c0 13.5 9.5 26.2 22 29.4C42.5 57.2 52 44.5 52 31V13L30 4z"
+                fill="#2563eb"
+                opacity="0.15"
+              />
+              <path
+                d="M30 2L6 12v19c0 14 10 27 24 30.5C44 58 54 45 54 31V12L30 2z"
+                stroke="#2563eb"
+                strokeWidth="2.5"
+                fill="none"
+                className="splash-shield-path"
+              />
+              <path
+                d="M20 34l7 7 14-14"
+                stroke="#2563eb"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="splash-check-path"
+              />
+            </svg>
           </div>
         )}
 

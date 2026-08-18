@@ -1180,7 +1180,7 @@ export default function AllReports() {
 
           {/* SUMMARY */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white border rounded-xl p-4">
+            <div className="bg-white shadow-sm rounded-xl p-4">
               <p className="text-xs text-gray-500">
                 Total Incidents
               </p>
@@ -1190,7 +1190,7 @@ export default function AllReports() {
               </h2>
             </div>
 
-            <div className="bg-white border rounded-xl p-4">
+            <div className="bg-white shadow-sm rounded-xl p-4">
               <p className="text-xs text-gray-500">
                 Resolved
               </p>
@@ -1200,7 +1200,7 @@ export default function AllReports() {
               </h2>
             </div>
 
-            <div className="bg-white border rounded-xl p-4">
+            <div className="bg-white shadow-sm rounded-xl p-4">
               <p className="text-xs text-gray-500">
                 Top Incident
               </p>
@@ -1210,7 +1210,7 @@ export default function AllReports() {
               </h2>
             </div>
 
-            <div className="bg-white border rounded-xl p-4">
+            <div className="bg-white shadow-sm rounded-xl p-4">
               <p className="text-xs text-gray-500">
                 Highest Area
               </p>
@@ -1222,7 +1222,7 @@ export default function AllReports() {
           </div>
 
           {/* EXPORT & VIEW TOGGLE - RESPONSIVE */}
-<div className="bg-white rounded-xl border p-3 md:p-4 space-y-3 md:space-y-4">
+<div className="bg-white rounded-xl shadow-sm p-3 md:p-4 space-y-3 md:space-y-4">
   {/* Export Section */}
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
     <div>
@@ -1387,7 +1387,7 @@ export default function AllReports() {
           {/* INCIDENTS DISPLAY - VIEW MODE CONDITIONAL - RESPONSIVE */}
           {viewMode === 'card' ? (
             /* ═══ TABLE VIEW (ALL INCIDENTS) - RESPONSIVE ═══ */
-            <div className="bg-white rounded-xl border border-gray-900 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               {/* Desktop Table View - Hidden on Mobile */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">

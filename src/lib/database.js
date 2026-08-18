@@ -294,8 +294,11 @@ export const updateIncidentStatus = async (id, status, responderId = null) => {
 
 // Real-time subscriptions
 export const subscribeToIncidents = (callback) => {
+  // Use a unique channel name to avoid "cannot add callbacks after subscribe()" errors
+  // when the component mounts multiple times (dev StrictMode / HMR)
+  const channelName = `incidents-channel-${Date.now()}-${Math.random().toString(36).slice(2)}`
   return supabase
-    .channel('incidents-channel')
+    .channel(channelName)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, (payload) => {
       callback(payload)
     })

@@ -268,6 +268,31 @@ app.post('/api/ai/analyze-image', async (req, res) => {
   }
 })
 
+// ── POST /api/admin/delete-user — permanently delete a user from auth + profile ──
+app.post('/api/admin/delete-user', async (req, res) => {
+  const { userId } = req.body
+  if (!userId) return res.status(400).json({ error: 'userId is required.' })
+
+  try {
+    // Delete from Supabase Auth (removes auth.users entry completely)
+    const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+    if (authError) {
+      console.error('[DELETE USER] Auth delete error:', authError.message)
+      return res.status(500).json({ error: 'Failed to delete user from auth.' })
+    }
+
+    // Profile row is deleted automatically via ON DELETE CASCADE on the profiles table
+    // but delete explicitly as a safety net in case cascade is not set
+    await supabase.from('profiles').delete().eq('id', userId)
+
+    console.log(`[DELETE USER] User ${userId} permanently deleted.`)
+    return res.status(200).json({ message: 'User permanently deleted.' })
+  } catch (err) {
+    console.error('[DELETE USER] Unexpected error:', err.message)
+    return res.status(500).json({ error: 'Failed to delete user. Please try again.' })
+  }
+})
+
 // ── Start server ───────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {

@@ -205,7 +205,7 @@ export default function Profile() {
       `}>
         <TopBar title="My Profile" showNotifications={true} />
         <main className="p-4 md:p-6 max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-black overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
  
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 md:p-6 text-white">
@@ -532,7 +532,7 @@ export default function Profile() {
                     Are you sure you want to logout?
                   </p>
                   <p className="text-xs md:text-sm text-gray-500">
-                    You'll need to sign in again to access your account.
+                    You'll need to log in again to access your account.
                   </p>
                 </div>
               </div>

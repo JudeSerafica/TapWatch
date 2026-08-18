@@ -1021,7 +1021,7 @@ export default function Dashboard() {
   const [showProfileSetupModal, setShowProfileSetupModal] = useState(false)
 
   // Terms of Use modal — show once per new user AFTER profile is complete
-  // (opened programmatically by handleCompleteProfile, not on mount)
+  // On mobile: navigate to /terms page. On desktop: show the modal.
   const [showTermsModal, setShowTermsModal] = useState(false)
 
   // Account is "new" if it was created within the last 30 days
@@ -1048,6 +1048,15 @@ export default function Dashboard() {
     // They cannot use the app without accepting.
     setShowTermsModal(false)
     await signOut()
+  }
+
+  // Navigate to /terms on mobile, open modal on desktop
+  const triggerTerms = () => {
+    if (window.innerWidth < 1024) {
+      navigate('/terms')
+    } else {
+      setShowTermsModal(true)
+    }
   }
 
   // Calling System Integration
@@ -1083,8 +1092,13 @@ export default function Dashboard() {
         address: profile.address || '',
       })
     } else if (shouldShowTerms(profile)) {
-      // Profile is complete, new account, terms not yet accepted — show modal
-      setShowTermsModal(true)
+      // Profile is complete, new account, terms not yet accepted
+      // Mobile → navigate to /terms page; Desktop → show modal
+      if (window.innerWidth < 1024) {
+        navigate('/terms')
+      } else {
+        setShowTermsModal(true)
+      }
     }
   }, [profile])
 
@@ -1134,7 +1148,11 @@ export default function Dashboard() {
       setShowProfileSetupModal(false)
       // Show Terms of Use next — only for new accounts that haven't accepted yet
       if (shouldShowTerms({ ...profile, phone: profileForm.phone, address: profileForm.address, purok: profileForm.purok })) {
-        setShowTermsModal(true)
+        if (window.innerWidth < 1024) {
+          navigate('/terms')
+        } else {
+          setShowTermsModal(true)
+        }
       }
     }
   }
@@ -1418,7 +1436,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => navigate('/report')}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-red-300 hover:bg-red-50 transition flex items-center justify-between"
+                className="bg-white shadow-sm rounded-xl p-4 md:p-5 text-left hover:shadow-md hover:bg-red-50 transition flex items-center justify-between"
               >
                 <div className="flex flex-col items-start">
                   <div className="text-2xl mb-2">
@@ -1432,7 +1450,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => navigate('/resident-map')}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-blue-300 hover:bg-blue-50 transition flex items-center justify-between"
+                className="bg-white shadow-sm rounded-xl p-4 md:p-5 text-left hover:shadow-md hover:bg-blue-50 transition flex items-center justify-between"
               >
                 <div className="flex flex-col items-start">
                   <div className="text-2xl mb-2">
@@ -1446,7 +1464,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => setAlertsModalOpen(true)}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-green-300 hover:bg-green-50 transition flex items-center justify-between cursor-pointer"
+                className="bg-white shadow-sm rounded-xl p-4 md:p-5 text-left hover:shadow-md hover:bg-green-50 transition flex items-center justify-between cursor-pointer"
               >
                 <div className="flex flex-col items-start">
                   <div className="text-2xl mb-2">
@@ -1460,7 +1478,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => setEmergencyModalOpen(true)}
-                className="bg-white border rounded-xl p-4 md:p-5 text-left hover:border-orange-300 hover:bg-orange-50 transition flex items-center justify-between cursor-pointer"
+                className="bg-white shadow-sm rounded-xl p-4 md:p-5 text-left hover:shadow-md hover:bg-orange-50 transition flex items-center justify-between cursor-pointer"
               >
                 <div className="flex flex-col items-start">
                   <div className="text-2xl mb-2">
@@ -1477,9 +1495,9 @@ export default function Dashboard() {
 
           {/* MY REPORTS */}
 
-          <div className="bg-white border rounded-xl">
+          <div className="bg-white shadow-sm rounded-xl">
 
-            <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100">
 
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <FaClipboardList className="text-blue-700" /> My Reports
@@ -1530,9 +1548,9 @@ export default function Dashboard() {
 
           {/* RECENT ALERTS */}
 
-          <div className="bg-white rounded-xl border">
+          <div className="bg-white rounded-xl shadow-sm">
 
-            <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b">
+            <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b border-gray-100">
 
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                 🚨 Recent Community Alerts

@@ -13,6 +13,9 @@ import SuspendedScreen from './components/SuspendedScreen'
 // ── Lazy-loaded pages — each becomes its own chunk at build time ──────────
 // Resident pages
 const LandingPage          = lazy(() => import('./pages/LandingPage'))
+const MobileIntroPage      = lazy(() => import('./pages/MobileIntroPage'))
+const MobileTermsPage      = lazy(() => import('./pages/MobileTermsPage'))
+const MobileOnboardingPage = lazy(() => import('./pages/MobileOnboardingPage'))
 const Login                = lazy(() => import('./pages/Login'))
 const Signup               = lazy(() => import('./pages/Signup'))
 const ProfileSetup         = lazy(() => import('./pages/ProfileSetup'))
@@ -56,6 +59,11 @@ function isStandaloneApp() {
   )
 }
 
+// Detect mobile/tablet screen
+function isMobileScreen() {
+  return window.innerWidth < 1024
+}
+
 // Protected Route Component - redirects to dashboard if logged in
 function ProtectedLanding() {
   const { user, profile, loading } = useAuth()
@@ -74,10 +82,27 @@ function ProtectedLanding() {
       return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
     }
     // Tab was freshly opened — show landing page even if logged in
-    return <LandingPage />
+    // On mobile, go to the mobile intro page; on desktop show full landing
+    return isMobileScreen() ? <Navigate to="/welcome" replace /> : <LandingPage />
   }
   
-  return <LandingPage />
+  // Not logged in — mobile gets mobile intro, desktop gets landing page
+  return isMobileScreen() ? <Navigate to="/welcome" replace /> : <LandingPage />
+}
+
+// Mobile welcome/intro route guard
+// If user is already authenticated, skip to their dashboard
+function MobileWelcomeRoute() {
+  const { user, profile, loading } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (user && profile) {
+    return <Navigate to={profile.role === 'admin' ? '/admin' : '/dashboard'} replace />
+  }
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <MobileIntroPage />
+    </Suspense>
+  )
 }
 
 // Returns true if the user has an active (non-expired) suspension
@@ -135,7 +160,7 @@ function SessionStamp() {
 
 function AppRoutes() {
   const [showSplash, setShowSplash] = useState(false)
-  const { user, profile, loading } = useAuth()
+  const { loading } = useAuth()
 
   useEffect(() => {
     // Check if we're on mobile/tablet
@@ -151,6 +176,8 @@ function AppRoutes() {
   const handleSplashComplete = () => {
     setShowSplash(false)
     sessionStorage.setItem('splashShown', 'true')
+    // On mobile, if not authenticated, navigate to the welcome/intro page
+    // (ProtectedLanding will also do this, but doing it explicitly avoids a flicker)
   }
 
   // Show splash screen FIRST, before anything else
@@ -171,6 +198,15 @@ function AppRoutes() {
         <Routes>
         {/* Landing page - redirects to dashboard if logged in */}
         <Route path="/" element={<ProtectedLanding />} />
+        
+        {/* Mobile welcome/intro page (Step 2 of resident onboarding) */}
+        <Route path="/welcome" element={<MobileWelcomeRoute />} />
+
+        {/* Mobile Terms of Use page (Step 6) — requires auth, shown to new users */}
+        <Route path="/terms" element={<RequireAuth><MobileTermsPage /></RequireAuth>} />
+
+        {/* Mobile Onboarding / Key Features page (Step 7) — after terms acceptance */}
+        <Route path="/onboarding" element={<RequireAuth><MobileOnboardingPage /></RequireAuth>} />
         
         {/* Auth routes — NOT wrapped in AuthRoute so login pages control their own redirect logic */}
         <Route path="/login" element={<Login />} />

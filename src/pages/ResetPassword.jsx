@@ -142,7 +142,7 @@ export default function ResetPassword() {
             onClick={() => navigate('/login')}
             className="w-full py-2 text-sm text-gray-500 hover:text-gray-800 transition"
           >
-            Back to Sign In
+            Back to Log In
           </button>
         </div>
       </div>
@@ -182,13 +182,13 @@ export default function ResetPassword() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Password Updated!</h2>
           <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-            Your password has been changed successfully. You can now sign in with your new password.
+            Your password has been changed successfully. You can now log in with your new password.
           </p>
           <button
             onClick={() => navigate('/login')}
             className="w-full py-2.5 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800 transition"
           >
-            Sign In Now
+            Log In Now
           </button>
         </div>
       </div>

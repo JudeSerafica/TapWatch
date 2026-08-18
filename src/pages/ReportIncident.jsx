@@ -117,25 +117,24 @@ function SectionCard({ icon: Icon, label, iconColor = '#2563eb', children }) {
   return (
     <div style={{
       background: '#fff',
-      border: '1px solid #000',
       borderRadius: 16,
       overflow: 'hidden',
-      boxShadow: '0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04)'
+      boxShadow: '0 1px 6px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04)'
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '14px 20px',
-        borderBottom: '1px solid #e5e7eb',
-        background: '#fafafa'
+        borderBottom: '1px solid #1d4ed8',
+        background: '#2563eb'
       }} className="section-card-header">
         <div style={{
           width: 30, height: 30, borderRadius: 8,
-          background: `${iconColor}14`,
+          background: 'rgba(255,255,255,0.15)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }} className="section-card-icon">
-          <Icon size={15} color={iconColor} strokeWidth={2.2} />
+          <Icon size={15} color="#ffffff" strokeWidth={2.2} />
         </div>
-        <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: '#111827' }} className="section-card-label">
+        <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: '#ffffff' }} className="section-card-label">
           {label}
         </span>
       </div>
@@ -1126,7 +1125,7 @@ const uploadMedia = async () => {
           report-content-wrapper transition-all duration-300
           ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
         `} style={{ flex: 1, paddingBottom: 0 }}>
-           <TopBar title="Incident Report" showNotifications={true}
+           <TopBar title="Report Incident" showNotifications={true}
             onNotificationClick={() => {
               // Handle notification click - you can open a modal or navigate
               console.log('Notification clicked')

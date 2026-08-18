@@ -709,7 +709,7 @@ export default function AdminDashboard() {
             ].map((s, i) => {
               const Icon = s.icon
               return (
-                <div key={i} className="bg-white rounded-xl border p-3 md:p-5 flex flex-col md:flex-row md:items-center gap-3">
+                <div key={i} className="bg-white rounded-xl shadow-sm p-3 md:p-5 flex flex-col md:flex-row md:items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center flex-shrink-0`}>
                     <Icon size={20} className={s.ic} />
                   </div>
@@ -723,12 +723,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-            <div className="lg:col-span-2 bg-white rounded-xl border">
-              <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b">
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm">
+              <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b border-gray-100">
                 <h3 className="font-bold text-gray-900 text-sm">{t('recentIncidents')}</h3>
                 <button onClick={() => navigate('/admin-reports')} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:text-blue-700">{t('viewAll')}<ChevronRight size={14} /></button>
               </div>
-              <div className="divide-y">
+              <div className="divide-y divide-gray-100">
                 {incidents.map(inc => (
                   <div 
                     key={inc.id} 
@@ -778,7 +778,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="space-y-4 md:space-y-6">
-              <div className="bg-white rounded-xl border p-4 md:p-5">
+              <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
                 <h3 className="font-bold text-gray-900 text-sm mb-4">By Type</h3>
                 <div className="space-y-3">
                   {typeStats.map(t => (
@@ -811,7 +811,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border p-4 md:p-5">
+              <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
                 <h3 className="font-bold text-gray-900 text-sm mb-4">Top Hotspots</h3>
                 <div className="space-y-3">
                   {hotspots.map((h, i) => (

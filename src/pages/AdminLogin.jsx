@@ -104,7 +104,7 @@ export default function AdminLogin() {
               </span>
             </div>
 
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Administrator Sign In</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Administrator Log In</h2>
             <p className="text-gray-500 text-sm mb-6">
               Authorized personnel only. All access is monitored and logged.
             </p>
@@ -196,7 +196,7 @@ export default function AdminLogin() {
                     disabled={submitting}
                     className="w-full py-3 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors mt-2 shadow-md"
                   >
-                    {submitting ? 'Signing in…' : 'Sign In to Admin Portal'}
+                    {submitting ? 'Signing in…' : 'Log In to Admin Portal'}
                   </button>
                 </form>
               </>

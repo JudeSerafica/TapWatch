@@ -508,7 +508,7 @@ function UserProfileDrawer({ user, onClose, onAction }) {
           {[
             { label:'Email',      value: user.email||'—' },
             { label:'Phone',      value: user.phone||'—' },
-            { label:'Purok',      value: user.purok?`Purok ${user.purok}`:'—' },
+            { label:'Purok',      value: user.purok?(user.purok.toLowerCase().startsWith('purok')?user.purok:`Purok ${user.purok}`):'—' },
             { label:'Address',    value: user.address||'—' },
             { label:'Registered', value: fmtDate(user.created_at) },
             { label:'Last Active',value: fmtRelative(user.updated_at) },
@@ -623,7 +623,7 @@ function TopActiveUsers({ users }) {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${avatarColor(u.id)}`}>{getInitials(u.full_name)}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name||'Unknown'}</p>
-              <p className="text-[11px] text-gray-400">{u.purok?`Purok ${u.purok}`:(u.email||'—')}</p>
+              <p className="text-[11px] text-gray-400">{u.purok?(u.purok.toLowerCase().startsWith('purok')?u.purok:`Purok ${u.purok}`):(u.email||'—')}</p>
             </div>
             <div className="text-right flex-shrink-0 mr-2">
               <p className="text-sm font-bold text-blue-600">{u.totalReports}</p>
@@ -899,7 +899,15 @@ export default function ManageUsers() {
         try { await supabase.from('suspension_history').insert({ user_id:user.id, suspended_by:adminProfile?.id||user.id, action:'unsuspend', reason:'Manually unsuspended by administrator' }) } catch (_) {}
       }
       if (action==='delete') {
-        await supabase.from('profiles').delete().eq('id',user.id)
+        const res = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to delete user.')
+        }
         if (drawerUser?.id===user.id) setDrawerUser(null)
       }
       const msgs = { verify:`${user.full_name} verified.`, revoke:`Verification revoked.`, promote:`${user.full_name} promoted to Admin.`, demote:`${user.full_name} demoted.`, unsuspend:`${user.full_name} restored.`, delete:`${user.full_name} deleted.` }
@@ -1020,7 +1028,7 @@ export default function ManageUsers() {
                             </div>
                           </td>
                           <td className="px-4 py-3"><div className="text-xs text-gray-700 truncate max-w-[140px]">{u.email||'—'}</div>{u.phone&&<div className="text-[11px] text-gray-400 mt-0.5">{u.phone}</div>}</td>
-                          <td className="px-4 py-3 text-xs text-gray-600">{u.purok?`Purok ${u.purok}`:'—'}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">{u.purok?(u.purok.toLowerCase().startsWith('purok')?u.purok:`Purok ${u.purok}`):'—'}</td>
                           <td className="px-4 py-3"><RoleBadge role={u.role}/></td>
                           <td className="px-4 py-3"><VerifBadge status={u.verification_status}/></td>
                           <td className="px-4 py-3"><AcctBadge user={u}/></td>

@@ -146,7 +146,7 @@ export default function Analytics() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {summaryStats.map((s,i) => (
-            <div key={i} className="bg-white rounded-xl border p-4 md:p-5 text-center">
+            <div key={i} className="bg-white rounded-xl shadow-sm p-4 md:p-5 text-center">
               <div className={`text-2xl md:text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
               <div className="text-xs text-gray-500">{s.label}</div>
             </div>
@@ -154,7 +154,7 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white rounded-xl border p-4 md:p-5">
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <TrendingUp size={16} className="text-blue-600" />7-Day Incident Trend
             </h3>
@@ -163,7 +163,7 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border p-4 md:p-5">
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Flame size={16} className="text-orange-500" />By Incident Type
             </h3>
@@ -204,14 +204,14 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white rounded-xl border p-4 md:p-5">
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Response Status</h3>
             <div className="h-48 md:h-56">
               <Bar data={barData} options={barOpts} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border p-4 md:p-5">
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Flame size={16} className="text-red-500" />Incident Hotspots by Purok
             </h3>
