@@ -38,7 +38,7 @@ export default function MobileBottomNav() {
             <span className="text-[10px] font-medium">Report</span>
           </button>
 
-          {/* Center — SOS elevated above bar, labeled "Map" */}
+          {/* Center — SOS elevated above bar */}
           <div className="flex flex-col items-center justify-end flex-1 relative" style={{ height: 64 }}>
             {/* White backing circle — creates the "floating" look */}
             <div
@@ -50,20 +50,21 @@ export default function MobileBottomNav() {
               onClick={() => setSosOpen(true)}
               className="absolute flex items-center justify-center rounded-full bg-red-500 text-white font-black text-base shadow-lg active:scale-95 transition-transform"
               style={{ width: 58, height: 58, top: -14, left: '50%', transform: 'translateX(-50%)' }}
+              aria-label="Emergency SOS"
             >
               SOS
             </button>
-            {/* "Map" label at bottom */}
-            <span className="text-[10px] font-medium text-gray-400 pb-1.5">Map</span>
+            {/* Bottom label */}
+            <span className="text-[10px] font-medium text-gray-400 pb-1.5">SOS</span>
           </div>
 
-          {/* Verify */}
+          {/* Activity — links to verification / activity center */}
           <button
             onClick={() => navigate('/verification')}
             className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 ${active('/verification') ? 'text-blue-600' : 'text-gray-400'}`}
           >
             <ShieldCheck size={22} strokeWidth={active('/verification') ? 2.5 : 1.8} />
-            <span className="text-[10px] font-medium">Verify</span>
+            <span className="text-[10px] font-medium">Activity</span>
           </button>
 
           {/* Profile */}

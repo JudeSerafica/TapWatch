@@ -163,7 +163,7 @@ function IncidentMapModal({ incident, onClose }) {
     }
   }
 
-  const [isSatellite, setIsSatellite] = useState(true)
+  const [isSatellite, setIsSatellite] = useState(false)
 
   useEffect(() => {
     const handler = (e) => {

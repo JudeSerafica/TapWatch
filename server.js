@@ -268,6 +268,181 @@ app.post('/api/ai/analyze-image', async (req, res) => {
   }
 })
 
+// ── PHONE AUTH ROUTES ─────────────────────────────────────────────────────────
+// Shared helper: normalise Philippine mobile number to E.164 (+63XXXXXXXXXX)
+function normalizePH(raw) {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('639') && digits.length === 12) return `+${digits}`
+  if (digits.startsWith('09')  && digits.length === 11) return `+63${digits.slice(1)}`
+  if (digits.startsWith('63')  && digits.length === 12) return `+${digits}`
+  return null
+}
+
+// In-memory guards (reset on server restart — acceptable for dev)
+const phoneSendCooldown = new Map()   // e164 → timestamp
+const phoneAttempts     = new Map()   // e164 → { count, resetAt }
+
+// ── POST /api/phone/send-otp  (login: send OTP) ───────────────────────────
+app.post('/api/phone/send-otp', async (req, res) => {
+  const { phone } = req.body
+  if (!phone) return res.status(400).json({ error: 'Phone number is required.' })
+
+  const e164 = normalizePH(phone)
+  if (!e164) return res.status(400).json({ error: 'Invalid Philippine mobile number. Please enter a valid 09XX XXX XXXX number.' })
+
+  const now      = Date.now()
+  const lastSent = phoneSendCooldown.get(e164) || 0
+  const elapsed  = now - lastSent
+
+  if (elapsed < 60_000) {
+    const wait = Math.ceil((60_000 - elapsed) / 1000)
+    return res.status(429).json({ error: `Please wait ${wait} second${wait !== 1 ? 's' : ''} before requesting another code.`, waitSeconds: wait })
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({ phone: e164 })
+
+  if (error) {
+    console.error('[phone/send-otp]', error.message)
+    const msg = error.message || ''
+    if (msg.includes('rate limit') || msg.includes('too many')) return res.status(429).json({ error: 'Too many OTP requests. Please wait a moment.' })
+    if (msg.includes('not found') || msg.includes('not exist')) return res.status(400).json({ error: 'No account found for this number. Please sign up first.' })
+    return res.status(400).json({ error: 'Failed to send OTP. Please check your number and try again.' })
+  }
+
+  phoneSendCooldown.set(e164, now)
+  console.log(`[phone/send-otp] OTP sent to ${e164.slice(0, 5)}***`)
+  return res.status(200).json({ message: 'OTP sent successfully.', phone: e164 })
+})
+
+// ── POST /api/phone/verify-otp  (login: verify OTP) ──────────────────────
+app.post('/api/phone/verify-otp', async (req, res) => {
+  const { phone, token } = req.body
+  if (!phone || !token) return res.status(400).json({ error: 'Phone number and OTP code are required.' })
+
+  const otp = token.replace(/\D/g, '').slice(0, 6)
+  if (otp.length !== 6) return res.status(400).json({ error: 'OTP must be exactly 6 digits.' })
+
+  const e164 = normalizePH(phone)
+  if (!e164) return res.status(400).json({ error: 'Invalid phone number format.' })
+
+  const now      = Date.now()
+  const attempts = phoneAttempts.get(`login:${e164}`) || { count: 0, resetAt: now + 15 * 60_000 }
+  if (now > attempts.resetAt) { attempts.count = 0; attempts.resetAt = now + 15 * 60_000 }
+  if (attempts.count >= 5) return res.status(429).json({ error: 'Too many failed attempts. Please request a new OTP and try again.' })
+  attempts.count++
+  phoneAttempts.set(`login:${e164}`, attempts)
+
+  const { data, error } = await supabase.auth.verifyOtp({ phone: e164, token: otp, type: 'sms' })
+
+  if (error) {
+    console.error('[phone/verify-otp]', error.message)
+    const msg = error.message || ''
+    if (msg.includes('expired'))  return res.status(400).json({ error: 'OTP has expired. Please request a new code.' })
+    if (msg.includes('invalid') || msg.includes('incorrect') || msg.includes('Token has')) return res.status(400).json({ error: 'Invalid OTP. Please check the code and try again.' })
+    return res.status(400).json({ error: 'OTP verification failed. Please try again.' })
+  }
+
+  if (!data?.session) return res.status(400).json({ error: 'OTP verification failed. Please try again.' })
+
+  phoneAttempts.delete(`login:${e164}`)
+  console.log(`[phone/verify-otp] Verified: ${e164.slice(0, 5)}***`)
+  return res.status(200).json({
+    message: 'Phone number verified successfully!',
+    session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token, expires_in: data.session.expires_in },
+  })
+})
+
+// ── POST /api/phone/signup  (signup: send OTP) ────────────────────────────
+app.post('/api/phone/signup', async (req, res) => {
+  const { phone, password, name } = req.body
+  if (!phone)    return res.status(400).json({ error: 'Phone number is required.' })
+  if (!password) return res.status(400).json({ error: 'Password is required.' })
+  if (!name)     return res.status(400).json({ error: 'Full name is required.' })
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+
+  const e164 = normalizePH(phone)
+  if (!e164) return res.status(400).json({ error: 'Invalid Philippine mobile number. Please enter a valid 09XX XXX XXXX number.' })
+
+  const now      = Date.now()
+  const lastSent = phoneSendCooldown.get(`signup:${e164}`) || 0
+  const elapsed  = now - lastSent
+
+  if (elapsed < 60_000) {
+    const wait = Math.ceil((60_000 - elapsed) / 1000)
+    return res.status(429).json({ error: `Please wait ${wait} second${wait !== 1 ? 's' : ''} before requesting another code.`, waitSeconds: wait })
+  }
+
+  // Check phone not already registered
+  const { data: existingProfile } = await supabase.from('profiles').select('id').eq('phone', e164).maybeSingle()
+  if (existingProfile) return res.status(400).json({ error: 'This phone number is already registered. Please log in instead.' })
+
+  const { error } = await supabase.auth.signUp({
+    phone: e164,
+    password: password.trim(),
+    options: { data: { full_name: name.trim() } },
+  })
+
+  if (error) {
+    console.error('[phone/signup]', error.message)
+    const msg = error.message || ''
+    if (msg.includes('already registered') || msg.includes('already been registered')) return res.status(400).json({ error: 'This phone number is already registered. Please log in instead.' })
+    if (msg.includes('rate limit') || msg.includes('too many')) return res.status(429).json({ error: 'Too many requests. Please wait a moment.' })
+    if (msg.includes('Invalid phone')) return res.status(400).json({ error: 'Invalid phone number. Please use a valid Philippine mobile number.' })
+    return res.status(400).json({ error: 'Failed to send OTP. Please try again.' })
+  }
+
+  phoneSendCooldown.set(`signup:${e164}`, now)
+  console.log(`[phone/signup] OTP sent to ${e164.slice(0, 5)}***`)
+  return res.status(200).json({ message: 'OTP sent to your phone. Please enter the 6-digit code.', phone: e164 })
+})
+
+// ── POST /api/phone/verify-signup  (signup: verify OTP + create profile) ──
+app.post('/api/phone/verify-signup', async (req, res) => {
+  const { phone, token, name } = req.body
+  if (!phone || !token) return res.status(400).json({ error: 'Phone number and OTP code are required.' })
+
+  const otp = token.replace(/\D/g, '').slice(0, 6)
+  if (otp.length !== 6) return res.status(400).json({ error: 'OTP must be exactly 6 digits.' })
+
+  const e164 = normalizePH(phone)
+  if (!e164) return res.status(400).json({ error: 'Invalid phone number format.' })
+
+  const now      = Date.now()
+  const attempts = phoneAttempts.get(`signup:${e164}`) || { count: 0, resetAt: now + 15 * 60_000 }
+  if (now > attempts.resetAt) { attempts.count = 0; attempts.resetAt = now + 15 * 60_000 }
+  if (attempts.count >= 5) return res.status(429).json({ error: 'Too many failed attempts. Please request a new OTP and try again.' })
+  attempts.count++
+  phoneAttempts.set(`signup:${e164}`, attempts)
+
+  const { data, error } = await supabase.auth.verifyOtp({ phone: e164, token: otp, type: 'sms' })
+
+  if (error) {
+    console.error('[phone/verify-signup]', error.message)
+    const msg = error.message || ''
+    if (msg.includes('expired'))  return res.status(400).json({ error: 'OTP has expired. Please request a new code.' })
+    if (msg.includes('invalid') || msg.includes('incorrect') || msg.includes('Token has')) return res.status(400).json({ error: 'Invalid OTP. Please check the code and try again.' })
+    return res.status(400).json({ error: 'OTP verification failed. Please try again.' })
+  }
+
+  if (!data?.session || !data?.user) return res.status(400).json({ error: 'OTP verification failed. Please try again.' })
+
+  const authUser  = data.user
+  const fullName  = (name || '').trim() || authUser.user_metadata?.full_name || 'Resident'
+
+  await supabase.from('profiles').upsert(
+    { id: authUser.id, full_name: fullName, phone: e164, role: 'resident', updated_at: new Date().toISOString() },
+    { onConflict: 'id', ignoreDuplicates: false }
+  )
+
+  phoneAttempts.delete(`signup:${e164}`)
+  console.log(`[phone/verify-signup] Signup verified: ${e164.slice(0, 5)}***`)
+
+  return res.status(200).json({
+    message: 'Phone number verified successfully! Account created.',
+    session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token, expires_in: data.session.expires_in },
+  })
+})
+
 // ── POST /api/admin/delete-user — permanently delete a user from auth + profile ──
 app.post('/api/admin/delete-user', async (req, res) => {
   const { userId } = req.body

@@ -272,6 +272,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+  /** Force a fresh profile fetch from the DB — useful after DB-side changes
+   *  (e.g. resident_id assigned by trigger) that the cached profile won't
+   *  reflect until the next session without an explicit refresh. */
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id, user)
+  }
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -282,6 +289,7 @@ export function AuthProvider({ children }) {
       saveProfile,
       acceptTerms,
       markVerificationModalSeen,
+      refreshProfile,
       signOut, 
       loading, 
       isAdmin: profile?.role === 'admin' 

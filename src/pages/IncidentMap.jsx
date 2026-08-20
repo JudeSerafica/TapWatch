@@ -145,7 +145,7 @@ export default function IncidentMap() {
   const [statusFilter, setStatusFilter] = useState('All Status')
   const [focusedIncident, setFocusedIncident] = useState(null)
   const [sosModalOpen, setSOSModalOpen] = useState(false)
-  const [isSatellite, setIsSatellite] = useState(true)
+  const [isSatellite, setIsSatellite] = useState(false)
 
   useEffect(() => {
     const loadIncidents = async () => {

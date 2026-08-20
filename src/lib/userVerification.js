@@ -82,16 +82,25 @@ export const reviewVerification = async (verificationId, decision, reviewNotes =
 
     // Update user profile verification status
     if (data && decision === 'approve') {
-      await supabase
+      // Fetch the current profile to check if a resident_id already exists.
+      // The DB trigger will auto-generate one when verification_status is set
+      // to 'verified' and resident_id is NULL — we never generate it here on
+      // the frontend.  We only update verification_status; the trigger handles
+      // the rest safely and idempotently on the database side.
+      const { error: profileUpdateError } = await supabase
         .from('profiles')
         .update({ verification_status: VERIFICATION_LEVELS.VERIFIED })
         .eq('id', data.user_id)
+
+      if (profileUpdateError) {
+        console.error('⚠️ Failed to update profile verification_status:', profileUpdateError)
+      }
 
       // ✅ Send notification to user about approval
       await createNotification({
         userId: data.user_id,
         title: '✅ Verification Approved!',
-        message: 'Congratulations! Your account has been verified. You can now access all features including emergency SOS alerts.',
+        message: 'Congratulations! Your account has been verified. You can now access all features including emergency SOS alerts. Your Resident ID has been generated and is available in your profile.',
         type: 'success'
       })
     } else if (data && decision === 'reject') {

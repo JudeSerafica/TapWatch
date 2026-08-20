@@ -350,7 +350,7 @@ export default function ReportIncident() {
   const { profile } = useAuth()
   const { isCollapsed } = useSidebar()
   const [pin, setPin] = useState(null)
-  const [reportMapSatellite, setReportMapSatellite] = useState(true)
+  const [reportMapSatellite, setReportMapSatellite] = useState(false)
   const [aiType, setAiType] = useState('')
   const [aiAnalysis, setAiAnalysis] = useState(null) // Store full AI analysis
   const [aiRecommendations, setAiRecommendations] = useState([]) // Store recommendations

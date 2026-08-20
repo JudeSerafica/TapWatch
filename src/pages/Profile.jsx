@@ -1,153 +1,291 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Phone, MapPin, Shield, Edit3, LogOut, X, Save, Camera } from 'lucide-react'
+import {
+  User, Mail, Phone, MapPin, Shield, Edit3, LogOut,
+  X, Camera, ChevronRight, CreditCard, Calendar,
+  CheckCircle, AlertCircle, Clock, XCircle,
+} from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import { useSidebar } from '../context/SidebarContext'
 import { supabase } from '../lib/supabase'
 import ResidentSidebar from '../components/ResidentSidebar'
 import MobileBottomNav from '../components/MobileBottomNav'
 import TopBar from '../components/TopBar'
- 
+import ResidentIDCard from '../components/ResidentIDCard'
+
+// ─────────────────────────────────────────────
+// Small helpers
+// ─────────────────────────────────────────────
+
+/** Green "✓ Verified" chip */
+function VerifiedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-500 text-white text-[11px] font-bold flex-shrink-0">
+      <CheckCircle size={11} strokeWidth={3} />
+      Verified
+    </span>
+  )
+}
+
+/** Dynamic account-status badge */
+function StatusBadge({ status, isSuspended }) {
+  if (isSuspended) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-[11px] font-semibold border border-red-200">
+        <XCircle size={11} />
+        Suspended
+      </span>
+    )
+  }
+  if (status === 'verified' || status === 'trusted') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[11px] font-semibold border border-green-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+        Active
+      </span>
+    )
+  }
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-[11px] font-semibold border border-yellow-200">
+        <Clock size={11} />
+        Verification Pending
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200">
+      <AlertCircle size={11} />
+      Unverified
+    </span>
+  )
+}
+
+/** Single profile info row */
+function InfoRow({ icon: Icon, label, value, showVerified = false, onClick, isClickable = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!isClickable}
+      className={`
+        w-full flex items-center gap-3 px-4 py-4
+        border-b border-gray-100 last:border-b-0 text-left
+        transition-colors
+        ${isClickable ? 'hover:bg-blue-50/60 active:bg-blue-50 cursor-pointer' : 'cursor-default'}
+      `}
+    >
+      {/* Icon box */}
+      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+        <Icon size={18} className="text-blue-600" />
+      </div>
+
+      {/* Text */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold leading-none mb-1">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-gray-900 truncate">{value || '—'}</p>
+      </div>
+
+      {/* Right side */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {showVerified && <VerifiedBadge />}
+        {isClickable && <ChevronRight size={16} className="text-gray-300" />}
+      </div>
+    </button>
+  )
+}
+
+/** Skeleton pulse row */
+function SkeletonRow() {
+  return (
+    <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 animate-pulse">
+      <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-2.5 bg-gray-100 rounded w-20" />
+        <div className="h-4 bg-gray-100 rounded w-40" />
+      </div>
+      <div className="h-6 w-20 bg-gray-100 rounded-full" />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate()
-  const { user, profile, signOut, saveProfile } = useAuth()
+  const { user, profile, signOut, saveProfile, refreshProfile } = useAuth()
   const { isCollapsed } = useSidebar()
+
+  // UI state
+  const [isLoading, setIsLoading]           = useState(true)
+  const [showEditModal, setShowEditModal]   = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [showIDCard, setShowIDCard]         = useState(false)
+  const [isSaving, setIsSaving]             = useState(false)
+  const [isLoggingOut, setIsLoggingOut]     = useState(false)
+  const [error, setError]                   = useState('')
+
+  // Edit form state
   const [form, setForm] = useState({
     fullName: '',
-    phone: '',
     address: '',
     purok: '',
   })
-  const [avatarFile, setAvatarFile] = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [avatarFile, setAvatarFile]         = useState(null)
+  const [avatarPreview, setAvatarPreview]   = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
- 
-  // Simulate loading state resolved when profile is available
+
+  // Resolve loading once profile is available from context
   useEffect(() => {
-    if (profile !== undefined) {
-      setIsLoading(false)
-    }
+    if (profile !== undefined) setIsLoading(false)
   }, [profile])
- 
-  // Initialize form when profile loads or modal opens
+
+  // On mount, force a fresh profile fetch so we always have the latest DB
+  // values — including resident_id assigned by the DB trigger after admin
+  // verification. This ensures existing verified accounts see their ID
+  // immediately without needing a hard page refresh.
+  useEffect(() => {
+    if (user?.id) refreshProfile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // Pre-fill edit form when modal opens
   useEffect(() => {
     if (showEditModal && profile) {
       setForm({
         fullName: profile.full_name || '',
-        phone: profile.phone || '',
-        address: profile.address || '',
-        purok: profile.purok || '',
+        address:  profile.address  || '',
+        purok:    profile.purok    || '',
       })
       setError('')
       setAvatarPreview(profile.avatar_url || null)
       setAvatarFile(null)
     }
   }, [showEditModal, profile])
- 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size should be less than 5MB')
-        return
-      }
-      setAvatarFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result)
-      }
-      reader.readAsDataURL(file)
+
+  // ── Derived values ──
+  const isVerified    = profile?.verification_status === 'verified' || profile?.verification_status === 'trusted'
+  const isSuspended   = profile?.is_suspended && (
+    !profile.suspension_expires_at ||
+    new Date(profile.suspension_expires_at).getTime() > Date.now()
+  )
+  const displayName   = profile?.full_name || user?.user_metadata?.full_name || 'Resident'
+  const emailDisplay  = user?.email || profile?.email || 'Not set'
+  const phoneDisplay  = profile?.phone || user?.phone || 'Not set'
+  const locationLine  = [profile?.purok, profile?.address].filter(Boolean).join(', ') || 'East Tapinac, Olongapo City'
+  const memberSince   = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'N/A'
+  const initials      = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
+  // resident_id comes directly from the refreshed profile context
+  const residentId = profile?.resident_id || null
+
+  // Account security card copy
+  const securityStatus = () => {
+    if (isSuspended) return {
+      icon: <XCircle size={22} className="text-red-500" />,
+      title: 'Your account is suspended.',
+      sub: 'Please contact the barangay office for assistance.',
+      bg: 'bg-red-50 border-red-100',
+    }
+    if (profile?.verification_status === 'verified' || profile?.verification_status === 'trusted') return {
+      icon: <Shield size={22} className="text-blue-600" />,
+      title: 'Your account is active and secure.',
+      sub: 'Thank you for helping keep our community safe.',
+      bg: 'bg-blue-50 border-blue-100',
+    }
+    if (profile?.verification_status === 'pending') return {
+      icon: <Clock size={22} className="text-yellow-500" />,
+      title: 'Verification is pending.',
+      sub: 'An admin will review your documents shortly.',
+      bg: 'bg-yellow-50 border-yellow-100',
+    }
+    return {
+      icon: <AlertCircle size={22} className="text-gray-400" />,
+      title: 'Your account is not yet verified.',
+      sub: 'Submit your ID to unlock all features.',
+      bg: 'bg-gray-50 border-gray-100',
     }
   }
- 
+
+  // ── Avatar helpers ──
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size should be less than 5 MB.')
+      return
+    }
+    setAvatarFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setAvatarPreview(reader.result)
+    reader.readAsDataURL(file)
+  }
+
   const uploadAvatar = async () => {
     if (!avatarFile) return profile?.avatar_url
- 
+
     setUploadingAvatar(true)
     try {
-      const fileExt = avatarFile.name.split('.').pop()
-      const fileName = `${user.id}/avatar_${Date.now()}.${fileExt}`
- 
-      // Delete old avatar if exists — extract path correctly from full public URL
+      const ext      = avatarFile.name.split('.').pop()
+      const fileName = `${user.id}/avatar_${Date.now()}.${ext}`
+
+      // Remove old avatar
       if (profile?.avatar_url) {
         try {
-          const url = new URL(profile.avatar_url)
-          // Path after /object/public/avatars/ is the storage path
+          const url   = new URL(profile.avatar_url)
           const parts = url.pathname.split('/object/public/avatars/')
           if (parts.length > 1) {
-            const oldStoragePath = parts[1]
-            await supabase.storage.from('avatars').remove([oldStoragePath])
+            await supabase.storage.from('avatars').remove([parts[1]])
           }
         } catch {
-          // Non-critical: if old avatar deletion fails, still proceed
-          console.warn('Could not delete old avatar, continuing with upload.')
+          // Non-critical — continue
         }
       }
- 
-      // Upload new avatar
+
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, avatarFile, {
-          cacheControl: '3600',
-          upsert: true,
-        })
- 
+        .upload(fileName, avatarFile, { cacheControl: '3600', upsert: true })
       if (uploadError) throw uploadError
- 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName)
- 
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
       return urlData.publicUrl
-    } catch (err) {
-      console.error('Avatar upload error:', err)
-      throw new Error('Failed to upload avatar')
     } finally {
       setUploadingAvatar(false)
     }
   }
- 
+
+  // ── Save profile ──
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     setError('')
     setIsSaving(true)
- 
     try {
-      // Upload avatar first if changed
       let avatarUrl = profile?.avatar_url
-      if (avatarFile) {
-        avatarUrl = await uploadAvatar()
-      }
- 
+      if (avatarFile) avatarUrl = await uploadAvatar()
+
       const updates = {
-        full_name: form.fullName,
-        phone: form.phone,
-        address: form.address,
-        purok: form.purok,
+        full_name:  form.fullName,
+        address:    form.address,
+        purok:      form.purok,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
       }
- 
-      // Update Supabase
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id)
- 
       if (updateError) throw updateError
- 
-      // Update context state instead of hard reload
+
       if (typeof saveProfile === 'function') {
         await saveProfile({ ...profile, ...updates })
       }
- 
+
       setShowEditModal(false)
     } catch (err) {
       setError(err.message)
@@ -155,404 +293,411 @@ export default function Profile() {
       setIsSaving(false)
     }
   }
- 
+
+  // ── Sign out ──
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
       await signOut()
       navigate('/login')
-    } catch (error) {
-      console.error('Logout error:', error)
+    } catch {
+      // signOut already redirects via window.location.replace
     } finally {
       setIsLoggingOut(false)
       setShowLogoutModal(false)
     }
   }
- 
-  // Combined address display: show purok + address if both exist
-  const displayAddress = [profile?.purok, profile?.address]
-    .filter(Boolean)
-    .join(', ') || 'Not set'
- 
-  const isVerified = profile?.verification_status === 'verified'
- 
-  const VerifiedBadge = () => (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg flex-shrink-0">
-      <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">✓</span>
-      <span className="text-xs font-semibold text-green-700">Verified</span>
-    </div>
-  )
- 
-  // Skeleton loader row
-  const SkeletonRow = () => (
-    <div className="flex items-center gap-3 pb-4 border-b border-gray-100 animate-pulse">
-      <div className="p-2.5 bg-gray-100 rounded-lg">
-        <div className="w-[18px] h-[18px] bg-gray-200 rounded" />
-      </div>
-      <div className="flex-1 space-y-2">
-        <div className="h-2.5 bg-gray-200 rounded w-24" />
-        <div className="h-4 bg-gray-200 rounded w-48" />
-      </div>
-    </div>
-  )
- 
+
+  const sec = securityStatus()
+
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
   return (
     <div className="flex min-h-screen bg-gray-50">
       <ResidentSidebar />
+
+      {/* Main content — offset for sidebar on md+ */}
       <div className={`
-        flex-1 pb-16 md:pb-0 transition-all duration-300
+        flex-1 pb-20 md:pb-0 transition-all duration-300
         ${isCollapsed ? 'md:ml-16' : 'md:ml-64'}
       `}>
         <TopBar title="My Profile" showNotifications={true} />
-        <main className="p-4 md:p-6 max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
- 
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 md:p-6 text-white">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-12 md:w-16 h-12 md:h-16 rounded-full bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {isLoading ? (
-                    <div className="w-full h-full bg-white/30 animate-pulse rounded-full" />
-                  ) : profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User size={24} className="text-white md:w-8 md:h-8" />
-                  )}
+
+        {/* Page body — centred, max-width cap for desktop */}
+        <main className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
+
+          {/* ── Profile Header Card ── */}
+          <div
+            className="relative rounded-2xl overflow-hidden mb-4 shadow-md"
+            style={{ background: 'linear-gradient(135deg, #1B4FD8 0%, #2563EB 60%, #1D4ED8 100%)' }}
+          >
+            {/* Shield watermark */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-[0.10] pointer-events-none">
+              <Shield size={130} strokeWidth={1} className="text-white" />
+            </div>
+
+            <div className="relative z-10 p-5 md:p-6 lg:p-8">
+              <div className="flex items-center gap-4 md:gap-5">
+
+                {/* Avatar with camera overlay */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-white/30 bg-blue-400/40 flex items-center justify-center overflow-hidden shadow-lg">
+                    {isLoading ? (
+                      <div className="w-full h-full bg-white/20 animate-pulse rounded-full" />
+                    ) : profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-white text-2xl font-bold select-none">{initials}</span>
+                    )}
+                  </div>
+
+                  {/* Camera button — opens Edit Profile for avatar change */}
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center border-2 border-blue-200 hover:scale-110 transition-transform"
+                    aria-label="Change profile photo"
+                  >
+                    <Camera size={13} className="text-blue-600" />
+                  </button>
                 </div>
-                <div>
+
+                {/* Name / role / location */}
+                <div className="flex-1 min-w-0">
                   {isLoading ? (
                     <div className="space-y-2 animate-pulse">
                       <div className="h-5 bg-white/30 rounded w-36" />
-                      <div className="h-3.5 bg-white/20 rounded w-20" />
+                      <div className="h-3.5 bg-white/20 rounded w-24" />
+                      <div className="h-3 bg-white/20 rounded w-40 mt-1" />
                     </div>
                   ) : (
                     <>
-                      <h2 className="text-lg md:text-xl font-bold">
-                        {profile?.full_name || user?.user_metadata?.full_name || 'Resident'}
+                      <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight truncate">
+                        {displayName}
                       </h2>
-                      {/* Role + Active badge — matches image design */}
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs md:text-sm text-blue-100 capitalize">
-                          {profile?.role || 'Resident'}
-                        </p>
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 border border-green-400/40 rounded-full text-xs font-semibold text-green-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                          Active
+
+                      {/* Role + Active pills */}
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold">
+                          <Shield size={10} />
+                          Resident
                         </span>
+                        <StatusBadge status={profile?.verification_status} isSuspended={isSuspended} />
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <MapPin size={12} className="text-blue-200 flex-shrink-0" />
+                        <span className="text-blue-100 text-xs truncate">{locationLine}</span>
                       </div>
                     </>
                   )}
                 </div>
               </div>
             </div>
- 
-            {/* Details */}
-            <div className="p-4 md:p-6 space-y-4">
+          </div>
+
+          {/* ── Info cards — desktop: 2-col grid, mobile: single col ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+            {/* Left column on desktop */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {isLoading ? (
                 <>
-                  <SkeletonRow />
                   <SkeletonRow />
                   <SkeletonRow />
                   <SkeletonRow />
                 </>
               ) : (
                 <>
-                  {/* Email Address */}
-                  <div className="flex items-start justify-between gap-3 pb-4 border-b border-gray-100">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2.5 bg-blue-100 rounded-lg mt-0.5">
-                        <Mail size={18} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Email Address</p>
-                        <p className="text-sm md:text-base font-medium text-gray-900 mt-1">
-                          {user?.email || profile?.email || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                    {isVerified && <VerifiedBadge />}
-                  </div>
- 
-                  {/* Contact Number */}
-                  <div className="flex items-start justify-between gap-3 pb-4 border-b border-gray-100">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2.5 bg-blue-100 rounded-lg mt-0.5">
-                        <Phone size={18} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Contact Number</p>
-                        <p className="text-sm md:text-base font-medium text-gray-900 mt-1">
-                          {profile?.phone || 'Not set'}
-                        </p>
-                      </div>
-                    </div>
-                    {isVerified && <VerifiedBadge />}
-                  </div>
- 
-                  {/* Address / Zone — shows purok + address combined */}
-                  <div className="flex items-start justify-between gap-3 pb-4 border-b border-gray-100">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2.5 bg-blue-100 rounded-lg mt-0.5">
-                        <MapPin size={18} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Address / Zone</p>
-                        <p className="text-sm md:text-base font-medium text-gray-900 mt-1">
-                          {displayAddress}
-                        </p>
-                      </div>
-                    </div>
-                    {isVerified && <VerifiedBadge />}
-                  </div>
- 
-                  {/* Account Status */}
-                  <div className="flex items-start justify-between gap-3 pb-4 border-b border-gray-100">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2.5 bg-blue-100 rounded-lg mt-0.5">
-                        <Shield size={18} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Account Status</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="w-2 h-2 rounded-full bg-green-500" />
-                          <p className="text-sm md:text-base font-medium text-gray-900">Active</p>
-                        </div>
-                      </div>
-                    </div>
-                    {isVerified && <VerifiedBadge />}
-                  </div>
- 
-                  {/* Status Message */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
-                    <Shield size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Your account is active and in good standing.</p>
-                      <p className="text-xs text-gray-600 mt-1">Thank you for helping keep our community safe.</p>
-                    </div>
-                  </div>
- 
-                  {/* Buttons */}
-                  <div className="pt-2 space-y-2">
-                    <button
-                      onClick={() => setShowEditModal(true)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                      <Edit3 size={16} />
-                      Edit Profile
-                    </button>
- 
-                    {/* Sign Out — visible on mobile & tablet only (desktop uses sidebar) */}
-                    <button
-                      onClick={() => setShowLogoutModal(true)}
-                      className="lg:hidden w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors border border-red-200"
-                    >
-                      <LogOut size={16} />
-                      Sign Out
-                    </button>
-                  </div>
+                  <InfoRow
+                    icon={Mail}
+                    label="Email Address"
+                    value={emailDisplay}
+                    showVerified={isVerified}
+                  />
+                  <InfoRow
+                    icon={Phone}
+                    label="Phone Number"
+                    value={phoneDisplay}
+                    showVerified={isVerified}
+                  />
+                  <InfoRow
+                    icon={Shield}
+                    label="Account Type"
+                    value="Resident"
+                    showVerified={isVerified}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Right column on desktop */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {isLoading ? (
+                <>
+                  <SkeletonRow />
+                  <SkeletonRow />
+                </>
+              ) : (
+                <>
+                  {/* Resident ID — clickable, opens ID card */}
+                  <InfoRow
+                    icon={CreditCard}
+                    label="Resident ID"
+                    value={
+                      residentId
+                        ? residentId
+                        : isVerified
+                          ? 'Contact barangay office'
+                          : 'Assigned upon verification'
+                    }
+                    showVerified={isVerified && !!residentId}
+                    isClickable={isVerified && !!residentId}
+                    onClick={() => {
+                      if (isVerified && residentId) setShowIDCard(true)
+                    }}
+                  />
+                  <InfoRow
+                    icon={Calendar}
+                    label="Member Since"
+                    value={memberSince}
+                    showVerified={isVerified}
+                  />
                 </>
               )}
             </div>
           </div>
+
+          {/* ── Account Security Card ── */}
+          {!isLoading && (
+            <div className={`relative rounded-2xl border p-5 mb-4 overflow-hidden shadow-sm ${sec.bg}`}>
+              {/* Background shield watermark */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-[0.07] pointer-events-none">
+                <Shield size={90} strokeWidth={1} className="text-gray-500" />
+              </div>
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex-shrink-0">{sec.icon}</div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{sec.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{sec.sub}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Action buttons ── */}
+          {!isLoading && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm shadow-md transition-colors"
+              >
+                <Edit3 size={16} />
+                Edit Profile
+              </button>
+
+              <button
+                onClick={() => setShowLogoutModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-red-200 bg-white hover:bg-red-50 active:bg-red-100 text-red-600 font-bold text-sm transition-colors"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </div>
+          )}
         </main>
       </div>
+
       <MobileBottomNav />
- 
-      {/* ── Edit Profile Modal ── */}
+
+      {/* ════════════════════════════════════════
+          Resident ID Card Modal
+      ════════════════════════════════════════ */}
+      {showIDCard && (
+        <ResidentIDCard
+          profile={profile}
+          user={user}
+          onClose={() => setShowIDCard(false)}
+        />
+      )}
+
+      {/* ════════════════════════════════════════
+          Edit Profile Modal
+      ════════════════════════════════════════ */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in">
- 
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white p-4 md:p-5 border-b border-gray-100 flex items-center justify-between z-10">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in">
+
+            {/* Modal header */}
+            <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between z-10 rounded-t-2xl">
               <div className="flex items-center gap-2">
-                <Edit3 size={20} className="text-blue-600" />
-                <h3 className="text-base md:text-lg font-semibold text-gray-900">Edit Profile</h3>
+                <Edit3 size={18} className="text-blue-600" />
+                <h3 className="text-base font-bold text-gray-900">Edit Profile</h3>
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
                 disabled={isSaving}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition"
+                aria-label="Close"
               >
-                <X size={20} className="text-gray-500" />
+                <X size={18} className="text-gray-500" />
               </button>
             </div>
- 
-            {/* Modal Body */}
-            <form onSubmit={handleSaveProfile} className="p-4 md:p-6">
+
+            <form onSubmit={handleSaveProfile} className="p-5 space-y-5">
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">
+                <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
                   {error}
                 </div>
               )}
- 
-              {/* Avatar Upload */}
-              <div className="mb-6 flex flex-col items-center">
+
+              {/* Avatar picker */}
+              <div className="flex flex-col items-center gap-3">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+                  <div className="w-20 h-20 rounded-full bg-blue-100 overflow-hidden border-4 border-blue-200 flex items-center justify-center">
                     {avatarPreview ? (
-                      <img
-                        src={avatarPreview}
-                        alt="Avatar Preview"
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <User size={40} className="text-gray-400" />
+                      <span className="text-blue-600 text-2xl font-bold">{initials}</span>
                     )}
                   </div>
-                  <label
-                    htmlFor="avatar-upload"
-                    className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition shadow-lg"
-                  >
-                    <Camera size={16} className="text-white" />
+                  <label className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center cursor-pointer shadow border-2 border-white hover:bg-blue-700 transition">
+                    <Camera size={13} className="text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleAvatarChange}
+                      disabled={isSaving}
+                    />
                   </label>
-                  <input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                    disabled={isSaving}
-                  />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Click the camera icon to change photo</p>
+                <p className="text-xs text-gray-400">Tap the camera icon to change photo</p>
               </div>
- 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.fullName}
-                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="Juan Dela Cruz"
-                    disabled={isSaving}
-                  />
-                </div>
- 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="09123456789"
-                    disabled={isSaving}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">This will be used for notifications</p>
-                </div>
- 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Purok</label>
-                  <input
-                    type="text"
-                    value={form.purok}
-                    onChange={(e) => setForm({ ...form, purok: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="Purok 1"
-                    disabled={isSaving}
-                  />
-                </div>
- 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <textarea
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-                    placeholder="e.g. East Tapinac, Olongapo City"
-                    rows={3}
-                    disabled={isSaving}
-                  />
-                </div>
-              </div>
- 
-              {/* Modal Footer */}
-              <div className="mt-6 flex gap-2 md:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
+
+              {/* Full name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={form.fullName}
+                  onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+                  placeholder="Juan Dela Cruz"
+                  required
                   disabled={isSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  disabled={isSaving || uploadingAvatar}
-                >
-                  {isSaving || uploadingAvatar ? (
-                    <span>{uploadingAvatar ? 'Uploading...' : 'Saving...'}</span>
-                  ) : (
-                    <>
-                      <Save size={14} />
-                      Save Changes
-                    </>
-                  )}
-                </button>
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
+                />
               </div>
+
+              {/* Purok */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Purok / Zone
+                </label>
+                <input
+                  type="text"
+                  value={form.purok}
+                  onChange={e => setForm(f => ({ ...f, purok: e.target.value }))}
+                  placeholder="e.g. Purok 4"
+                  disabled={isSaving}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="East Tapinac, Olongapo City"
+                  disabled={isSaving}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
+                />
+              </div>
+
+              {/* Read-only notice */}
+              <p className="text-[11px] text-gray-400 text-center">
+                Resident ID, verification status, and account status are managed by the system.
+              </p>
+
+              {/* Save button */}
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition disabled:opacity-60"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {uploadingAvatar ? 'Uploading photo…' : 'Saving…'}
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
             </form>
           </div>
         </div>
       )}
- 
-      {/* ── Logout Confirmation Modal ── */}
+
+      {/* ════════════════════════════════════════
+          Sign Out Confirmation Modal
+      ════════════════════════════════════════ */}
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
- 
-            {/* Modal Header */}
-            <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900">Confirm Logout</h3>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <LogOut size={16} className="text-red-600" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">Sign Out</h3>
+              </div>
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                disabled={isLoggingOut}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition"
+                aria-label="Close"
               >
-                <X size={20} className="text-gray-500" />
+                <X size={18} className="text-gray-500" />
               </button>
             </div>
- 
-            {/* Modal Body */}
-            <div className="p-4 md:p-6">
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-red-100 flex items-center justify-center">
-                  <LogOut size={24} className="text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm md:text-base text-gray-700 font-medium mb-1">
-                    Are you sure you want to logout?
-                  </p>
-                  <p className="text-xs md:text-sm text-gray-500">
-                    You'll need to log in again to access your account.
-                  </p>
-                </div>
-              </div>
+
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Are you sure you want to sign out? You'll need to log in again to access your account.
+              </p>
             </div>
- 
-            {/* Modal Footer */}
-            <div className="p-4 md:p-5 border-t border-gray-100 flex gap-2 md:gap-3">
+
+            <div className="px-6 pb-6 flex gap-3">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-xs md:text-sm font-medium hover:bg-gray-200 transition-colors"
                 disabled={isLoggingOut}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoggingOut}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isLoggingOut ? 'Logging out...' : 'Yes, Logout'}
+                {isLoggingOut ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Sign Out'
+                )}
               </button>
             </div>
           </div>

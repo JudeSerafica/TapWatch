@@ -646,7 +646,7 @@ export default function AllReports() {
   const [loading, setLoading] = useState(true)
 
   const [selectedIncident, setSelectedIncident] = useState(null)
-  const [allReportsMapSatellite, setAllReportsMapSatellite] = useState(true)
+  const [allReportsMapSatellite, setAllReportsMapSatellite] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [officialNotes, setOfficialNotes] = useState('')

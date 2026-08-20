@@ -107,7 +107,7 @@ export default function AdminMap() {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [statusFilter, setStatusFilter] = useState('All Status')
-  const [isSatellite, setIsSatellite] = useState(true)
+  const [isSatellite, setIsSatellite] = useState(false)
 
   useEffect(() => {
     const loadIncidents = async () => {

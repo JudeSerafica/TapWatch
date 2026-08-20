@@ -19,7 +19,7 @@ const typeColors = {
 export default function HeatMapAnalytics() {
   const [incidents, setIncidents] = useState([])
   const [timeRange, setTimeRange] = useState('7d') // 7d, 30d, 90d, 1y
-  const [isSatellite, setIsSatellite] = useState(true)
+  const [isSatellite, setIsSatellite] = useState(false)
   const [selectedType, setSelectedType] = useState('all')
   const [hotspots, setHotspots] = useState([])
   const [patterns, setPatterns] = useState({})
