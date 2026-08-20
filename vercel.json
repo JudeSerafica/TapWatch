@@ -37,6 +37,14 @@
       "dest": "/assets/$1"
     },
     {
+      "src": "^/downloads/(.+\\.apk)$",
+      "headers": {
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": "attachment"
+      },
+      "dest": "/downloads/$1"
+    },
+    {
       "src": "^/(.+\\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|otf|eot|mp4|webm|pdf)$)",
       "dest": "/$1"
     },
