@@ -1335,6 +1335,7 @@ export default function Dashboard() {
 
         <TopBar 
           title="Dashboard"
+          mobileTitle="Home"
           showNotifications={true}
           onNotificationClick={() => {
             console.log('Notification clicked')
